@@ -33,6 +33,13 @@ This roadmap delivers a browser-based competitive FPS with Solana token staking 
 4. Game loop maintains 64 tick/s physics simulation and renders at 60fps or above with no dropped frames during movement in Chrome, Firefox, and Edge
 5. An experienced CS:S player confirms movement "feels right" -- ground acceleration, air control, friction, and crouch behavior match CS:S expectations
 
+**Plans:** 3 plans in 3 waves
+
+Plans:
+- [ ] 01-01-PLAN.md -- Project bootstrap + engine core + renderer + test arena
+- [ ] 01-02-PLAN.md -- Movement physics (Source SDK) + collision detection + crouch
+- [ ] 01-03-PLAN.md -- Settings + debug overlay + crosshair + movement validation checkpoint
+
 ---
 
 ## Phase 2: Map & Environment

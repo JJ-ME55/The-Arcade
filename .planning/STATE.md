@@ -4,20 +4,20 @@
 
 **Core value:** The FPS gameplay must feel smooth, responsive, and skill-rewarding -- authentic CS:S movement and gunplay in the browser. If the game doesn't feel good to play, nothing else matters.
 
-**Current focus:** Project roadmap created. Ready to begin Phase 1: Movement Engine.
+**Current focus:** Phase 1 planned. Ready to execute Phase 1: Movement Engine.
 
 ## Current Position
 
 **Phase:** 1 of 9 -- Movement Engine
-**Plan:** Not yet created
-**Status:** Not Started
+**Plan:** 3 plans in 3 waves (01-01, 01-02, 01-03)
+**Status:** Planned
 **Progress:** [..........] 0/81 requirements
 
 ## Phase Overview
 
 | Phase | Name | Reqs | Status |
 |-------|------|------|--------|
-| 1 | Movement Engine | 8 | Not Started |
+| 1 | Movement Engine | 8 | Planned (3 plans) |
 | 2 | Map & Environment | 6 | Not Started |
 | 3 | Player Models & First-Person View | 8 | Not Started |
 | 4 | Weapons & Combat | 11 | Not Started |
@@ -56,7 +56,7 @@
 - Anchor escrow with timeout-refund escape hatch is non-negotiable before accepting real funds
 
 ### Research Flags
-- Phase 1 NEEDS research: CS:S movement algorithm specifics, fixed-point arithmetic in JS, Three.js object pooling
+- Phase 1 research COMPLETE: CS:S movement algorithm documented, standard floating-point math chosen, Three.js patterns identified
 - Phase 7 NEEDS research: WebRTC TURN providers (2026 pricing), Supabase Realtime guarantees, cross-browser determinism
 - Phase 8 NEEDS research: Anchor 0.32.1 PDA patterns, 2v2 escrow design, Cloudflare Worker secrets management
 
@@ -68,9 +68,9 @@
 
 ## Session Continuity
 
-**Last action:** Roadmap created with 9 phases covering all 81 v1 requirements
-**Next action:** Plan Phase 1 (Movement Engine) -- recommend running /gsd:research-phase first given research flags
+**Last action:** Phase 1 planned with 3 plans in 3 sequential waves
+**Next action:** Execute Phase 1 via `/gsd:execute-phase 1` -- start with Plan 01-01 (project bootstrap + engine core)
 **Open questions:** None blocking. Game name and token name remain TBD per PROJECT.md constraints.
 
 ---
-*Last updated: 2026-02-13*
+*Last updated: 2026-02-13 (Phase 1 planning complete)*
