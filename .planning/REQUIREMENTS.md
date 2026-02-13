@@ -145,7 +145,89 @@
 
 ## Traceability
 
-(Populated by roadmap — maps REQ-IDs to phases)
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| ENGINE-01 | Phase 1: Movement Engine | Pending |
+| ENGINE-02 | Phase 1: Movement Engine | Pending |
+| ENGINE-03 | Phase 1: Movement Engine | Pending |
+| ENGINE-04 | Phase 1: Movement Engine | Pending |
+| ENGINE-05 | Phase 1: Movement Engine | Pending |
+| ENGINE-06 | Phase 1: Movement Engine | Pending |
+| ENGINE-07 | Phase 1: Movement Engine | Pending |
+| ENGINE-08 | Phase 1: Movement Engine | Pending |
+| MAP-01 | Phase 2: Map & Environment | Pending |
+| MAP-02 | Phase 2: Map & Environment | Pending |
+| MAP-03 | Phase 2: Map & Environment | Pending |
+| MAP-04 | Phase 2: Map & Environment | Pending |
+| MAP-05 | Phase 2: Map & Environment | Pending |
+| MAP-06 | Phase 2: Map & Environment | Pending |
+| MODEL-01 | Phase 3: Player Models & First-Person View | Pending |
+| MODEL-02 | Phase 3: Player Models & First-Person View | Pending |
+| MODEL-03 | Phase 3: Player Models & First-Person View | Pending |
+| MODEL-04 | Phase 3: Player Models & First-Person View | Pending |
+| MODEL-05 | Phase 3: Player Models & First-Person View | Pending |
+| MODEL-06 | Phase 3: Player Models & First-Person View | Pending |
+| MODEL-07 | Phase 3: Player Models & First-Person View | Pending |
+| MODEL-08 | Phase 3: Player Models & First-Person View | Pending |
+| COMBAT-01 | Phase 4: Weapons & Combat | Pending |
+| COMBAT-02 | Phase 4: Weapons & Combat | Pending |
+| COMBAT-03 | Phase 4: Weapons & Combat | Pending |
+| COMBAT-04 | Phase 4: Weapons & Combat | Pending |
+| COMBAT-05 | Phase 4: Weapons & Combat | Pending |
+| COMBAT-06 | Phase 4: Weapons & Combat | Pending |
+| COMBAT-07 | Phase 4: Weapons & Combat | Pending |
+| COMBAT-08 | Phase 4: Weapons & Combat | Pending |
+| COMBAT-09 | Phase 4: Weapons & Combat | Pending |
+| COMBAT-10 | Phase 4: Weapons & Combat | Pending |
+| COMBAT-11 | Phase 4: Weapons & Combat | Pending |
+| MATCH-01 | Phase 5: Match Flow & HUD | Pending |
+| MATCH-02 | Phase 5: Match Flow & HUD | Pending |
+| MATCH-03 | Phase 5: Match Flow & HUD | Pending |
+| MATCH-04 | Phase 5: Match Flow & HUD | Pending |
+| MATCH-05 | Phase 5: Match Flow & HUD | Pending |
+| MATCH-06 | Phase 5: Match Flow & HUD | Pending |
+| HUD-01 | Phase 5: Match Flow & HUD | Pending |
+| HUD-02 | Phase 5: Match Flow & HUD | Pending |
+| HUD-03 | Phase 5: Match Flow & HUD | Pending |
+| HUD-04 | Phase 5: Match Flow & HUD | Pending |
+| HUD-05 | Phase 5: Match Flow & HUD | Pending |
+| HUD-06 | Phase 5: Match Flow & HUD | Pending |
+| AUDIO-01 | Phase 6: Audio | Pending |
+| AUDIO-02 | Phase 6: Audio | Pending |
+| AUDIO-03 | Phase 6: Audio | Pending |
+| AUDIO-04 | Phase 6: Audio | Pending |
+| AUDIO-05 | Phase 6: Audio | Pending |
+| AUDIO-06 | Phase 6: Audio | Pending |
+| MULTI-01 | Phase 7: Multiplayer | Pending |
+| MULTI-02 | Phase 7: Multiplayer | Pending |
+| MULTI-03 | Phase 7: Multiplayer | Pending |
+| MULTI-04 | Phase 7: Multiplayer | Pending |
+| MULTI-05 | Phase 7: Multiplayer | Pending |
+| MULTI-06 | Phase 7: Multiplayer | Pending |
+| WEB-01 | Phase 8: Website, Matchmaking & Staking | Pending |
+| WEB-02 | Phase 8: Website, Matchmaking & Staking | Pending |
+| WEB-03 | Phase 8: Website, Matchmaking & Staking | Pending |
+| WEB-04 | Phase 8: Website, Matchmaking & Staking | Pending |
+| WEB-05 | Phase 8: Website, Matchmaking & Staking | Pending |
+| QUEUE-01 | Phase 8: Website, Matchmaking & Staking | Pending |
+| QUEUE-02 | Phase 8: Website, Matchmaking & Staking | Pending |
+| QUEUE-03 | Phase 8: Website, Matchmaking & Staking | Pending |
+| QUEUE-04 | Phase 8: Website, Matchmaking & Staking | Pending |
+| QUEUE-05 | Phase 8: Website, Matchmaking & Staking | Pending |
+| QUEUE-06 | Phase 8: Website, Matchmaking & Staking | Pending |
+| STAKE-01 | Phase 8: Website, Matchmaking & Staking | Pending |
+| STAKE-02 | Phase 8: Website, Matchmaking & Staking | Pending |
+| STAKE-03 | Phase 8: Website, Matchmaking & Staking | Pending |
+| STAKE-04 | Phase 8: Website, Matchmaking & Staking | Pending |
+| STAKE-05 | Phase 8: Website, Matchmaking & Staking | Pending |
+| STAKE-06 | Phase 8: Website, Matchmaking & Staking | Pending |
+| STAKE-07 | Phase 8: Website, Matchmaking & Staking | Pending |
+| STAKE-08 | Phase 8: Website, Matchmaking & Staking | Pending |
+| STAKE-09 | Phase 8: Website, Matchmaking & Staking | Pending |
+| WEB-06 | Phase 9: Practice Mode & Launch Polish | Pending |
+| PRACTICE-01 | Phase 9: Practice Mode & Launch Polish | Pending |
+| PRACTICE-02 | Phase 9: Practice Mode & Launch Polish | Pending |
+| PRACTICE-03 | Phase 9: Practice Mode & Launch Polish | Pending |
 
 ---
 *Last updated: 2026-02-13*
