@@ -4,14 +4,14 @@
 
 ### FPS Engine (ENGINE)
 
-- [ ] **ENGINE-01**: Player can move with CS:S authentic physics (ground friction 4.0, acceleration 5.0, air acceleration 10.0)
-- [ ] **ENGINE-02**: Player can counter-strafe to instantly zero velocity for accurate shots
-- [ ] **ENGINE-03**: Player can bunny hop by chaining jumps with no stamina penalty, building speed through air strafing
-- [ ] **ENGINE-04**: Player can air strafe by synchronizing strafe keys with mouse movement to curve trajectory mid-air
-- [ ] **ENGINE-05**: Player can crouch to reduce hitbox and improve accuracy, and crouch-jump to reach higher ledges
-- [ ] **ENGINE-06**: Game renders at stable 60fps in Chrome/Firefox/Edge with Three.js
-- [ ] **ENGINE-07**: Game loop runs at 64 ticks per second for physics and hit detection
-- [ ] **ENGINE-08**: Pointer lock captures mouse for FPS camera control with no perceptible input lag
+- [x] **ENGINE-01**: Player can move with CS:S authentic physics (ground friction 4.0, acceleration 5.0, air acceleration 10.0)
+- [x] **ENGINE-02**: Player can counter-strafe to instantly zero velocity for accurate shots
+- [x] **ENGINE-03**: Player can bunny hop by chaining jumps with no stamina penalty, building speed through air strafing
+- [x] **ENGINE-04**: Player can air strafe by synchronizing strafe keys with mouse movement to curve trajectory mid-air
+- [x] **ENGINE-05**: Player can crouch to reduce hitbox and improve accuracy, and crouch-jump to reach higher ledges
+- [x] **ENGINE-06**: Game renders at stable 60fps in Chrome/Firefox/Edge with Three.js
+- [x] **ENGINE-07**: Game loop runs at 64 ticks per second for physics and hit detection
+- [x] **ENGINE-08**: Pointer lock captures mouse for FPS camera control with no perceptible input lag
 
 ### Shooting & Combat (COMBAT)
 
@@ -147,14 +147,14 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ENGINE-01 | Phase 1: Movement Engine | Pending |
-| ENGINE-02 | Phase 1: Movement Engine | Pending |
-| ENGINE-03 | Phase 1: Movement Engine | Pending |
-| ENGINE-04 | Phase 1: Movement Engine | Pending |
-| ENGINE-05 | Phase 1: Movement Engine | Pending |
-| ENGINE-06 | Phase 1: Movement Engine | Pending |
-| ENGINE-07 | Phase 1: Movement Engine | Pending |
-| ENGINE-08 | Phase 1: Movement Engine | Pending |
+| ENGINE-01 | Phase 1: Movement Engine | Complete |
+| ENGINE-02 | Phase 1: Movement Engine | Complete |
+| ENGINE-03 | Phase 1: Movement Engine | Complete |
+| ENGINE-04 | Phase 1: Movement Engine | Complete |
+| ENGINE-05 | Phase 1: Movement Engine | Complete |
+| ENGINE-06 | Phase 1: Movement Engine | Complete |
+| ENGINE-07 | Phase 1: Movement Engine | Complete |
+| ENGINE-08 | Phase 1: Movement Engine | Complete |
 | MAP-01 | Phase 2: Map & Environment | Pending |
 | MAP-02 | Phase 2: Map & Environment | Pending |
 | MAP-03 | Phase 2: Map & Environment | Pending |

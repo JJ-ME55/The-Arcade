@@ -36,9 +36,9 @@ This roadmap delivers a browser-based competitive FPS with Solana token staking 
 **Plans:** 3 plans in 3 waves
 
 Plans:
-- [ ] 01-01-PLAN.md -- Project bootstrap + engine core + renderer + test arena
-- [ ] 01-02-PLAN.md -- Movement physics (Source SDK) + collision detection + crouch
-- [ ] 01-03-PLAN.md -- Settings + debug overlay + crosshair + movement validation checkpoint
+- [x] 01-01-PLAN.md -- Project bootstrap + engine core + renderer + test arena
+- [x] 01-02-PLAN.md -- Movement physics (Source SDK) + collision detection + crouch
+- [x] 01-03-PLAN.md -- Settings + debug overlay + crosshair + movement validation checkpoint
 
 ---
 
@@ -251,7 +251,7 @@ Plans:
 
 | Phase | Name | Status | Requirements |
 |-------|------|--------|--------------|
-| 1 | Movement Engine | Not Started | ENGINE-01 through ENGINE-08 (8) |
+| 1 | Movement Engine | Complete | ENGINE-01 through ENGINE-08 (8) |
 | 2 | Map & Environment | Not Started | MAP-01 through MAP-06 (6) |
 | 3 | Player Models & First-Person View | Not Started | MODEL-01 through MODEL-08 (8) |
 | 4 | Weapons & Combat | Not Started | COMBAT-01 through COMBAT-11 (11) |

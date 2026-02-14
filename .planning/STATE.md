@@ -4,20 +4,20 @@
 
 **Core value:** The FPS gameplay must feel smooth, responsive, and skill-rewarding -- authentic CS:S movement and gunplay in the browser. If the game doesn't feel good to play, nothing else matters.
 
-**Current focus:** Phase 1 planned. Ready to execute Phase 1: Movement Engine.
+**Current focus:** Phase 1 complete. Ready to plan Phase 2: Map & Environment.
 
 ## Current Position
 
-**Phase:** 1 of 9 -- Movement Engine
-**Plan:** 3 plans in 3 waves (01-01, 01-02, 01-03)
-**Status:** Planned
-**Progress:** [..........] 0/81 requirements
+**Phase:** 2 of 9 -- Map & Environment
+**Plan:** Not yet planned
+**Status:** Not Started
+**Progress:** [#.........] 8/81 requirements
 
 ## Phase Overview
 
 | Phase | Name | Reqs | Status |
 |-------|------|------|--------|
-| 1 | Movement Engine | 8 | Planned (3 plans) |
+| 1 | Movement Engine | 8 | Complete |
 | 2 | Map & Environment | 6 | Not Started |
 | 3 | Player Models & First-Person View | 8 | Not Started |
 | 4 | Weapons & Combat | 11 | Not Started |
@@ -31,10 +31,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Plans completed | 0 |
+| Plans completed | 3 |
 | Plans failed | 0 |
-| Requirements done | 0/81 |
-| Current streak | 0 |
+| Requirements done | 8/81 |
+| Current streak | 3 |
 
 ## Accumulated Context
 
@@ -54,6 +54,7 @@
 - Custom ray-primitive intersection for hitscan (not Three.js Raycaster)
 - WebRTC DataChannels: unreliable/unordered for game input, reliable/ordered for control messages
 - Anchor escrow with timeout-refund escape hatch is non-negotiable before accepting real funds
+- Phase 1 implementation: movement.ts engine module + visual/main.js browser renderer (physics currently duplicated between the two -- needs consolidation in future phase)
 
 ### Research Flags
 - Phase 1 research COMPLETE: CS:S movement algorithm documented, standard floating-point math chosen, Three.js patterns identified
@@ -68,9 +69,9 @@
 
 ## Session Continuity
 
-**Last action:** Phase 1 planned with 3 plans in 3 sequential waves
-**Next action:** Execute Phase 1 via `/gsd:execute-phase 1` -- start with Plan 01-01 (project bootstrap + engine core)
+**Last action:** Phase 1 marked complete (movement engine implemented with CS:S physics, 64Hz game loop, Three.js renderer, pointer lock)
+**Next action:** Plan Phase 2 via `/gsd:plan-phase 2` -- Map & Environment (aim_ag_texture2 recreation)
 **Open questions:** None blocking. Game name and token name remain TBD per PROJECT.md constraints.
 
 ---
-*Last updated: 2026-02-13 (Phase 1 planning complete)*
+*Last updated: 2026-02-14 (Phase 1 complete, advancing to Phase 2)*
