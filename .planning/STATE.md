@@ -9,16 +9,17 @@
 ## Current Position
 
 **Phase:** 2 of 9 -- Map & Environment
-**Plan:** Not yet planned
-**Status:** Not Started
-**Progress:** [#.........] 8/81 requirements
+**Plan:** 1 of 3 in phase
+**Status:** In progress
+**Last activity:** 2026-02-15 - Completed 02-01-PLAN.md (Export arena map to GLB)
+**Progress:** [##........] 9/81 requirements
 
 ## Phase Overview
 
 | Phase | Name | Reqs | Status |
 |-------|------|------|--------|
 | 1 | Movement Engine | 8 | Complete |
-| 2 | Map & Environment | 6 | Not Started |
+| 2 | Map & Environment | 6 | In Progress (1/3 plans) |
 | 3 | Player Models & First-Person View | 8 | Not Started |
 | 4 | Weapons & Combat | 11 | Not Started |
 | 5 | Match Flow & HUD | 12 | Not Started |
@@ -31,20 +32,25 @@
 
 | Metric | Value |
 |--------|-------|
-| Plans completed | 3 |
+| Plans completed | 4 |
 | Plans failed | 0 |
-| Requirements done | 8/81 |
-| Current streak | 3 |
+| Requirements done | 9/81 |
+| Current streak | 4 |
 
 ## Accumulated Context
 
 ### Key Decisions
-- Roadmap derived from 81 requirements across 11 categories, organized into 9 phases by dependency and delivery boundary
-- Phase structure follows risk-first ordering: movement engine is the make-or-break foundation, validated before any other investment
-- Research identified floating-point determinism, escrow stuck states, P2P cheating, WebRTC failures, and movement feel as top risks
-- Audio separated into its own phase (Phase 6) because spatial audio is a complete subsystem that depends on weapon fire and footstep events but is not required for core gameplay verification
-- Website, matchmaking, and staking combined into one large phase (Phase 8, 20 reqs) because they form a single delivery boundary -- the "product loop" from landing page to payout only works when all three are present
-- Practice mode separated into Phase 9 because it requires all game systems working but is independent of multiplayer/staking -- it is the final accessibility layer
+
+| ID | Phase | Decision | Rationale |
+|----|-------|----------|-----------|
+| - | 0 | Roadmap derived from 81 requirements across 11 categories, organized into 9 phases by dependency and delivery boundary | Clear delivery boundaries, risk-first ordering |
+| - | 0 | Phase structure follows risk-first ordering: movement engine is the make-or-break foundation, validated before any other investment | Research identified movement feel as top-5 project killer |
+| - | 0 | Audio separated into its own phase (Phase 6) because spatial audio is a complete subsystem that depends on weapon fire and footstep events but is not required for core gameplay verification | Dependency graph analysis |
+| - | 0 | Website, matchmaking, and staking combined into one large phase (Phase 8, 20 reqs) because they form a single delivery boundary -- the "product loop" from landing page to payout only works when all three are present | Product cohesion |
+| - | 0 | Practice mode separated into Phase 9 because it requires all game systems working but is independent of multiplayer/staking -- it is the final accessibility layer | Dependency graph analysis |
+| D1 | 02-01 | Replace procedural shaders with flat-color Principled BSDF materials for GLTF export | Blender procedural node setups don't export to GLTF; flat colors ensure Three.js compatibility |
+| D2 | 02-01 | Spawn points as Empty objects with custom properties rather than hardcoded positions | Allows spawn metadata to travel with map file, extractable via Three.js userData |
+| D3 | 02-01 | Use Blender 5.0 for export over 4.4 | arena_map.blend uses Zstandard compression only readable by Blender 5.0+ |
 
 ### Architecture Notes
 - Game engine is standalone TypeScript, zero React dependency, communicates via event bus
@@ -69,9 +75,10 @@
 
 ## Session Continuity
 
-**Last action:** Phase 1 marked complete (movement engine implemented with CS:S physics, 64Hz game loop, Three.js renderer, pointer lock)
-**Next action:** Plan Phase 2 via `/gsd:plan-phase 2` -- Map & Environment (aim_ag_texture2 recreation)
-**Open questions:** None blocking. Game name and token name remain TBD per PROJECT.md constraints.
+**Last session:** 2026-02-15
+**Stopped at:** Completed 02-01-PLAN.md (Export arena map to GLB)
+**Resume file:** None
+**Next action:** Continue Phase 2 execution with plan 02-02 (Load map in Three.js)
 
 ---
-*Last updated: 2026-02-14 (Phase 1 complete, advancing to Phase 2)*
+*Last updated: 2026-02-15 (Phase 2 in progress: 1/3 plans complete)*
