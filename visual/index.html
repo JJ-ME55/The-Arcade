@@ -31,10 +31,12 @@
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { Octree } from 'three/addons/math/Octree.js';
     import { Capsule } from 'three/addons/math/Capsule.js';
+    import { PlayerModel } from '../src/player-model.js';
+    import { FirstPersonWeapon } from '../src/first-person-weapon.js';
     import MovementVisualizer from './main.js';
 
     const container = document.body;
-    const viz = new MovementVisualizer({ container, THREE, GLTFLoader, Octree, Capsule });
+    const viz = new MovementVisualizer({ container, THREE, GLTFLoader, Octree, Capsule, PlayerModel, FirstPersonWeapon });
     // viz.start() is called after map loads
   </script>
 </body>

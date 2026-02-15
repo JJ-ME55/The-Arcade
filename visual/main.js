@@ -4,6 +4,8 @@ export default class MovementVisualizer {
     this.GLTFLoader = opts.GLTFLoader;
     this.Octree = opts.Octree;
     this.Capsule = opts.Capsule;
+    this.PlayerModel = opts.PlayerModel;
+    this.FirstPersonWeapon = opts.FirstPersonWeapon;
     this.container = opts.container || document.body;
     this.width = window.innerWidth;
     this.height = window.innerHeight;
@@ -25,6 +27,7 @@ export default class MovementVisualizer {
     const THREE = this.THREE;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(this.width, this.height);
+    this.renderer.autoClear = false; // Two-pass rendering (world + weapon)
     this.container.appendChild(this.renderer.domElement);
 
     this.camera = new THREE.PerspectiveCamera(75, this.width / this.height, 0.1, 1000);
@@ -97,7 +100,7 @@ export default class MovementVisualizer {
     this.scene.add(dirLight3);
   }
 
-  _loadMap() {
+  async _loadMap() {
     const THREE = this.THREE;
     const GLTFLoader = this.GLTFLoader;
     const Octree = this.Octree;
@@ -105,76 +108,89 @@ export default class MovementVisualizer {
     const loader = new GLTFLoader();
     const mapStartTime = performance.now();
 
-    loader.load(
-      'arena_map.glb?v=' + Date.now(),
-      (gltf) => {
-        const mapLoadTime = performance.now() - mapStartTime;
-        console.log(`Map loaded in ${mapLoadTime.toFixed(1)}ms`);
-
-        // Add map to scene
-        this.scene.add(gltf.scene);
-
-        // Add grid line overlay to all materials (dev texture look)
-        this._addGridLines(gltf.scene);
-
-        // Count meshes and materials for debugging
-        let meshCount = 0;
-        const materials = new Set();
-        gltf.scene.traverse((obj) => {
-          if (obj.isMesh) {
-            meshCount++;
-            if (obj.material) materials.add(obj.material.uuid);
-          }
-        });
-        console.log(`Map: ${meshCount} meshes, ${materials.size} unique materials`);
-
-        // Build Octree for collision
-        const octreeStartTime = performance.now();
-        this.worldOctree = new Octree();
-        this.worldOctree.fromGraphNode(gltf.scene);
-        const octreeBuildTime = performance.now() - octreeStartTime;
-        console.log(`Octree built in ${octreeBuildTime.toFixed(1)}ms`);
-
-        // Hide collision-only meshes (invisible walls for railing collision)
-        gltf.scene.traverse((obj) => {
-          if (obj.isMesh && obj.material && obj.material.name === 'Collision') {
-            obj.visible = false;
-          }
-        });
-
-        // Extract spawn points
-        this._extractSpawnPoints(gltf.scene);
-
-        // Position player at spawn
-        if (this.spawnRed) {
-          this.pos.copy(this.spawnRed);
-          this.pos.y += 1.0; // Raise player to standing position above spawn point
-          console.log(`Player spawned at red spawn: (${this.pos.x.toFixed(2)}, ${this.pos.y.toFixed(2)}, ${this.pos.z.toFixed(2)})`);
-        } else {
-          console.warn('No spawn points found, using fallback position');
-        }
-
-        // Update status
-        if (this.statusEl) {
-          this.statusEl.textContent = 'Map loaded. Click to play.';
-        }
-
-        // Start game loop
-        this.start();
-      },
-      (progress) => {
-        const percent = (progress.loaded / progress.total * 100).toFixed(0);
-        if (this.statusEl) {
-          this.statusEl.textContent = `Loading map... ${percent}%`;
-        }
-      },
-      (error) => {
-        console.error('Error loading map:', error);
-        if (this.statusEl) {
-          this.statusEl.textContent = 'Error loading map. Check console.';
-        }
+    try {
+      // Update status
+      if (this.statusEl) {
+        this.statusEl.textContent = 'Loading map...';
       }
-    );
+
+      // Load map
+      const gltf = await loader.loadAsync('arena_map.glb?v=' + Date.now());
+      const mapLoadTime = performance.now() - mapStartTime;
+      console.log(`Map loaded in ${mapLoadTime.toFixed(1)}ms`);
+
+      // Add map to scene
+      this.scene.add(gltf.scene);
+
+      // Add grid line overlay to all materials (dev texture look)
+      this._addGridLines(gltf.scene);
+
+      // Count meshes and materials for debugging
+      let meshCount = 0;
+      const materials = new Set();
+      gltf.scene.traverse((obj) => {
+        if (obj.isMesh) {
+          meshCount++;
+          if (obj.material) materials.add(obj.material.uuid);
+        }
+      });
+      console.log(`Map: ${meshCount} meshes, ${materials.size} unique materials`);
+
+      // Build Octree for collision
+      const octreeStartTime = performance.now();
+      this.worldOctree = new Octree();
+      this.worldOctree.fromGraphNode(gltf.scene);
+      const octreeBuildTime = performance.now() - octreeStartTime;
+      console.log(`Octree built in ${octreeBuildTime.toFixed(1)}ms`);
+
+      // Hide collision-only meshes (invisible walls for railing collision)
+      gltf.scene.traverse((obj) => {
+        if (obj.isMesh && obj.material && obj.material.name === 'Collision') {
+          obj.visible = false;
+        }
+      });
+
+      // Extract spawn points
+      this._extractSpawnPoints(gltf.scene);
+
+      // Position player at spawn
+      if (this.spawnRed) {
+        this.pos.copy(this.spawnRed);
+        this.pos.y += 1.0; // Raise player to standing position above spawn point
+        console.log(`Player spawned at red spawn: (${this.pos.x.toFixed(2)}, ${this.pos.y.toFixed(2)}, ${this.pos.z.toFixed(2)})`);
+      } else {
+        console.warn('No spawn points found, using fallback position');
+      }
+
+      // Load mannequin if PlayerModel is provided
+      if (this.PlayerModel) {
+        if (this.statusEl) {
+          this.statusEl.textContent = 'Loading mannequin...';
+        }
+
+        const mannequinStartTime = performance.now();
+        this.playerModelManager = new this.PlayerModel(this.THREE);
+        await this.playerModelManager.load('mannequin_neutral.glb');
+        const mannequinLoadTime = performance.now() - mannequinStartTime;
+        console.log(`Mannequin loaded in ${mannequinLoadTime.toFixed(1)}ms`);
+
+        // Spawn test mannequins
+        this._spawnTestMannequins();
+      }
+
+      // Update status
+      if (this.statusEl) {
+        this.statusEl.textContent = 'Map loaded. Click to play.';
+      }
+
+      // Start game loop
+      this.start();
+    } catch (error) {
+      console.error('Error loading map:', error);
+      if (this.statusEl) {
+        this.statusEl.textContent = 'Error loading map. Check console.';
+      }
+    }
   }
 
   _extractSpawnPoints(scene) {
@@ -206,6 +222,33 @@ export default class MovementVisualizer {
     if (!redSpawn || !blueSpawn) {
       console.warn('Using fallback spawn positions');
     }
+  }
+
+  _spawnTestMannequins() {
+    const THREE = this.THREE;
+
+    // Spawn red mannequin near red spawn (walking)
+    const redPos = this.spawnRed.clone();
+    redPos.x += 3; // Offset to side so it's visible
+    this.testMannequinRed = this.playerModelManager.spawn(0xcc2200, redPos);
+    this.scene.add(this.testMannequinRed.scene);
+    if (this.testMannequinRed.helper) {
+      this.scene.add(this.testMannequinRed.helper);
+    }
+    console.log(`Red mannequin spawned at (${redPos.x.toFixed(2)}, ${redPos.y.toFixed(2)}, ${redPos.z.toFixed(2)})`);
+
+    // Spawn blue mannequin near blue spawn (idle)
+    const bluePos = this.spawnBlue.clone();
+    bluePos.x += 3; // Offset to side
+    this.testMannequinBlue = this.playerModelManager.spawn(0x2244cc, bluePos);
+    this.scene.add(this.testMannequinBlue.scene);
+    if (this.testMannequinBlue.helper) {
+      this.scene.add(this.testMannequinBlue.helper);
+    }
+    console.log(`Blue mannequin spawned at (${bluePos.x.toFixed(2)}, ${bluePos.y.toFixed(2)}, ${bluePos.z.toFixed(2)})`);
+
+    // Initialize animation state for test mannequins
+    this.testMannequinRedVel = new THREE.Vector3(0, 0, 2); // Walking forward at 2 m/s
   }
 
   _addGridLines(scene) {
@@ -577,6 +620,33 @@ export default class MovementVisualizer {
     const THREE = this.THREE;
     const euler = new THREE.Euler(this.camera_pitch, this.camera_yaw, 0, 'YXZ');
     this.camera.quaternion.setFromEuler(euler);
+
+    // Update test mannequins (if loaded)
+    if (this.playerModelManager && this.testMannequinRed && this.testMannequinBlue) {
+      const time = now / 1000; // Convert to seconds
+
+      // Red mannequin: walking state
+      this.playerModelManager.updateAnimation(this.testMannequinRed, delta, {
+        velocity: this.testMannequinRedVel,
+        onGround: true,
+        crouching: false,
+        time: time,
+        shooting: false,
+        reloading: false,
+        knifing: false,
+      });
+
+      // Blue mannequin: idle state
+      this.playerModelManager.updateAnimation(this.testMannequinBlue, delta, {
+        velocity: new this.THREE.Vector3(0, 0, 0),
+        onGround: true,
+        crouching: false,
+        time: time,
+        shooting: false,
+        reloading: false,
+        knifing: false,
+      });
+    }
 
     // Update status display
     if (this.statusEl) {
