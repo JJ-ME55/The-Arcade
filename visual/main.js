@@ -402,6 +402,14 @@ export default class MovementVisualizer {
 
     // Collision detection and resolution
     this._resolveCollision();
+
+    // Safety net: respawn if fallen far below the map
+    if (pos.y < -50) {
+      pos.copy(this.spawnRed);
+      pos.y += 1.0;
+      vel.set(0, 0, 0);
+      this.onGround = false;
+    }
   }
 
   _resolveCollision() {
@@ -416,6 +424,13 @@ export default class MovementVisualizer {
     const crouchJumpOffset = (isCrouching && !this.onGround)
       ? (this.playerHeightStanding - this.playerHeightCrouching)
       : 0;
+
+    // Ground sticking: push slightly into ground to guarantee capsule intersection.
+    // Prevents fall-through from capsule height changes (crouching) or float drift.
+    // Collision loop will resolve the exact depth back up to the surface.
+    if (this.onGround && vel.y <= 0) {
+      pos.y -= 0.05;
+    }
 
     // Multiple collision iterations to handle corners
     let onGround = false;
