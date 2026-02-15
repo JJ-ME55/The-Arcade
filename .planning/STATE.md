@@ -9,10 +9,10 @@
 ## Current Position
 
 **Phase:** 3 of 9 -- Player Models & First-Person View
-**Plan:** 3 of 6 in phase
+**Plan:** 4 of 6 in phase
 **Status:** In progress
-**Last activity:** 2026-02-15 - Completed 03-03-PLAN.md (Procedural Animation System)
-**Progress:** [###.......] 17/81 requirements
+**Last activity:** 2026-02-15 - Completed 03-04-PLAN.md (First-Person Weapon View & Two-Pass Rendering)
+**Progress:** [###.......] 19/81 requirements
 
 ## Phase Overview
 
@@ -20,7 +20,7 @@
 |-------|------|------|--------|
 | 1 | Movement Engine | 8 | Complete |
 | 2 | Map & Environment | 6 | Complete |
-| 3 | Player Models & First-Person View | 8 | In Progress (3/6 plans) |
+| 3 | Player Models & First-Person View | 8 | In Progress (4/6 plans) |
 | 4 | Weapons & Combat | 11 | Not Started |
 | 5 | Match Flow & HUD | 12 | Not Started |
 | 6 | Audio | 6 | Not Started |
@@ -32,10 +32,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Plans completed | 7 |
+| Plans completed | 8 |
 | Plans failed | 0 |
-| Requirements done | 17/81 |
-| Current streak | 7 |
+| Requirements done | 19/81 |
+| Current streak | 8 |
 
 ## Accumulated Context
 
@@ -52,6 +52,8 @@
 | D2 | 02-01 | Spawn points as Empty objects with custom properties rather than hardcoded positions | Allows spawn metadata to travel with map file, extractable via Three.js userData |
 | D3 | 02-01 | Use Blender 5.0 for export over 4.4 | arena_map.blend uses Zstandard compression only readable by Blender 5.0+ |
 | D4 | 03-01 | Use 19-bone armature instead of planned 22 bones | Cleaner hierarchy with same animation capability; removes redundant intermediate spine bones |
+| D5 | 03-04 | Use two-pass rendering to prevent weapon wall clipping | World scene renders first, clearDepth() clears only depth buffer, weapon scene renders on top without depth conflicts |
+| D6 | 03-04 | Attach weapons to Hand.R bone for future animation compatibility | Enables reload animations, weapon sway, aim-down-sights adjustments via bone transforms |
 
 ### Architecture Notes
 - Game engine is standalone TypeScript, zero React dependency, communicates via event bus
@@ -77,9 +79,9 @@
 ## Session Continuity
 
 **Last session:** 2026-02-15
-**Stopped at:** Completed 03-03-PLAN.md (Procedural Animation System)
+**Stopped at:** Completed 03-04-PLAN.md (First-Person Weapon View & Two-Pass Rendering)
 **Resume file:** None
-**Next action:** Continue Phase 3 execution with plan 03-04
+**Next action:** Continue Phase 3 execution with plan 03-05
 
 ---
-*Last updated: 2026-02-15 (Phase 3 in progress: 3/6 plans complete)*
+*Last updated: 2026-02-15 (Phase 3 in progress: 4/6 plans complete)*
