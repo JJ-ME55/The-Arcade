@@ -4,23 +4,23 @@
 
 **Core value:** The FPS gameplay must feel smooth, responsive, and skill-rewarding -- authentic CS:S movement and gunplay in the browser. If the game doesn't feel good to play, nothing else matters.
 
-**Current focus:** Phase 1 complete. Ready to plan Phase 2: Map & Environment.
+**Current focus:** Phase 3: Player Models & First-Person View
 
 ## Current Position
 
-**Phase:** 2 of 9 -- Map & Environment
-**Plan:** 1 of 3 in phase
+**Phase:** 3 of 9 -- Player Models & First-Person View
+**Plan:** 1 of 6 in phase
 **Status:** In progress
-**Last activity:** 2026-02-15 - Completed 02-01-PLAN.md (Export arena map to GLB)
-**Progress:** [##........] 9/81 requirements
+**Last activity:** 2026-02-15 - Completed 03-01-PLAN.md (Rigged Mannequin Model)
+**Progress:** [##........] 10/81 requirements
 
 ## Phase Overview
 
 | Phase | Name | Reqs | Status |
 |-------|------|------|--------|
 | 1 | Movement Engine | 8 | Complete |
-| 2 | Map & Environment | 6 | In Progress (1/3 plans) |
-| 3 | Player Models & First-Person View | 8 | Not Started |
+| 2 | Map & Environment | 6 | Complete |
+| 3 | Player Models & First-Person View | 8 | In Progress (1/6 plans) |
 | 4 | Weapons & Combat | 11 | Not Started |
 | 5 | Match Flow & HUD | 12 | Not Started |
 | 6 | Audio | 6 | Not Started |
@@ -32,10 +32,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Plans completed | 4 |
+| Plans completed | 5 |
 | Plans failed | 0 |
-| Requirements done | 9/81 |
-| Current streak | 4 |
+| Requirements done | 10/81 |
+| Current streak | 5 |
 
 ## Accumulated Context
 
@@ -51,6 +51,7 @@
 | D1 | 02-01 | Replace procedural shaders with flat-color Principled BSDF materials for GLTF export | Blender procedural node setups don't export to GLTF; flat colors ensure Three.js compatibility |
 | D2 | 02-01 | Spawn points as Empty objects with custom properties rather than hardcoded positions | Allows spawn metadata to travel with map file, extractable via Three.js userData |
 | D3 | 02-01 | Use Blender 5.0 for export over 4.4 | arena_map.blend uses Zstandard compression only readable by Blender 5.0+ |
+| D4 | 03-01 | Use 19-bone armature instead of planned 22 bones | Cleaner hierarchy with same animation capability; removes redundant intermediate spine bones |
 
 ### Architecture Notes
 - Game engine is standalone TypeScript, zero React dependency, communicates via event bus
@@ -76,9 +77,9 @@
 ## Session Continuity
 
 **Last session:** 2026-02-15
-**Stopped at:** Completed 02-01-PLAN.md (Export arena map to GLB)
+**Stopped at:** Completed 03-01-PLAN.md (Rigged Mannequin Model)
 **Resume file:** None
-**Next action:** Continue Phase 2 execution with plan 02-02 (Load map in Three.js)
+**Next action:** Continue Phase 3 execution with plan 03-02
 
 ---
-*Last updated: 2026-02-15 (Phase 2 in progress: 1/3 plans complete)*
+*Last updated: 2026-02-15 (Phase 3 in progress: 1/6 plans complete)*
