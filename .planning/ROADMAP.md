@@ -49,7 +49,7 @@ Plans:
 **Dependencies:** Phase 1 (movement engine to test navigation)
 
 **Requirements:**
-- MAP-01: aim_ag_texture2 faithfully recreated with 4-floor vertical layout
+- MAP-01: aim_ag_texture2 inspired arena with multi-level vertical layout
 - MAP-02: Block geometry with flat solid-color surfaces (dev texture aesthetic)
 - MAP-03: Symmetrical with neither spawn side having advantage
 - MAP-04: One fixed spawn point per team on opposite ends
@@ -65,8 +65,8 @@ Plans:
 **Plans:** 2 plans in 2 waves
 
 Plans:
-- [ ] 02-01-PLAN.md -- Blender material prep + GLB export
-- [ ] 02-02-PLAN.md -- Map loading, Octree collision, lighting, renderer rewrite
+- [x] 02-01-PLAN.md -- Blender material prep + GLB export
+- [x] 02-02-PLAN.md -- Map loading, Octree collision, lighting, renderer rewrite
 
 ---
 
@@ -91,6 +91,16 @@ Plans:
 2. The mannequin visibly animates when moving -- arms swing and legs stride during running, body shifts during strafing, compresses during crouching, and rises during jumping, all procedurally synced to actual movement speed
 3. When a mannequin "dies," its body collapses with ragdoll physics -- joints go limp and the body tumbles naturally based on momentum
 4. In first-person view, the player sees their own team-colored mannequin arms holding a geometric weapon model, with gun bob that sways in rhythm with footsteps, visual recoil kick when firing, and a muzzle flash effect
+
+**Plans:** 6 plans in 4 waves
+
+Plans:
+- [ ] 03-01-PLAN.md -- Blender mannequin creation with armature + GLB export
+- [ ] 03-02-PLAN.md -- Blender weapon models + FP arms creation + GLB export
+- [ ] 03-03-PLAN.md -- PlayerModel class with procedural animation + renderer integration
+- [ ] 03-04-PLAN.md -- First-person weapon view with two-pass rendering, bob, recoil, flash
+- [ ] 03-05-PLAN.md -- Ragdoll physics with Rapier.js
+- [ ] 03-06-PLAN.md -- Visual verification checkpoint
 
 ---
 
@@ -258,7 +268,7 @@ Plans:
 | Phase | Name | Status | Requirements |
 |-------|------|--------|--------------|
 | 1 | Movement Engine | Complete | ENGINE-01 through ENGINE-08 (8) |
-| 2 | Map & Environment | Not Started | MAP-01 through MAP-06 (6) |
+| 2 | Map & Environment | Complete | MAP-01 through MAP-06 (6) |
 | 3 | Player Models & First-Person View | Not Started | MODEL-01 through MODEL-08 (8) |
 | 4 | Weapons & Combat | Not Started | COMBAT-01 through COMBAT-11 (11) |
 | 5 | Match Flow & HUD | Not Started | MATCH-01 through MATCH-06, HUD-01 through HUD-06 (12) |
