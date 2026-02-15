@@ -63,7 +63,7 @@ export default class MovementVisualizer {
     // Config adjusted to meter scale (map is in Blender meters, not HU)
     this.cfg = {
       groundAccel: 100.0,
-      groundFriction: 4.0,
+      groundFriction: 12.0,
       airAccel: 10.0,
       maxSpeed: 4.5,      // m/s (was 215 HU/s)
       gravity: -20.0,     // m/s^2 (CS:S uses faster-than-real for snappy feel)
