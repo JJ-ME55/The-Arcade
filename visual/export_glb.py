@@ -14,9 +14,12 @@ import os
 MATERIAL_COLORS = {
     "W": (0.667, 0.667, 0.667, 1.0),        # Light grey #AAAAAA
     "O": (0.745, 0.290, 0.035, 1.0),        # Dark orange #C44A00
+    "Metal": (0.4, 0.4, 0.45, 1.0),         # Steel grey (metallic)
     "DarkGrey": (0.333, 0.333, 0.333, 1.0), # Dark grey #555555
     "Dark": (0.333, 0.333, 0.333, 1.0),     # Dark grey #555555 (alternate match)
 }
+# Materials that should have metallic properties
+METALLIC_MATERIALS = {"Metal"}
 DEFAULT_COLOR = (0.533, 0.533, 0.533, 1.0)  # Medium grey #888888
 
 def get_material_color(mat_name):
@@ -40,8 +43,9 @@ def replace_material_with_flat(mat):
     # Get flat color for this material
     color, color_key = get_material_color(mat.name)
     bsdf.inputs['Base Color'].default_value = color
-    bsdf.inputs['Roughness'].default_value = 0.9  # Matte finish
-    bsdf.inputs['Metallic'].default_value = 0.0   # Non-metallic
+    is_metal = mat.name in METALLIC_MATERIALS
+    bsdf.inputs['Roughness'].default_value = 0.4 if is_metal else 0.9
+    bsdf.inputs['Metallic'].default_value = 0.8 if is_metal else 0.0
 
     # Create Material Output node
     output = mat.node_tree.nodes.new('ShaderNodeOutputMaterial')

@@ -106,7 +106,7 @@ export default class MovementVisualizer {
     const mapStartTime = performance.now();
 
     loader.load(
-      'arena_map.glb',
+      'arena_map.glb?v=' + Date.now(),
       (gltf) => {
         const mapLoadTime = performance.now() - mapStartTime;
         console.log(`Map loaded in ${mapLoadTime.toFixed(1)}ms`);
@@ -240,8 +240,10 @@ export default class MovementVisualizer {
       mat.needsUpdate = true;
     };
 
+    let meshCount = 0;
     scene.traverse((obj) => {
       if (!obj.isMesh) return;
+      meshCount++;
       // Handle both single materials and material arrays (multi-material meshes)
       if (Array.isArray(obj.material)) {
         obj.material.forEach(applyGrid);
@@ -249,6 +251,7 @@ export default class MovementVisualizer {
         applyGrid(obj.material);
       }
     });
+    console.log(`Grid lines: applied to ${processed.size} materials across ${meshCount} meshes`);
   }
 
   _initPlayer() {
@@ -388,6 +391,10 @@ export default class MovementVisualizer {
         vel.y = cfg.jumpImpulse;
         this.onGround = false;
         this.jumpBufferTime = 0;
+      } else {
+        // Ground-contact velocity: small constant downward push keeps capsule
+        // pressed into the surface, preventing float-off during crouch transitions
+        vel.y = -2.0;
       }
     } else {
       // Air acceleration
@@ -433,13 +440,6 @@ export default class MovementVisualizer {
     const crouchJumpOffset = (isCrouching && !this.onGround)
       ? (this.playerHeightStanding - this.playerHeightCrouching)
       : 0;
-
-    // Ground sticking: push slightly into ground to guarantee capsule intersection.
-    // Prevents fall-through from capsule height changes (crouching) or float drift.
-    // Collision loop will resolve the exact depth back up to the surface.
-    if (this.onGround && vel.y <= 0) {
-      pos.y -= 0.05;
-    }
 
     // Multiple collision iterations to handle corners
     let onGround = false;
