@@ -9,10 +9,10 @@
 ## Current Position
 
 **Phase:** 3 of 9 -- Player Models & First-Person View
-**Plan:** 4 of 6 in phase
+**Plan:** 5 of 6 in phase
 **Status:** In progress
-**Last activity:** 2026-02-15 - Completed 03-04-PLAN.md (First-Person Weapon View & Two-Pass Rendering)
-**Progress:** [###.......] 19/81 requirements
+**Last activity:** 2026-02-15 - Completed 03-05-PLAN.md (Ragdoll Physics with Rapier.js)
+**Progress:** [###.......] 20/81 requirements
 
 ## Phase Overview
 
@@ -20,7 +20,7 @@
 |-------|------|------|--------|
 | 1 | Movement Engine | 8 | Complete |
 | 2 | Map & Environment | 6 | Complete |
-| 3 | Player Models & First-Person View | 8 | In Progress (4/6 plans) |
+| 3 | Player Models & First-Person View | 8 | In Progress (5/6 plans) |
 | 4 | Weapons & Combat | 11 | Not Started |
 | 5 | Match Flow & HUD | 12 | Not Started |
 | 6 | Audio | 6 | Not Started |
@@ -32,10 +32,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Plans completed | 8 |
+| Plans completed | 9 |
 | Plans failed | 0 |
-| Requirements done | 19/81 |
-| Current streak | 8 |
+| Requirements done | 20/81 |
+| Current streak | 9 |
 
 ## Accumulated Context
 
@@ -64,6 +64,7 @@
 - WebRTC DataChannels: unreliable/unordered for game input, reliable/ordered for control messages
 - Anchor escrow with timeout-refund escape hatch is non-negotiable before accepting real funds
 - Phase 1 implementation: movement.ts engine module + visual/main.js browser renderer (physics currently duplicated between the two -- needs consolidation in future phase)
+- Ragdoll physics: Rapier.js WASM (12-body ragdolls with joint constraints, ground plane collision only)
 
 ### Research Flags
 - Phase 1 research COMPLETE: CS:S movement algorithm documented, standard floating-point math chosen, Three.js patterns identified
@@ -79,9 +80,9 @@
 ## Session Continuity
 
 **Last session:** 2026-02-15
-**Stopped at:** Completed 03-04-PLAN.md (First-Person Weapon View & Two-Pass Rendering)
+**Stopped at:** Completed 03-05-PLAN.md (Ragdoll Physics with Rapier.js)
 **Resume file:** None
-**Next action:** Continue Phase 3 execution with plan 03-05
+**Next action:** Continue Phase 3 execution with plan 03-06
 
 ---
-*Last updated: 2026-02-15 (Phase 3 in progress: 4/6 plans complete)*
+*Last updated: 2026-02-15 (Phase 3 in progress: 5/6 plans complete)*
