@@ -62,6 +62,12 @@ Plans:
 3. Two spawn points exist on opposite ends, and walking the map from each spawn reveals mirror-symmetrical geometry with no positional advantage to either side
 4. All surfaces use flat solid-color materials (dev texture look) with bright, uniform lighting that leaves no dark corners or hidden spots
 
+**Plans:** 2 plans in 2 waves
+
+Plans:
+- [ ] 02-01-PLAN.md -- Blender material prep + GLB export
+- [ ] 02-02-PLAN.md -- Map loading, Octree collision, lighting, renderer rewrite
+
 ---
 
 ## Phase 3: Player Models & First-Person View
