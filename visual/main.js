@@ -391,10 +391,6 @@ export default class MovementVisualizer {
         vel.y = cfg.jumpImpulse;
         this.onGround = false;
         this.jumpBufferTime = 0;
-      } else {
-        // Ground-contact velocity: small constant downward push keeps capsule
-        // pressed into the surface, preventing float-off during crouch transitions
-        vel.y = -2.0;
       }
     } else {
       // Air acceleration
@@ -406,10 +402,11 @@ export default class MovementVisualizer {
         vel.x += wishDir.x * accelSpeed;
         vel.z += wishDir.z * accelSpeed;
       }
-
-      // Gravity
-      vel.y += cfg.gravity * dt;
     }
+
+    // Gravity applies always — collision cancels it on ground,
+    // and on slopes the velocity naturally redirects along the surface
+    vel.y += cfg.gravity * dt;
 
     // Integrate velocity
     pos.x += vel.x * dt;
@@ -440,6 +437,14 @@ export default class MovementVisualizer {
     const crouchJumpOffset = (isCrouching && !this.onGround)
       ? (this.playerHeightStanding - this.playerHeightCrouching)
       : 0;
+
+    // Fix crouch-jump landing: when offset drops to 0, the capsule bottom
+    // extends down by the offset amount. Raise pos.y to compensate so we
+    // don't clip through the floor.
+    const prevOffset = this.crouchJumpOffset || 0;
+    if (prevOffset > 0 && crouchJumpOffset === 0) {
+      pos.y += prevOffset;
+    }
 
     // Multiple collision iterations to handle corners
     let onGround = false;
