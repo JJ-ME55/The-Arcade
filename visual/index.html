@@ -22,7 +22,8 @@
   {
     "imports": {
       "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+      "@dimforge/rapier3d-compat": "https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"
     }
   }
   </script>
@@ -33,10 +34,11 @@
     import { Capsule } from 'three/addons/math/Capsule.js';
     import { PlayerModel } from '../src/player-model.js';
     import { FirstPersonWeapon } from '../src/first-person-weapon.js';
+    import { RagdollSystem } from '../src/ragdoll.js';
     import MovementVisualizer from './main.js';
 
     const container = document.body;
-    const viz = new MovementVisualizer({ container, THREE, GLTFLoader, Octree, Capsule, PlayerModel, FirstPersonWeapon });
+    const viz = new MovementVisualizer({ container, THREE, GLTFLoader, Octree, Capsule, PlayerModel, FirstPersonWeapon, RagdollSystem });
     // viz.start() is called after map loads
   </script>
 </body>
