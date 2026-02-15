@@ -1,5 +1,3 @@
-import RAPIER from '@dimforge/rapier3d-compat';
-
 /**
  * RagdollSystem - Physics-driven ragdoll spawning and simulation using Rapier.js
  *
@@ -19,6 +17,8 @@ export class RagdollSystem {
    * Initialize Rapier WASM (must await before use)
    */
   async init() {
+    // Dynamic import so CDN failure doesn't block the entire page
+    const RAPIER = (await import('@dimforge/rapier3d-compat')).default;
     await RAPIER.init();
     this.RAPIER = RAPIER;
 
