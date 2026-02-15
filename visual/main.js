@@ -114,6 +114,9 @@ export default class MovementVisualizer {
         // Add map to scene
         this.scene.add(gltf.scene);
 
+        // Add grid line overlay to all materials (dev texture look)
+        this._addGridLines(gltf.scene);
+
         // Count meshes and materials for debugging
         let meshCount = 0;
         const materials = new Set();
@@ -198,6 +201,47 @@ export default class MovementVisualizer {
     }
   }
 
+  _addGridLines(scene) {
+    // Add world-space grid lines to all materials via onBeforeCompile
+    // Recreates the dev-texture block pattern lost during flat-color GLB export
+    const processed = new Set();
+    scene.traverse((obj) => {
+      if (!obj.isMesh || !obj.material) return;
+      const mat = obj.material;
+      if (processed.has(mat.uuid)) return;
+      processed.add(mat.uuid);
+
+      mat.onBeforeCompile = (shader) => {
+        shader.uniforms.gridSize = { value: 4.0 };
+
+        // Vertex: compute world position
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <common>',
+          `#include <common>\nvarying vec3 vGridWorldPos;`
+        );
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <begin_vertex>',
+          `#include <begin_vertex>\nvGridWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;`
+        );
+
+        // Fragment: draw thin white grid lines at 4-unit intervals
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <common>',
+          `#include <common>\nvarying vec3 vGridWorldPos;\nuniform float gridSize;`
+        );
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <dithering_fragment>',
+          `vec3 gCoord = abs(fract(vGridWorldPos / gridSize + 0.5) - 0.5) * gridSize;
+           float gMin = min(min(gCoord.x, gCoord.y), gCoord.z);
+           float gLine = 1.0 - smoothstep(0.0, 0.06, gMin);
+           gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0), gLine * 0.3);
+           #include <dithering_fragment>`
+        );
+      };
+      mat.needsUpdate = true;
+    });
+  }
+
   _initPlayer() {
     const THREE = this.THREE;
     const Capsule = this.Capsule;
@@ -216,6 +260,8 @@ export default class MovementVisualizer {
     this.pos = new THREE.Vector3(0, 1.0, 23); // Will be overridden by spawn point
     this.vel = new THREE.Vector3(0, 0, 0);
     this.onGround = false;
+    this.jumpBufferTime = 0; // Jump buffering: queues jump for 100ms
+    this.crouchJumpOffset = 0; // Vertical offset when crouch-jumping
 
     // First-person camera control
     this.camera_yaw = 0;   // Y rotation (left/right)
@@ -275,20 +321,24 @@ export default class MovementVisualizer {
     const pos = this.pos;
     const vel = this.vel;
 
+    // Jump buffering: queue press for 100ms so landing doesn't eat inputs
+    if (this.input.jumpPressed) {
+      this.jumpBufferTime = 0.1;
+      this.input.jumpPressed = false;
+    }
+    if (this.jumpBufferTime > 0) this.jumpBufferTime -= dt;
+
     // Calculate camera-relative wish direction
-    // Forward = direction camera is looking (projected to horizontal plane)
-    const forward = new THREE.Vector3(0, 0, -1); // Three.js forward is -Z
+    const forward = new THREE.Vector3(0, 0, -1);
     forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.camera_yaw);
     forward.y = 0;
     if (forward.lengthSq() > 0) forward.normalize();
 
-    // Right = perpendicular to forward
     const right = new THREE.Vector3(1, 0, 0);
     right.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.camera_yaw);
     right.y = 0;
     if (right.lengthSq() > 0) right.normalize();
 
-    // Wish direction from input
     const wishDir = new THREE.Vector3();
     wishDir.addScaledVector(forward, this.input.forward);
     wishDir.addScaledVector(right, this.input.right);
@@ -299,6 +349,9 @@ export default class MovementVisualizer {
       wishDir.normalize();
       wishspeed = cfg.maxSpeed;
     }
+
+    // Crouch slows movement by 50%
+    if (this.input.crouch) wishspeed *= 0.5;
 
     // Ground friction
     if (this.onGround) {
@@ -321,10 +374,11 @@ export default class MovementVisualizer {
         vel.z += wishDir.z * accelSpeed;
       }
 
-      // Jump
-      if (this.input.jumpPressed) {
+      // Jump (uses buffer)
+      if (this.jumpBufferTime > 0) {
         vel.y = cfg.jumpImpulse;
         this.onGround = false;
+        this.jumpBufferTime = 0;
       }
     } else {
       // Air acceleration
@@ -341,9 +395,6 @@ export default class MovementVisualizer {
       vel.y += cfg.gravity * dt;
     }
 
-    // Clear jump pressed
-    this.input.jumpPressed = false;
-
     // Integrate velocity
     pos.x += vel.x * dt;
     pos.y += vel.y * dt;
@@ -354,35 +405,34 @@ export default class MovementVisualizer {
   }
 
   _resolveCollision() {
-    const THREE = this.THREE;
     const pos = this.pos;
     const vel = this.vel;
-
-    // Adjust capsule height for crouching
-    const playerHeight = this.input.crouch ? this.playerHeightCrouching : this.playerHeightStanding;
     const capsuleRadius = 0.35;
+    const isCrouching = this.input.crouch;
+    const playerHeight = isCrouching ? this.playerHeightCrouching : this.playerHeightStanding;
+
+    // Crouch-jump: when crouching in air, pull feet UP (raise capsule bottom)
+    // This gives extra clearance to hop onto boxes/ledges
+    const crouchJumpOffset = (isCrouching && !this.onGround)
+      ? (this.playerHeightStanding - this.playerHeightCrouching)
+      : 0;
 
     // Multiple collision iterations to handle corners
     let onGround = false;
     for (let i = 0; i < 5; i++) {
-      // Update capsule position to match player
-      this.playerCollider.start.set(pos.x, pos.y + capsuleRadius, pos.z);
-      this.playerCollider.end.set(pos.x, pos.y + playerHeight - capsuleRadius, pos.z);
+      this.playerCollider.start.set(pos.x, pos.y + capsuleRadius + crouchJumpOffset, pos.z);
+      this.playerCollider.end.set(pos.x, pos.y + crouchJumpOffset + playerHeight - capsuleRadius, pos.z);
 
-      // Query collision
       const result = this.worldOctree.capsuleIntersect(this.playerCollider);
 
       if (result) {
-        // Push player out of collision
         pos.addScaledVector(result.normal, result.depth);
 
-        // Remove velocity into surface
         const velIntoSurface = vel.dot(result.normal);
         if (velIntoSurface < 0) {
           vel.addScaledVector(result.normal, -velIntoSurface);
         }
 
-        // Ground detection: surface normal points upward
         if (result.normal.y > 0.5) {
           onGround = true;
         }
@@ -390,10 +440,10 @@ export default class MovementVisualizer {
     }
 
     this.onGround = onGround;
+    this.crouchJumpOffset = crouchJumpOffset;
 
-    // Final capsule update after collision resolution
-    this.playerCollider.start.set(pos.x, pos.y + capsuleRadius, pos.z);
-    this.playerCollider.end.set(pos.x, pos.y + playerHeight - capsuleRadius, pos.z);
+    this.playerCollider.start.set(pos.x, pos.y + capsuleRadius + crouchJumpOffset, pos.z);
+    this.playerCollider.end.set(pos.x, pos.y + crouchJumpOffset + playerHeight - capsuleRadius, pos.z);
   }
 
   start() {
@@ -419,9 +469,10 @@ export default class MovementVisualizer {
       this.acc -= this.dt;
     }
 
-    // Update camera
+    // Update camera (crouch-jump raises viewpoint when crouching in air)
     const eyeHeight = this.input.crouch ? this.eyeHeightCrouching : this.eyeHeightStanding;
-    this.camera.position.set(this.pos.x, this.pos.y + eyeHeight, this.pos.z);
+    const cjOffset = this.crouchJumpOffset || 0;
+    this.camera.position.set(this.pos.x, this.pos.y + eyeHeight + cjOffset, this.pos.z);
 
     // Apply camera rotation
     const THREE = this.THREE;
