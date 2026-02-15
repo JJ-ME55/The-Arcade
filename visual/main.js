@@ -295,8 +295,11 @@ export default class MovementVisualizer {
     // Mouse movement
     document.addEventListener('mousemove', (e) => {
       if (document.pointerLockElement || document.mozPointerLockElement) {
-        this.camera_yaw -= e.movementX * this.mouse_sens;
-        this.camera_pitch -= e.movementY * this.mouse_sens;
+        // Clamp deltas to prevent browser pointer-lock glitches (sudden 180 spins)
+        const mx = Math.max(-150, Math.min(150, e.movementX));
+        const my = Math.max(-150, Math.min(150, e.movementY));
+        this.camera_yaw -= mx * this.mouse_sens;
+        this.camera_pitch -= my * this.mouse_sens;
         // Clamp pitch to prevent flipping
         this.camera_pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera_pitch));
       }
@@ -391,6 +394,10 @@ export default class MovementVisualizer {
         vel.y = cfg.jumpImpulse;
         this.onGround = false;
         this.jumpBufferTime = 0;
+      } else {
+        // Light ground-contact: keeps capsule pressed to surface without
+        // stealing too much forward momentum on slopes (was -2.0, too aggressive)
+        vel.y = -0.5;
       }
     } else {
       // Air acceleration
@@ -402,11 +409,10 @@ export default class MovementVisualizer {
         vel.x += wishDir.x * accelSpeed;
         vel.z += wishDir.z * accelSpeed;
       }
-    }
 
-    // Gravity applies always — collision cancels it on ground,
-    // and on slopes the velocity naturally redirects along the surface
-    vel.y += cfg.gravity * dt;
+      // Gravity (air only — on ground, vel.y=-0.5 handles surface contact)
+      vel.y += cfg.gravity * dt;
+    }
 
     // Integrate velocity
     pos.x += vel.x * dt;
@@ -446,8 +452,12 @@ export default class MovementVisualizer {
       pos.y += prevOffset;
     }
 
+    // Save integrated position (before collision corrections) for step-up
+    const integratedPos = pos.clone();
+
     // Multiple collision iterations to handle corners
     let onGround = false;
+    let hitWall = false;
     for (let i = 0; i < 5; i++) {
       this.playerCollider.start.set(pos.x, pos.y + capsuleRadius + crouchJumpOffset, pos.z);
       this.playerCollider.end.set(pos.x, pos.y + crouchJumpOffset + playerHeight - capsuleRadius, pos.z);
@@ -464,7 +474,60 @@ export default class MovementVisualizer {
 
         if (result.normal.y > 0.5) {
           onGround = true;
+        } else if (Math.abs(result.normal.y) < 0.3) {
+          hitWall = true;
         }
+      }
+    }
+
+    // Step-up: when grounded and blocked by a wall (ramp base lip, small step),
+    // try resolving from an elevated position. Source engine does this with
+    // sv_stepsize (18 units). We use 0.35m (capsule radius).
+    if (onGround && hitWall) {
+      const STEP_HEIGHT = 0.35;
+      const normalPos = pos.clone();
+      const normalVel = vel.clone();
+
+      // Start from integrated position, elevated by step height
+      pos.copy(integratedPos);
+      pos.y += STEP_HEIGHT;
+      vel.copy(normalVel);
+
+      // Run collision at elevated position
+      let stepOnGround = false;
+      for (let i = 0; i < 5; i++) {
+        this.playerCollider.start.set(pos.x, pos.y + capsuleRadius + crouchJumpOffset, pos.z);
+        this.playerCollider.end.set(pos.x, pos.y + crouchJumpOffset + playerHeight - capsuleRadius, pos.z);
+        const r = this.worldOctree.capsuleIntersect(this.playerCollider);
+        if (r) {
+          pos.addScaledVector(r.normal, r.depth);
+          const vIn = vel.dot(r.normal);
+          if (vIn < 0) vel.addScaledVector(r.normal, -vIn);
+          if (r.normal.y > 0.5) stepOnGround = true;
+        }
+      }
+
+      // Drop back down to find ground surface
+      pos.y -= STEP_HEIGHT;
+      for (let i = 0; i < 3; i++) {
+        this.playerCollider.start.set(pos.x, pos.y + capsuleRadius + crouchJumpOffset, pos.z);
+        this.playerCollider.end.set(pos.x, pos.y + crouchJumpOffset + playerHeight - capsuleRadius, pos.z);
+        const r = this.worldOctree.capsuleIntersect(this.playerCollider);
+        if (r) {
+          pos.addScaledVector(r.normal, r.depth);
+          if (r.normal.y > 0.5) stepOnGround = true;
+        } else {
+          break;
+        }
+      }
+
+      // Use step-up result only if it placed us higher (actually stepped up)
+      if (stepOnGround && pos.y > normalPos.y + 0.05) {
+        onGround = true;
+      } else {
+        // Step-up didn't help, revert to normal collision result
+        pos.copy(normalPos);
+        vel.copy(normalVel);
       }
     }
 
