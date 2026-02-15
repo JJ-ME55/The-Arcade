@@ -178,6 +178,23 @@ export default class MovementVisualizer {
         this._spawnTestMannequins();
       }
 
+      // Load first-person weapon view if FirstPersonWeapon is provided
+      if (this.FirstPersonWeapon) {
+        if (this.statusEl) {
+          this.statusEl.textContent = 'Loading weapons...';
+        }
+
+        const weaponStartTime = performance.now();
+        this.fpWeapon = new this.FirstPersonWeapon(this.THREE, this.renderer);
+        await this.fpWeapon.load(
+          'fp_arms.glb',
+          { rifle: 'rifle.glb', pistol: 'pistol.glb', knife: 'knife.glb' }
+        );
+        this.fpWeapon.switchWeapon('rifle'); // Default weapon
+        const weaponLoadTime = performance.now() - weaponStartTime;
+        console.log(`FP weapon loaded in ${weaponLoadTime.toFixed(1)}ms`);
+      }
+
       // Update status
       if (this.statusEl) {
         this.statusEl.textContent = 'Map loaded. Click to play.';
@@ -354,6 +371,13 @@ export default class MovementVisualizer {
         this.camera_pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera_pitch));
       }
     });
+
+    // Mouse click for firing (temporary test)
+    document.addEventListener('mousedown', (e) => {
+      if (e.button === 0 && document.pointerLockElement && this.fpWeapon) {
+        this.fpWeapon.fire();
+      }
+    });
   }
 
   _initInput() {
@@ -364,6 +388,12 @@ export default class MovementVisualizer {
       if (e.code === 'Space') this.input.jumpHeld = true;
       if (e.code === 'ShiftLeft') this.input.crouch = true;
       if (e.code === 'Space' && !prev) this.input.jumpPressed = true;
+
+      // Weapon switching (temporary test)
+      if (e.code === 'Digit1' && this.fpWeapon) this.fpWeapon.switchWeapon('rifle');
+      if (e.code === 'Digit2' && this.fpWeapon) this.fpWeapon.switchWeapon('pistol');
+      if (e.code === 'Digit3' && this.fpWeapon) this.fpWeapon.switchWeapon('knife');
+
       keys[e.code] = true;
       this._updateAxis(keys);
     });
@@ -662,8 +692,23 @@ export default class MovementVisualizer {
       this.statusEl.textContent = `pos: ${px}, ${py}, ${pz}\nvel: ${vx}, ${vy}, ${vz}\nspeed: ${sp} m/s | ground: ${ground}`;
     }
 
-    // Render
+    // Two-pass rendering: world scene + first-person weapon
+    this.renderer.clear(); // Clear color + depth
+
+    // Pass 1: World scene (map + mannequins)
     this.renderer.render(this.scene, this.camera);
+
+    // Pass 2: First-person weapon (renders on top, no depth conflict with walls)
+    if (this.fpWeapon) {
+      const speed = Math.hypot(this.vel.x, this.vel.z);
+      this.fpWeapon.update(delta, {
+        speed: speed,
+        onGround: this.onGround,
+        crouching: this.input.crouch,
+      });
+      this.fpWeapon.render(this.camera.quaternion);
+    }
+
     requestAnimationFrame(() => this._loop());
   }
 }
