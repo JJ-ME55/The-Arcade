@@ -6,6 +6,7 @@ export default class MovementVisualizer {
     this.Capsule = opts.Capsule;
     this.PlayerModel = opts.PlayerModel;
     this.FirstPersonWeapon = opts.FirstPersonWeapon;
+    this.RagdollSystem = opts.RagdollSystem;
     this.container = opts.container || document.body;
     this.width = window.innerWidth;
     this.height = window.innerHeight;
@@ -193,6 +194,24 @@ export default class MovementVisualizer {
         this.fpWeapon.switchWeapon('rifle'); // Default weapon
         const weaponLoadTime = performance.now() - weaponStartTime;
         console.log(`FP weapon loaded in ${weaponLoadTime.toFixed(1)}ms`);
+      }
+
+      // Initialize ragdoll physics if RagdollSystem is provided
+      if (this.RagdollSystem) {
+        if (this.statusEl) {
+          this.statusEl.textContent = 'Loading physics...';
+        }
+
+        try {
+          const ragdollStartTime = performance.now();
+          this.ragdollSystem = new this.RagdollSystem(this.THREE);
+          await this.ragdollSystem.init();
+          const ragdollLoadTime = performance.now() - ragdollStartTime;
+          console.log(`Ragdoll physics initialized in ${ragdollLoadTime.toFixed(1)}ms`);
+        } catch (e) {
+          console.warn('Rapier.js failed to initialize, ragdoll disabled:', e);
+          this.ragdollSystem = null;
+        }
       }
 
       // Update status
@@ -393,6 +412,18 @@ export default class MovementVisualizer {
       if (e.code === 'Digit1' && this.fpWeapon) this.fpWeapon.switchWeapon('rifle');
       if (e.code === 'Digit2' && this.fpWeapon) this.fpWeapon.switchWeapon('pistol');
       if (e.code === 'Digit3' && this.fpWeapon) this.fpWeapon.switchWeapon('knife');
+
+      // Ragdoll test trigger (temporary test)
+      if (e.code === 'KeyR' && this.ragdollSystem && this.testMannequinRed) {
+        // Trigger ragdoll on red mannequin with upward + forward death velocity
+        this.ragdollSystem.spawnRagdoll(
+          this.testMannequinRed,
+          new this.THREE.Vector3(0, 2, -3),
+          this.scene
+        );
+        this.testMannequinRed = null; // Don't trigger again
+        console.log('Ragdoll triggered on red mannequin');
+      }
 
       keys[e.code] = true;
       this._updateAxis(keys);
@@ -641,6 +672,11 @@ export default class MovementVisualizer {
       this.acc -= this.dt;
     }
 
+    // Step ragdoll physics
+    if (this.ragdollSystem) {
+      this.ragdollSystem.step(this.dt);
+    }
+
     // Update camera (crouch-jump raises viewpoint when crouching in air)
     const eyeHeight = this.input.crouch ? this.eyeHeightCrouching : this.eyeHeightStanding;
     const cjOffset = this.crouchJumpOffset || 0;
@@ -676,6 +712,11 @@ export default class MovementVisualizer {
         reloading: false,
         knifing: false,
       });
+    }
+
+    // Update ragdoll visuals
+    if (this.ragdollSystem) {
+      this.ragdollSystem.updateVisuals();
     }
 
     // Update status display
