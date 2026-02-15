@@ -13,7 +13,7 @@ import os
 # Material color mappings (sRGB values converted to linear for Blender)
 MATERIAL_COLORS = {
     "W": (0.667, 0.667, 0.667, 1.0),        # Light grey #AAAAAA
-    "O": (0.867, 0.467, 0.133, 1.0),        # Orange #DD7722
+    "O": (0.745, 0.290, 0.035, 1.0),        # Dark orange #C44A00
     "DarkGrey": (0.333, 0.333, 0.333, 1.0), # Dark grey #555555
     "Dark": (0.333, 0.333, 0.333, 1.0),     # Dark grey #555555 (alternate match)
 }

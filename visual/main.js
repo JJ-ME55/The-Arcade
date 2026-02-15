@@ -205,10 +205,9 @@ export default class MovementVisualizer {
     // Add world-space grid lines to all materials via onBeforeCompile
     // Recreates the dev-texture block pattern lost during flat-color GLB export
     const processed = new Set();
-    scene.traverse((obj) => {
-      if (!obj.isMesh || !obj.material) return;
-      const mat = obj.material;
-      if (processed.has(mat.uuid)) return;
+
+    const applyGrid = (mat) => {
+      if (!mat || processed.has(mat.uuid)) return;
       processed.add(mat.uuid);
 
       mat.onBeforeCompile = (shader) => {
@@ -239,6 +238,16 @@ export default class MovementVisualizer {
         );
       };
       mat.needsUpdate = true;
+    };
+
+    scene.traverse((obj) => {
+      if (!obj.isMesh) return;
+      // Handle both single materials and material arrays (multi-material meshes)
+      if (Array.isArray(obj.material)) {
+        obj.material.forEach(applyGrid);
+      } else {
+        applyGrid(obj.material);
+      }
     });
   }
 
@@ -350,8 +359,8 @@ export default class MovementVisualizer {
       wishspeed = cfg.maxSpeed;
     }
 
-    // Crouch slows movement by 50%
-    if (this.input.crouch) wishspeed *= 0.5;
+    // Crouch slows movement by 25%
+    if (this.input.crouch) wishspeed *= 0.75;
 
     // Ground friction
     if (this.onGround) {
