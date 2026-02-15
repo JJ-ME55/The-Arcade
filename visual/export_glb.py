@@ -20,6 +20,7 @@ MATERIAL_COLORS = {
 }
 # Materials that should have metallic properties
 METALLIC_MATERIALS = {"Metal"}
+INVISIBLE_MATERIALS = {"Collision"}  # Exported but hidden in renderer
 DEFAULT_COLOR = (0.533, 0.533, 0.533, 1.0)  # Medium grey #888888
 
 def get_material_color(mat_name):
@@ -42,10 +43,18 @@ def replace_material_with_flat(mat):
 
     # Get flat color for this material
     color, color_key = get_material_color(mat.name)
-    bsdf.inputs['Base Color'].default_value = color
-    is_metal = mat.name in METALLIC_MATERIALS
-    bsdf.inputs['Roughness'].default_value = 0.4 if is_metal else 0.9
-    bsdf.inputs['Metallic'].default_value = 0.8 if is_metal else 0.0
+    is_invisible = mat.name in INVISIBLE_MATERIALS
+    if is_invisible:
+        bsdf.inputs['Base Color'].default_value = (0.0, 0.0, 0.0, 1.0)
+        bsdf.inputs['Alpha'].default_value = 0.0
+        bsdf.inputs['Roughness'].default_value = 0.9
+        bsdf.inputs['Metallic'].default_value = 0.0
+        color_key = "invisible"
+    else:
+        bsdf.inputs['Base Color'].default_value = color
+        is_metal = mat.name in METALLIC_MATERIALS
+        bsdf.inputs['Roughness'].default_value = 0.4 if is_metal else 0.9
+        bsdf.inputs['Metallic'].default_value = 0.8 if is_metal else 0.0
 
     # Create Material Output node
     output = mat.node_tree.nodes.new('ShaderNodeOutputMaterial')

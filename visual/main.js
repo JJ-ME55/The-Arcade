@@ -135,6 +135,13 @@ export default class MovementVisualizer {
         const octreeBuildTime = performance.now() - octreeStartTime;
         console.log(`Octree built in ${octreeBuildTime.toFixed(1)}ms`);
 
+        // Hide collision-only meshes (invisible walls for railing collision)
+        gltf.scene.traverse((obj) => {
+          if (obj.isMesh && obj.material && obj.material.name === 'Collision') {
+            obj.visible = false;
+          }
+        });
+
         // Extract spawn points
         this._extractSpawnPoints(gltf.scene);
 
