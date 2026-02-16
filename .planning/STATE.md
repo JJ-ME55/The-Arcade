@@ -4,15 +4,15 @@
 
 **Core value:** The FPS gameplay must feel smooth, responsive, and skill-rewarding -- authentic CS:S movement and gunplay in the browser. If the game doesn't feel good to play, nothing else matters.
 
-**Current focus:** Phase 3: Player Models & First-Person View
+**Current focus:** Phase 4: Weapons & Combat
 
 ## Current Position
 
-**Phase:** 3 of 9 -- Player Models & First-Person View
-**Plan:** 5 of 6 in phase
-**Status:** In progress
-**Last activity:** 2026-02-15 - Completed 03-05-PLAN.md (Ragdoll Physics with Rapier.js)
-**Progress:** [###.......] 20/81 requirements
+**Phase:** 4 of 9 -- Weapons & Combat
+**Plan:** 0 of ? in phase
+**Status:** Not started
+**Last activity:** 2026-02-16 - Completed Phase 3 verification
+**Progress:** [###.......] 22/85 requirements
 
 ## Phase Overview
 
@@ -20,8 +20,9 @@
 |-------|------|------|--------|
 | 1 | Movement Engine | 8 | Complete |
 | 2 | Map & Environment | 6 | Complete |
-| 3 | Player Models & First-Person View | 8 | In Progress (5/6 plans) |
+| 3 | Player Models & First-Person View | 8 | Complete |
 | 4 | Weapons & Combat | 11 | Not Started |
+| 4.1 | Model & Visual Quality | 4 | Not Started |
 | 5 | Match Flow & HUD | 12 | Not Started |
 | 6 | Audio | 6 | Not Started |
 | 7 | Multiplayer | 6 | Not Started |
@@ -32,10 +33,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Plans completed | 9 |
+| Plans completed | 15 |
 | Plans failed | 0 |
-| Requirements done | 20/81 |
-| Current streak | 9 |
+| Requirements done | 22/85 |
+| Current streak | 15 |
 
 ## Accumulated Context
 
@@ -54,6 +55,8 @@
 | D4 | 03-01 | Use 19-bone armature instead of planned 22 bones | Cleaner hierarchy with same animation capability; removes redundant intermediate spine bones |
 | D5 | 03-04 | Use two-pass rendering to prevent weapon wall clipping | World scene renders first, clearDepth() clears only depth buffer, weapon scene renders on top without depth conflicts |
 | D6 | 03-04 | Attach weapons to Hand.R bone for future animation compatibility | Enables reload animations, weapon sway, aim-down-sights adjustments via bone transforms |
+| D7 | 03-06 | CS:S ViewPunch recoil with exponential decay instead of linear recovery | Feels more natural, matches CS:S behavior — slow decay while firing, faster recovery on release |
+| D8 | 03-06 | Ammo refill at 50% through reload animation (CS:S behavior) | Matches Source engine timing where magazine swap happens mid-animation |
 
 ### Architecture Notes
 - Game engine is standalone TypeScript, zero React dependency, communicates via event bus
@@ -65,11 +68,16 @@
 - Anchor escrow with timeout-refund escape hatch is non-negotiable before accepting real funds
 - Phase 1 implementation: movement.ts engine module + visual/main.js browser renderer (physics currently duplicated between the two -- needs consolidation in future phase)
 - Ragdoll physics: Rapier.js WASM (12-body ragdolls with joint constraints, ground plane collision only)
+- Two-pass weapon rendering: world scene → clearDepth → weapon scene (prevents wall clipping)
+- Weapon models built along X-axis in Blender, need -PI/2 Y rotation after GLTF import to point along -Z (forward)
 
 ### Research Flags
 - Phase 1 research COMPLETE: CS:S movement algorithm documented, standard floating-point math chosen, Three.js patterns identified
 - Phase 7 NEEDS research: WebRTC TURN providers (2026 pricing), Supabase Realtime guarantees, cross-browser determinism
 - Phase 8 NEEDS research: Anchor 0.32.1 PDA patterns, 2v2 escrow design, Cloudflare Worker secrets management
+
+### Roadmap Evolution
+- Phase 4.1 inserted after Phase 4: Model & Visual Quality — upgrade placeholder weapons, arms, mannequin to higher fidelity while keeping geometric art style
 
 ### Todos
 - (none yet)
@@ -79,10 +87,10 @@
 
 ## Session Continuity
 
-**Last session:** 2026-02-15
-**Stopped at:** Completed 03-05-PLAN.md (Ragdoll Physics with Rapier.js)
+**Last session:** 2026-02-16
+**Stopped at:** Phase 3 complete, Phase 4 not yet started
 **Resume file:** None
-**Next action:** Continue Phase 3 execution with plan 03-06
+**Next action:** Plan Phase 4 (Weapons & Combat)
 
 ---
-*Last updated: 2026-02-15 (Phase 3 in progress: 5/6 plans complete)*
+*Last updated: 2026-02-16 (Phase 3 complete, Phase 4 next)*

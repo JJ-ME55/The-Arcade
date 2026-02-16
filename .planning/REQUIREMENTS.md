@@ -29,23 +29,30 @@
 
 ### Map (MAP)
 
-- [ ] **MAP-01**: aim_ag_texture2 inspired arena with multi-level vertical layout
-- [ ] **MAP-02**: Map uses block geometry with flat solid-color surfaces (dev texture aesthetic)
-- [ ] **MAP-03**: Map is symmetrical with neither spawn side having an advantage
-- [ ] **MAP-04**: Map has one fixed spawn point per team on opposite ends
-- [ ] **MAP-05**: Map has mix of open platforms, tight corridors, ramps, and vertical angles
-- [ ] **MAP-06**: Map has bright, even, static lighting with no dark corners
+- [x] **MAP-01**: aim_ag_texture2 inspired arena with multi-level vertical layout
+- [x] **MAP-02**: Map uses block geometry with flat solid-color surfaces (dev texture aesthetic)
+- [x] **MAP-03**: Map is symmetrical with neither spawn side having an advantage
+- [x] **MAP-04**: Map has one fixed spawn point per team on opposite ends
+- [x] **MAP-05**: Map has mix of open platforms, tight corridors, ramps, and vertical angles
+- [x] **MAP-06**: Map has bright, even, static lighting with no dark corners
 
 ### Player Models (MODEL)
 
-- [ ] **MODEL-01**: Players are mannequin figures built from geometric primitives (spheres, cylinders, capsules)
-- [ ] **MODEL-02**: Mannequins have proper human proportions (~7.5 head-heights tall)
-- [ ] **MODEL-03**: Red team uses solid matte red material, blue team uses solid matte blue material
-- [ ] **MODEL-04**: Procedural run animation with arm swing and leg stride synced to movement speed
-- [ ] **MODEL-05**: Procedural strafe, crouch, jump, shooting, reload, and knife swing animations
-- [ ] **MODEL-06**: Death triggers ragdoll physics on all joints
-- [ ] **MODEL-07**: First-person view shows mannequin arms in team color with geometric weapon models
-- [ ] **MODEL-08**: First-person has gun bob synced to footsteps, visual recoil kick, and muzzle flash
+- [x] **MODEL-01**: Players are mannequin figures built from geometric primitives (spheres, cylinders, capsules)
+- [x] **MODEL-02**: Mannequins have proper human proportions (~7.5 head-heights tall)
+- [x] **MODEL-03**: Red team uses solid matte red material, blue team uses solid matte blue material
+- [x] **MODEL-04**: Procedural run animation with arm swing and leg stride synced to movement speed
+- [x] **MODEL-05**: Procedural strafe, crouch, jump, shooting, reload, and knife swing animations
+- [x] **MODEL-06**: Death triggers ragdoll physics on all joints
+- [x] **MODEL-07**: First-person view shows mannequin arms in team color with geometric weapon models
+- [x] **MODEL-08**: First-person has gun bob synced to footsteps, visual recoil kick, and muzzle flash
+
+### Visual Quality (VISUAL)
+
+- [ ] **VISUAL-01**: Higher-fidelity weapon models (rifle, pistol, knife) with better proportions and detail
+- [ ] **VISUAL-02**: Improved first-person arms with better geometry and materials
+- [ ] **VISUAL-03**: Enhanced mannequin model with more defined proportions and cleaner geometry
+- [ ] **VISUAL-04**: Consistent art style across all player-visible models (cohesive low-poly aesthetic)
 
 ### Rounds & Match Flow (MATCH)
 
@@ -155,20 +162,24 @@
 | ENGINE-06 | Phase 1: Movement Engine | Complete |
 | ENGINE-07 | Phase 1: Movement Engine | Complete |
 | ENGINE-08 | Phase 1: Movement Engine | Complete |
-| MAP-01 | Phase 2: Map & Environment | Pending |
-| MAP-02 | Phase 2: Map & Environment | Pending |
-| MAP-03 | Phase 2: Map & Environment | Pending |
-| MAP-04 | Phase 2: Map & Environment | Pending |
-| MAP-05 | Phase 2: Map & Environment | Pending |
-| MAP-06 | Phase 2: Map & Environment | Pending |
-| MODEL-01 | Phase 3: Player Models & First-Person View | Pending |
-| MODEL-02 | Phase 3: Player Models & First-Person View | Pending |
-| MODEL-03 | Phase 3: Player Models & First-Person View | Pending |
-| MODEL-04 | Phase 3: Player Models & First-Person View | Pending |
-| MODEL-05 | Phase 3: Player Models & First-Person View | Pending |
-| MODEL-06 | Phase 3: Player Models & First-Person View | Pending |
-| MODEL-07 | Phase 3: Player Models & First-Person View | Pending |
-| MODEL-08 | Phase 3: Player Models & First-Person View | Pending |
+| MAP-01 | Phase 2: Map & Environment | Complete |
+| MAP-02 | Phase 2: Map & Environment | Complete |
+| MAP-03 | Phase 2: Map & Environment | Complete |
+| MAP-04 | Phase 2: Map & Environment | Complete |
+| MAP-05 | Phase 2: Map & Environment | Complete |
+| MAP-06 | Phase 2: Map & Environment | Complete |
+| MODEL-01 | Phase 3: Player Models & First-Person View | Complete |
+| MODEL-02 | Phase 3: Player Models & First-Person View | Complete |
+| MODEL-03 | Phase 3: Player Models & First-Person View | Complete |
+| MODEL-04 | Phase 3: Player Models & First-Person View | Complete |
+| MODEL-05 | Phase 3: Player Models & First-Person View | Complete |
+| MODEL-06 | Phase 3: Player Models & First-Person View | Complete |
+| MODEL-07 | Phase 3: Player Models & First-Person View | Complete |
+| MODEL-08 | Phase 3: Player Models & First-Person View | Complete |
+| VISUAL-01 | Phase 4.1: Model & Visual Quality | Pending |
+| VISUAL-02 | Phase 4.1: Model & Visual Quality | Pending |
+| VISUAL-03 | Phase 4.1: Model & Visual Quality | Pending |
+| VISUAL-04 | Phase 4.1: Model & Visual Quality | Pending |
 | COMBAT-01 | Phase 4: Weapons & Combat | Pending |
 | COMBAT-02 | Phase 4: Weapons & Combat | Pending |
 | COMBAT-03 | Phase 4: Weapons & Combat | Pending |

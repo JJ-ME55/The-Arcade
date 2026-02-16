@@ -5,7 +5,7 @@
 This roadmap delivers a browser-based competitive FPS with Solana token staking across 9 phases. Phases are ordered by dependency and risk: the custom FPS engine is the foundational make-or-break component, followed by the map and player models that give it a world, then weapons and combat that make it a game, then match flow and HUD that make it competitive, then audio that makes it immersive, then multiplayer that makes it real, then the web platform that makes it accessible, then staking that makes it high-stakes, and finally practice mode and polish that make it complete.
 
 **Depth:** Comprehensive
-**Total v1 Requirements:** 81
+**Total v1 Requirements:** 85
 **Phases:** 9
 
 ---
@@ -95,12 +95,12 @@ Plans:
 **Plans:** 6 plans in 4 waves
 
 Plans:
-- [ ] 03-01-PLAN.md -- Blender mannequin creation with armature + GLB export
-- [ ] 03-02-PLAN.md -- Blender weapon models + FP arms creation + GLB export
-- [ ] 03-03-PLAN.md -- PlayerModel class with procedural animation + renderer integration
-- [ ] 03-04-PLAN.md -- First-person weapon view with two-pass rendering, bob, recoil, flash
-- [ ] 03-05-PLAN.md -- Ragdoll physics with Rapier.js
-- [ ] 03-06-PLAN.md -- Visual verification checkpoint
+- [x] 03-01-PLAN.md -- Blender mannequin creation with armature + GLB export
+- [x] 03-02-PLAN.md -- Blender weapon models + FP arms creation + GLB export
+- [x] 03-03-PLAN.md -- PlayerModel class with procedural animation + renderer integration
+- [x] 03-04-PLAN.md -- First-person weapon view with two-pass rendering, bob, recoil, flash
+- [x] 03-05-PLAN.md -- Ragdoll physics with Rapier.js
+- [x] 03-06-PLAN.md -- Visual verification checkpoint
 
 ---
 
@@ -129,6 +129,31 @@ Plans:
 3. Player can switch between rifle, pistol, and knife with visible draw animations, and each weapon behaves distinctly -- pistol fires faster with better moving accuracy, knife swings with left/right click dealing different damage, knife grants fastest movement speed
 4. When a shot lands, the shooter sees immediate visual feedback (blood/sparks) and hears a distinct metallic dink on headshots, and the target experiences tagging (movement slows briefly)
 5. Hitboxes feel fair -- shots that visually look like they should hit the mannequin register as hits, with slightly generous registration matching CS:S feel
+
+---
+
+## Phase 4.1: Model & Visual Quality (INSERTED)
+
+**Goal:** Upgrade placeholder geometric weapons, arms, and mannequin models to higher quality. Improve materials, proportions, and visual fidelity of all player-visible 3D assets while keeping the geometric/low-poly art style.
+
+**Dependencies:** Phase 4 (combat mechanics finalized before investing in visual polish)
+
+**Requirements:**
+- VISUAL-01: Higher-fidelity weapon models (rifle, pistol, knife) with better proportions and detail
+- VISUAL-02: Improved first-person arms with better geometry and materials
+- VISUAL-03: Enhanced mannequin model with more defined proportions and cleaner geometry
+- VISUAL-04: Consistent art style across all player-visible models (cohesive low-poly aesthetic)
+
+**Success Criteria:**
+1. Weapon models look recognizable and well-proportioned — a rifle looks like a rifle, not a collection of boxes
+2. First-person arms have visible definition (forearm/hand shape) and materials that convey a sleeve/glove look
+3. Third-person mannequin has clean proportions and reads clearly as a human figure at gameplay distances
+4. All models maintain a cohesive geometric/low-poly art style that feels intentional rather than placeholder
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 4.1 to break down)
 
 ---
 
@@ -269,15 +294,16 @@ Plans:
 |-------|------|--------|--------------|
 | 1 | Movement Engine | Complete | ENGINE-01 through ENGINE-08 (8) |
 | 2 | Map & Environment | Complete | MAP-01 through MAP-06 (6) |
-| 3 | Player Models & First-Person View | Not Started | MODEL-01 through MODEL-08 (8) |
+| 3 | Player Models & First-Person View | Complete | MODEL-01 through MODEL-08 (8) |
 | 4 | Weapons & Combat | Not Started | COMBAT-01 through COMBAT-11 (11) |
+| 4.1 | Model & Visual Quality | Not Started | VISUAL-01 through VISUAL-04 (4) |
 | 5 | Match Flow & HUD | Not Started | MATCH-01 through MATCH-06, HUD-01 through HUD-06 (12) |
 | 6 | Audio | Not Started | AUDIO-01 through AUDIO-06 (6) |
 | 7 | Multiplayer | Not Started | MULTI-01 through MULTI-06 (6) |
 | 8 | Website, Matchmaking & Staking | Not Started | WEB-01 through WEB-05, QUEUE-01 through QUEUE-06, STAKE-01 through STAKE-09 (20) |
 | 9 | Practice Mode & Launch Polish | Not Started | WEB-06, PRACTICE-01 through PRACTICE-03 (4) |
 
-**Total: 81/81 requirements mapped**
+**Total: 85/85 requirements mapped**
 
 ---
 *Created: 2026-02-13*
