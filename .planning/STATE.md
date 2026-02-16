@@ -9,10 +9,10 @@
 ## Current Position
 
 **Phase:** 4 of 9 -- Weapons & Combat
-**Plan:** 3 of 6 in phase
+**Plan:** 4 of 6 in phase
 **Status:** In progress
-**Last activity:** 2026-02-16 - Completed 04-03-PLAN.md (Damage Calculation & HP System)
-**Progress:** [###.......] 26/85 requirements
+**Last activity:** 2026-02-16 - Completed 04-04-PLAN.md (Combat Feedback - Particles & Decals)
+**Progress:** [###.......] 27/85 requirements
 
 ## Phase Overview
 
@@ -33,10 +33,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Plans completed | 19 |
+| Plans completed | 20 |
 | Plans failed | 0 |
-| Requirements done | 26/85 |
-| Current streak | 19 |
+| Requirements done | 27/85 |
+| Current streak | 20 |
 
 ## Accumulated Context
 
@@ -62,6 +62,10 @@
 | D11 | 04-03 | Armor absorbs 50% of damage, consumes 25% as durability | CS:S authentic armor behavior, lasts through multiple hits |
 | D12 | 04-03 | Tagging scales linearly with damage up to 80% max slow | Proportional penalty rewards high-damage weapons, prevents full immobilization |
 | D13 | 04-03 | Knife backstab deals 200 damage | Ensures backstab is always lethal even with 100HP + 100 armor |
+| D14 | 04-04 | Blood pool size 300 sprites | Supports intense firefights (5-8 per hit, 10-12 for headshot) |
+| D15 | 04-04 | Helmet spark as separate headshot effect | 80ms bright flash provides instant visual "dink" confirmation |
+| D16 | 04-04 | Tracer sliding effect | Start position lerps toward end over 0.15s (mimics actual tracer behavior) |
+| D17 | 04-04 | Decal limit 100 with 60s TTL | Balances visual accumulation with performance, no mid-combat cleanup |
 
 ### Architecture Notes
 - Game engine is standalone TypeScript, zero React dependency, communicates via event bus
@@ -80,6 +84,8 @@
 - Movement-based accuracy with instant counter-strafe recovery (CS:S mechanic)
 - CS:S damage order: base * multiplier * armor (50% reduction when protected)
 - HP/armor/helmet system with tagging on hit (0.1s duration, scales with damage)
+- Object-pooled combat effects: blood (300), sparks (200), helmet flash (5), tracers (20), enemy flash (8)
+- All visual effects use procedural CanvasTextures, zero runtime allocation during combat
 
 ### Research Flags
 - Phase 1 research COMPLETE: CS:S movement algorithm documented, standard floating-point math chosen, Three.js patterns identified
@@ -98,9 +104,9 @@
 ## Session Continuity
 
 **Last session:** 2026-02-16
-**Stopped at:** Completed 04-03-PLAN.md (Damage Calculation & HP System)
+**Stopped at:** Completed 04-04-PLAN.md (Combat Feedback - Particles & Decals)
 **Resume file:** None
-**Next action:** Continue Phase 4 (04-04: Combat Feedback - Particles & Decals)
+**Next action:** Continue Phase 4 (04-05: Full Combat Integration)
 
 ---
-*Last updated: 2026-02-16 (04-03 complete: Damage Calculation & HP System)*
+*Last updated: 2026-02-16 (04-04 complete: Combat Feedback - Particles & Decals)*
