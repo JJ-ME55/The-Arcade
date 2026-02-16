@@ -130,6 +130,16 @@ Plans:
 4. When a shot lands, the shooter sees immediate visual feedback (blood/sparks) and hears a distinct metallic dink on headshots, and the target experiences tagging (movement slows briefly)
 5. Hitboxes feel fair -- shots that visually look like they should hit the mannequin register as hits, with slightly generous registration matching CS:S feel
 
+**Plans:** 6 plans in 4 waves
+
+Plans:
+- [ ] 04-01-PLAN.md -- Weapon state machine + CS:S recoil patterns engine
+- [ ] 04-02-PLAN.md -- Hitbox system + ray-primitive hitscan engine
+- [ ] 04-03-PLAN.md -- Damage model + HP/armor + tagging + kill events
+- [ ] 04-04-PLAN.md -- Combat visual feedback (blood, sparks, decals, tracers)
+- [ ] 04-05-PLAN.md -- Full integration into game loop
+- [ ] 04-06-PLAN.md -- Combat verification checkpoint
+
 ---
 
 ## Phase 4.1: Model & Visual Quality (INSERTED)
@@ -295,7 +305,7 @@ Plans:
 | 1 | Movement Engine | Complete | ENGINE-01 through ENGINE-08 (8) |
 | 2 | Map & Environment | Complete | MAP-01 through MAP-06 (6) |
 | 3 | Player Models & First-Person View | Complete | MODEL-01 through MODEL-08 (8) |
-| 4 | Weapons & Combat | Not Started | COMBAT-01 through COMBAT-11 (11) |
+| 4 | Weapons & Combat | In Progress | COMBAT-01 through COMBAT-11 (11) |
 | 4.1 | Model & Visual Quality | Not Started | VISUAL-01 through VISUAL-04 (4) |
 | 5 | Match Flow & HUD | Not Started | MATCH-01 through MATCH-06, HUD-01 through HUD-06 (12) |
 | 6 | Audio | Not Started | AUDIO-01 through AUDIO-06 (6) |
