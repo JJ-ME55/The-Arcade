@@ -71,6 +71,36 @@ export default class MovementVisualizer {
       return d;
     })();
 
+    // Combat debug HUD (toggled with backtick key)
+    this.debugHudEnabled = false;
+    this.debugDamageLog = []; // Last 5 hits: { zone, damage, remainingHp, targetId, time }
+    this.debugHitIndicator = null; // { zone, time } - brief flash showing hit zone
+    this.debugHitIndicatorDuration = 0.8; // seconds
+
+    // Store original mannequin positions for respawn
+    this.mannequinOriginalPositions = {};
+
+    this.debugHudEl = (() => {
+      const d = document.createElement('div');
+      d.style.position = 'absolute';
+      d.style.left = '8px';
+      d.style.top = '180px';
+      d.style.color = '#0f0';
+      d.style.fontFamily = 'Courier New, monospace';
+      d.style.fontSize = '12px';
+      d.style.lineHeight = '1.4';
+      d.style.zIndex = '20';
+      d.style.background = 'rgba(0,0,0,0.7)';
+      d.style.padding = '8px 12px';
+      d.style.borderRadius = '4px';
+      d.style.whiteSpace = 'pre';
+      d.style.border = '1px solid rgba(0,255,0,0.3)';
+      d.style.display = 'none'; // Hidden by default
+      d.style.minWidth = '340px';
+      document.body.appendChild(d);
+      return d;
+    })();
+
     // Config adjusted to meter scale (map is in Blender meters, not HU)
     this.cfg = {
       groundAccel: 100.0,
@@ -321,8 +351,78 @@ export default class MovementVisualizer {
     }
     console.log(`Blue mannequin spawned at (${bluePos.x.toFixed(2)}, ${bluePos.y.toFixed(2)}, ${bluePos.z.toFixed(2)})`);
 
+    // Store original positions for respawn
+    this.mannequinOriginalPositions.red = redPos.clone();
+    this.mannequinOriginalPositions.blue = bluePos.clone();
+
     // Initialize animation state for test mannequins
     this.testMannequinRedVel = new THREE.Vector3(0, 0, 2); // Walking forward at 2 m/s
+  }
+
+  _respawnMannequins() {
+    if (!this.playerModelManager || !this.damageSystem) return;
+
+    const THREE = this.THREE;
+
+    // Clean up any existing ragdolls
+    if (this.ragdollSystem && this.ragdollSystem.ragdolls) {
+      // Force-remove all active ragdolls
+      while (this.ragdollSystem.ragdolls.length > 0) {
+        const ragdoll = this.ragdollSystem.ragdolls.pop();
+        this.ragdollSystem.removeRagdoll(ragdoll);
+      }
+    }
+
+    // Reset health for both mannequins
+    this.damageSystem.resetPlayer('mannequin_red');
+    this.damageSystem.resetPlayer('mannequin_blue');
+
+    // Re-spawn red mannequin if missing (killed/ragdolled)
+    if (!this.testMannequinRed) {
+      const redPos = this.mannequinOriginalPositions.red || this.spawnRed.clone();
+      this.testMannequinRed = this.playerModelManager.spawn(0xcc2200, redPos.clone());
+      this.scene.add(this.testMannequinRed.scene);
+      if (this.testMannequinRed.helper) {
+        this.scene.add(this.testMannequinRed.helper);
+      }
+      this.testMannequinRedVel = new THREE.Vector3(0, 0, 2);
+    }
+
+    // Re-spawn blue mannequin if missing
+    if (!this.testMannequinBlue) {
+      const bluePos = this.mannequinOriginalPositions.blue || this.spawnBlue.clone();
+      this.testMannequinBlue = this.playerModelManager.spawn(0x2244cc, bluePos.clone());
+      this.scene.add(this.testMannequinBlue.scene);
+      if (this.testMannequinBlue.helper) {
+        this.scene.add(this.testMannequinBlue.helper);
+      }
+    }
+
+    // Re-initialize hitbox sets
+    this.hitboxSets = {
+      mannequin_red: createHitboxSet('mannequin_red'),
+      mannequin_blue: createHitboxSet('mannequin_blue'),
+    };
+
+    // Reset weapon ammo too
+    if (this.weaponSystem) {
+      this.weaponSystem.resetAll();
+      this._updateAmmoHUD();
+    }
+
+    console.log('Mannequins respawned with full HP/armor');
+
+    // Add to damage log
+    this.debugDamageLog.push({
+      zone: 'SYSTEM',
+      damage: 0,
+      remainingHp: 100,
+      targetId: 'RESPAWN',
+      time: performance.now() / 1000,
+    });
+    if (this.debugDamageLog.length > 5) {
+      this.debugDamageLog.shift();
+    }
   }
 
   _addGridLines(scene) {
@@ -510,6 +610,19 @@ export default class MovementVisualizer {
           this.scene
         );
         this.testMannequinRed = null;
+      }
+
+      // Debug HUD toggle (backtick key)
+      if (e.code === 'Backquote') {
+        this.debugHudEnabled = !this.debugHudEnabled;
+        if (this.debugHudEl) {
+          this.debugHudEl.style.display = this.debugHudEnabled ? 'block' : 'none';
+        }
+      }
+
+      // Mannequin respawn (Y key)
+      if (e.code === 'KeyY') {
+        this._respawnMannequins();
       }
 
       keys[e.code] = true;
@@ -965,6 +1078,24 @@ export default class MovementVisualizer {
         // Log damage for debug
         console.log(`HIT ${hit.targetId} [${hit.zone}] ${damageResult.damageDealt} dmg (${damageResult.remainingHp} HP left)`);
 
+        // Track for debug HUD
+        this.debugDamageLog.push({
+          zone: hit.zone.toUpperCase(),
+          damage: damageResult.damageDealt,
+          remainingHp: damageResult.remainingHp,
+          targetId: hit.targetId.replace('mannequin_', '').toUpperCase(),
+          time: performance.now() / 1000,
+        });
+        if (this.debugDamageLog.length > 5) this.debugDamageLog.shift();
+
+        // Hit zone indicator
+        this.debugHitIndicator = {
+          zone: damageResult.isHeadshot ? 'HEAD' : hit.zone.toUpperCase(),
+          time: performance.now() / 1000,
+          isHeadshot: damageResult.isHeadshot,
+          killed: damageResult.killed,
+        };
+
         // If killed, trigger ragdoll
         if (damageResult.killed) {
           console.log(`KILLED ${hit.targetId}!`);
@@ -1001,6 +1132,122 @@ export default class MovementVisualizer {
 
     // Update ammo HUD
     this._updateAmmoHUD();
+  }
+
+  _updateDebugHUD(currentTime) {
+    const lines = [];
+
+    // Header
+    lines.push('=== COMBAT DEBUG HUD ===');
+    lines.push('');
+
+    // Section 1: Damage Log (last 5 hits)
+    lines.push('[DAMAGE LOG]');
+    if (this.debugDamageLog.length === 0) {
+      lines.push('  (no hits yet)');
+    } else {
+      for (const entry of this.debugDamageLog) {
+        const age = (currentTime - entry.time).toFixed(1);
+        if (entry.targetId === 'RESPAWN') {
+          lines.push(`  -- MANNEQUINS RESPAWNED --`);
+        } else {
+          lines.push(`  ${entry.targetId} [${entry.zone}] ${entry.damage} dmg -> ${entry.remainingHp} HP  (${age}s ago)`);
+        }
+      }
+    }
+    lines.push('');
+
+    // Section 2: Weapon State
+    lines.push('[WEAPON STATE]');
+    if (this.weaponSystem) {
+      const wt = this.weaponSystem.currentWeapon;
+      const ws = this.weaponSystem.state;
+      const ammo = this.weaponSystem.getAmmo();
+      const config = this.weaponSystem.getWeaponConfig();
+      if (config.hasAmmo) {
+        lines.push(`  Weapon: ${wt}  State: ${ws}`);
+        lines.push(`  Ammo: ${ammo.magazine}/${config.magazine} | Reserve: ${ammo.reserve}`);
+      } else {
+        lines.push(`  Weapon: ${wt}  State: ${ws}`);
+        lines.push(`  Ammo: N/A (melee)`);
+      }
+    } else {
+      lines.push('  (no weapon system)');
+    }
+    lines.push('');
+
+    // Section 3: Accuracy
+    lines.push('[ACCURACY]');
+    if (this.accuracyModel) {
+      const acc = this.accuracyModel.accuracy.toFixed(3);
+      const speed = Math.hypot(this.vel.x, this.vel.z);
+      const speedMs = speed.toFixed(2);
+      const ground = this.onGround ? 'YES' : 'NO';
+      const crouch = this.input.crouch ? 'YES' : 'NO';
+      lines.push(`  Accuracy: ${acc}  Speed: ${speedMs} m/s`);
+      lines.push(`  On Ground: ${ground}  Crouching: ${crouch}`);
+    } else {
+      lines.push('  (no accuracy model)');
+    }
+    lines.push('');
+
+    // Section 4: Recoil
+    lines.push('[RECOIL]');
+    if (this.weaponSystem) {
+      const sprayIdx = this.weaponSystem.shotsFired;
+      const px = (this.punchAngle.x * (180 / Math.PI)).toFixed(2);
+      const py = (this.punchAngle.y * (180 / Math.PI)).toFixed(2);
+      lines.push(`  Spray Index: ${sprayIdx}/30  Punch: (${px}, ${py}) deg`);
+    } else {
+      lines.push('  (no weapon system)');
+    }
+    lines.push('');
+
+    // Section 5: Mannequin HP
+    lines.push('[MANNEQUIN HP]');
+    if (this.damageSystem) {
+      const redH = this.damageSystem.getHealth('mannequin_red');
+      const blueH = this.damageSystem.getHealth('mannequin_blue');
+      if (redH) {
+        const alive = redH.alive ? 'ALIVE' : 'DEAD';
+        const helmet = redH.hasHelmet ? '+HELMET' : '';
+        const tag = redH.tagTimeRemaining > 0 ? ` TAG:${redH.tagSpeedMultiplier.toFixed(2)}` : '';
+        lines.push(`  RED:  ${redH.hp.toFixed(0)} HP | ${redH.armor.toFixed(0)} AP ${helmet} [${alive}]${tag}`);
+      }
+      if (blueH) {
+        const alive = blueH.alive ? 'ALIVE' : 'DEAD';
+        const helmet = blueH.hasHelmet ? '+HELMET' : '';
+        const tag = blueH.tagTimeRemaining > 0 ? ` TAG:${blueH.tagSpeedMultiplier.toFixed(2)}` : '';
+        lines.push(`  BLUE: ${blueH.hp.toFixed(0)} HP | ${blueH.armor.toFixed(0)} AP ${helmet} [${alive}]${tag}`);
+      }
+    } else {
+      lines.push('  (no damage system)');
+    }
+    lines.push('');
+
+    // Section 6: Hit Indicator
+    lines.push('[HIT INDICATOR]');
+    if (this.debugHitIndicator) {
+      const age = currentTime - this.debugHitIndicator.time;
+      if (age < this.debugHitIndicatorDuration) {
+        const fade = 1.0 - (age / this.debugHitIndicatorDuration);
+        const opacity = Math.round(fade * 100);
+        let label = this.debugHitIndicator.zone;
+        if (this.debugHitIndicator.isHeadshot) label = '*** HEADSHOT ***';
+        if (this.debugHitIndicator.killed) label += ' -> KILL';
+        lines.push(`  >> ${label} << (${opacity}%)`);
+      } else {
+        lines.push('  (none)');
+        this.debugHitIndicator = null;
+      }
+    } else {
+      lines.push('  (none)');
+    }
+
+    lines.push('');
+    lines.push('[Y] Respawn  [1] Toggle AK/M4  [`] Close');
+
+    this.debugHudEl.textContent = lines.join('\n');
   }
 
   start() {
@@ -1111,6 +1358,11 @@ export default class MovementVisualizer {
       }
 
       this.statusEl.textContent = statusText;
+    }
+
+    // Update combat debug HUD
+    if (this.debugHudEnabled && this.debugHudEl) {
+      this._updateDebugHUD(now / 1000);
     }
 
     // Two-pass rendering: world scene + first-person weapon
