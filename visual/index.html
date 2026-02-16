@@ -12,10 +12,16 @@
     #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(255,255,255,0.8); }
     #crosshair::before { left: 9px; top: 0; width: 2px; height: 20px; }
     #crosshair::after { left: 0; top: 9px; width: 20px; height: 2px; }
+    #ammo { position: absolute; right: 24px; bottom: 24px; color: #fff; font-family: 'Arial', sans-serif; z-index: 10; text-align: right; pointer-events: none; text-shadow: 2px 2px 4px rgba(0,0,0,0.7); }
+    #ammo .mag { font-size: 48px; font-weight: bold; }
+    #ammo .reserve { font-size: 24px; color: rgba(255,255,255,0.6); }
+    #ammo .weapon-name { font-size: 14px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 2px; }
+    #ammo .reloading { font-size: 20px; color: #ffaa44; }
   </style>
 </head>
 <body>
-  <div id="info">WASD move • Space jump • Shift crouch • Click to lock mouse</div>
+  <div id="info">WASD move • Space jump • Shift crouch • R reload • 1/2/3 weapons • Click to lock</div>
+  <div id="ammo"></div>
   <div id="status">Loading arena map...</div>
   <div id="crosshair"></div>
   <script type="importmap">

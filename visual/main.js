@@ -192,6 +192,8 @@ export default class MovementVisualizer {
           { rifle: 'rifle.glb', pistol: 'pistol.glb', knife: 'knife.glb' }
         );
         this.fpWeapon.switchWeapon('rifle'); // Default weapon
+        this.currentWeapon = 'rifle';
+        this._updateAmmoHUD();
         const weaponLoadTime = performance.now() - weaponStartTime;
         console.log(`FP weapon loaded in ${weaponLoadTime.toFixed(1)}ms`);
       }
@@ -391,12 +393,61 @@ export default class MovementVisualizer {
       }
     });
 
-    // Mouse click for firing (temporary test)
+    // Full-auto firing: hold left mouse to keep shooting
+    this.fireHeld = false;
+    this.fireTimer = 0;
+    this.fireRates = { rifle: 0.1, pistol: 0.18, knife: 0.4 }; // seconds between shots
+
     document.addEventListener('mousedown', (e) => {
-      if (e.button === 0 && document.pointerLockElement && this.fpWeapon) {
-        this.fpWeapon.fire();
+      if (!document.pointerLockElement) return;
+      if (e.button === 0) {
+        this.fireHeld = true;
+        // Fire immediately on first click
+        if (this.fpWeapon) this._fireWeapon();
+        this.fireTimer = 0;
+      }
+      if (e.button === 2 && this.fpWeapon) {
+        this.aiming = true;
       }
     });
+    document.addEventListener('mouseup', (e) => {
+      if (e.button === 0) this.fireHeld = false;
+      if (e.button === 2) this.aiming = false;
+    });
+    // Prevent right-click context menu
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // ADS state
+    this.aiming = false;
+    this.adsFov = 45;          // Zoomed-in FOV
+    this.normalFov = 75;       // Normal FOV
+    this.currentFov = 75;
+
+    // CS:S-style viewpunch recoil system
+    // punchAngle accumulates on fire, decays exponentially each frame
+    this.punchAngle = { x: 0, y: 0 };  // Current viewpunch (pitch, yaw)
+    this.punchDecay = 18;               // Exponential decay rate (CS:GO default)
+    this.recoilIndex = 0;               // Shot count in current spray
+    this.lastShotTime = 0;
+    this.recoilCooldown = 0.55;         // Seconds before spray pattern resets
+
+    // Per-weapon recoil configs (pitch kick per shot, horizontal variance)
+    this.recoilConfig = {
+      rifle:  { kick: 0.022, hVariance: 0.008, maxVertical: 0.35 },
+      pistol: { kick: 0.035, hVariance: 0.012, maxVertical: 0.25 },
+      knife:  { kick: 0,     hVariance: 0,     maxVertical: 0 },
+    };
+
+    // Ammo system
+    this.weaponAmmo = {
+      rifle:  { mag: 30, maxMag: 30, reserve: 90, reloadTime: 2.5 },
+      pistol: { mag: 12, maxMag: 12, reserve: 36, reloadTime: 1.5 },
+      knife:  { mag: Infinity, maxMag: Infinity, reserve: 0, reloadTime: 0 },
+    };
+    this.reloading = false;
+    this.reloadTimer = 0;
+    this.currentWeapon = 'rifle';
+    this.ammoEl = document.getElementById('ammo');
   }
 
   _initInput() {
@@ -408,21 +459,22 @@ export default class MovementVisualizer {
       if (e.code === 'ShiftLeft') this.input.crouch = true;
       if (e.code === 'Space' && !prev) this.input.jumpPressed = true;
 
-      // Weapon switching (temporary test)
-      if (e.code === 'Digit1' && this.fpWeapon) this.fpWeapon.switchWeapon('rifle');
-      if (e.code === 'Digit2' && this.fpWeapon) this.fpWeapon.switchWeapon('pistol');
-      if (e.code === 'Digit3' && this.fpWeapon) this.fpWeapon.switchWeapon('knife');
+      // Weapon switching
+      if (e.code === 'Digit1' && this.fpWeapon) this._switchWeapon('rifle');
+      if (e.code === 'Digit2' && this.fpWeapon) this._switchWeapon('pistol');
+      if (e.code === 'Digit3' && this.fpWeapon) this._switchWeapon('knife');
 
-      // Ragdoll test trigger (temporary test)
-      if (e.code === 'KeyR' && this.ragdollSystem && this.testMannequinRed) {
-        // Trigger ragdoll on red mannequin with upward + forward death velocity
+      // Reload
+      if (e.code === 'KeyR') this._startReload();
+
+      // Ragdoll test trigger (T key)
+      if (e.code === 'KeyT' && this.ragdollSystem && this.testMannequinRed) {
         this.ragdollSystem.spawnRagdoll(
           this.testMannequinRed,
           new this.THREE.Vector3(0, 2, -3),
           this.scene
         );
-        this.testMannequinRed = null; // Don't trigger again
-        console.log('Ragdoll triggered on red mannequin');
+        this.testMannequinRed = null;
       }
 
       keys[e.code] = true;
@@ -649,6 +701,111 @@ export default class MovementVisualizer {
     this.playerCollider.end.set(pos.x, pos.y + crouchJumpOffset + playerHeight - capsuleRadius, pos.z);
   }
 
+  _switchWeapon(name) {
+    if (name === this.currentWeapon) return;
+    this._cancelReload();
+    this.currentWeapon = name;
+    this.fpWeapon.switchWeapon(name);
+    this._updateAmmoHUD();
+  }
+
+  _startReload() {
+    if (this.reloading) return;
+    const ammo = this.weaponAmmo[this.currentWeapon];
+    if (!ammo || ammo.mag >= ammo.maxMag || ammo.reserve <= 0) return;
+
+    const isEmpty = ammo.mag <= 0;
+    this.reloading = true;
+    this._updateAmmoHUD();
+
+    // Start CS:S-style reload animation on FP weapon
+    if (this.fpWeapon) {
+      this.fpWeapon.startReload(
+        isEmpty,
+        () => {
+          // Ammo refills mid-animation (CS:S behavior)
+          const needed = ammo.maxMag - ammo.mag;
+          const available = Math.min(needed, ammo.reserve);
+          ammo.mag += available;
+          ammo.reserve -= available;
+          this._updateAmmoHUD();
+        },
+        () => {
+          // Animation complete — can fire again
+          this.reloading = false;
+          this._updateAmmoHUD();
+        }
+      );
+    }
+  }
+
+  _cancelReload() {
+    this.reloading = false;
+    if (this.fpWeapon) this.fpWeapon.cancelReload();
+    this._updateAmmoHUD();
+  }
+
+  _updateAmmoHUD() {
+    if (!this.ammoEl) return;
+    const ammo = this.weaponAmmo[this.currentWeapon];
+    if (!ammo || ammo.maxMag === Infinity) {
+      this.ammoEl.innerHTML = `<div class="weapon-name">${this.currentWeapon}</div>`;
+      return;
+    }
+    if (this.reloading) {
+      this.ammoEl.innerHTML = `<div class="weapon-name">${this.currentWeapon}</div><div class="reloading">RELOADING...</div><div class="reserve">/ ${ammo.reserve}</div>`;
+      return;
+    }
+    this.ammoEl.innerHTML = `<div class="weapon-name">${this.currentWeapon}</div><span class="mag">${ammo.mag}</span> <span class="reserve">/ ${ammo.reserve}</span>`;
+  }
+
+  _fireWeapon() {
+    if (!this.fpWeapon) return;
+    if (this.reloading) return;
+
+    const ammo = this.weaponAmmo[this.currentWeapon];
+    if (ammo && ammo.mag <= 0) {
+      this._startReload();
+      return;
+    }
+
+    this.fpWeapon.fire();
+
+    // Consume ammo
+    if (ammo && ammo.mag !== Infinity) {
+      ammo.mag--;
+      this._updateAmmoHUD();
+      if (ammo.mag <= 0) this._startReload();
+    }
+
+    const weaponName = this.fpWeapon.currentWeaponName;
+    const cfg = this.recoilConfig[weaponName];
+    if (!cfg || cfg.kick === 0) return;
+
+    const now = performance.now() / 1000;
+
+    // Reset spray if cooldown elapsed since last shot
+    if (now - this.lastShotTime > this.recoilCooldown) {
+      this.recoilIndex = 0;
+    }
+    this.lastShotTime = now;
+
+    // CS:S pattern: mostly vertical early, more horizontal variance later
+    const verticalKick = cfg.kick * (1 + this.recoilIndex * 0.08);
+    const horizontalRange = cfg.hVariance * (1 + this.recoilIndex * 0.15);
+    const horizontalKick = (Math.random() - 0.5) * 2 * horizontalRange;
+
+    // Accumulate viewpunch (capped at max vertical)
+    this.punchAngle.x = Math.min(this.punchAngle.x + verticalKick, cfg.maxVertical);
+    this.punchAngle.y += horizontalKick;
+
+    // Apply immediately to camera
+    this.camera_pitch += verticalKick;
+    this.camera_yaw += horizontalKick;
+
+    this.recoilIndex++;
+  }
+
   start() {
     this.running = true;
     this._loop();
@@ -739,6 +896,43 @@ export default class MovementVisualizer {
     // Pass 1: World scene (map + mannequins)
     this.renderer.render(this.scene, this.camera);
 
+    // Full-auto firing
+    if (this.fireHeld && this.fpWeapon && this.fpWeapon.currentWeaponName) {
+      this.fireTimer += delta;
+      const rate = this.fireRates[this.fpWeapon.currentWeaponName] || 0.15;
+      while (this.fireTimer >= rate) {
+        this._fireWeapon();
+        this.fireTimer -= rate;
+      }
+    }
+
+    // CS:S-style viewpunch decay — exponential, always active
+    // Decays gradually while firing (view drifts up), faster when not firing
+    const decayRate = this.fireHeld ? this.punchDecay * 0.3 : this.punchDecay;
+    const decayFactor = Math.exp(-decayRate * delta);
+    const prevPunchX = this.punchAngle.x;
+    const prevPunchY = this.punchAngle.y;
+    this.punchAngle.x *= decayFactor;
+    this.punchAngle.y *= decayFactor;
+
+    // Apply the decay as camera recovery (move view back by amount decayed)
+    this.camera_pitch -= (prevPunchX - this.punchAngle.x);
+    this.camera_yaw -= (prevPunchY - this.punchAngle.y);
+
+    // Zero out tiny values
+    if (Math.abs(this.punchAngle.x) < 0.0001) this.punchAngle.x = 0;
+    if (Math.abs(this.punchAngle.y) < 0.0001) this.punchAngle.y = 0;
+
+    // ADS: smooth FOV transition
+    const targetFov = this.aiming ? this.adsFov : this.normalFov;
+    this.currentFov += (targetFov - this.currentFov) * Math.min(1, delta * 12);
+    this.camera.fov = this.currentFov;
+    this.camera.updateProjectionMatrix();
+    if (this.fpWeapon) {
+      this.fpWeapon.weaponCamera.fov = this.currentFov;
+      this.fpWeapon.weaponCamera.updateProjectionMatrix();
+    }
+
     // Pass 2: First-person weapon (renders on top, no depth conflict with walls)
     if (this.fpWeapon) {
       const speed = Math.hypot(this.vel.x, this.vel.z);
@@ -746,6 +940,7 @@ export default class MovementVisualizer {
         speed: speed,
         onGround: this.onGround,
         crouching: this.input.crouch,
+        aiming: this.aiming,
       });
       this.fpWeapon.render(this.camera.quaternion);
     }
