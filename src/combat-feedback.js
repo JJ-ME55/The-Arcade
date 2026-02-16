@@ -279,6 +279,49 @@ export default class CombatFeedback {
   }
 
   /**
+   * Create bullet hole texture
+   */
+  _createBulletHoleTexture() {
+    const THREE = this.THREE;
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+
+    // Clear background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+    ctx.fillRect(0, 0, 32, 32);
+
+    // Dark circle (bullet hole)
+    ctx.fillStyle = 'rgba(20, 20, 20, 1)';
+    ctx.beginPath();
+    ctx.arc(16, 16, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Radial cracks pattern
+    ctx.strokeStyle = 'rgba(40, 40, 40, 0.8)';
+    ctx.lineWidth = 1;
+
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+      const startDist = 6;
+      const endDist = 10 + Math.random() * 4;
+
+      const startX = 16 + Math.cos(angle) * startDist;
+      const startY = 16 + Math.sin(angle) * startDist;
+      const endX = 16 + Math.cos(angle) * endDist;
+      const endY = 16 + Math.sin(angle) * endDist;
+
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+    }
+
+    return new THREE.CanvasTexture(canvas);
+  }
+
+  /**
    * Spawn blood particles on player hit
    * @param {THREE.Vector3} position - Hit position
    * @param {THREE.Vector3} direction - Shot direction (normalized)
@@ -396,8 +439,61 @@ export default class CombatFeedback {
    * @param {THREE.Mesh} targetMesh - Mesh to project decal onto
    */
   addBulletDecal(position, normal, targetMesh) {
-    // DecalGeometry will be added in Task 2
-    // Stub for now
+    const THREE = this.THREE;
+
+    // Skip if no target mesh (can't project decal)
+    if (!targetMesh) return;
+
+    // Create bullet hole texture if not already cached
+    if (!this._bulletHoleTexture) {
+      this._bulletHoleTexture = this._createBulletHoleTexture();
+    }
+
+    // Create decal geometry projected onto target mesh
+    const orientation = new THREE.Euler();
+    orientation.setFromVector3(normal);
+
+    const size = new THREE.Vector3(0.08, 0.08, 0.05);
+
+    // Import DecalGeometry (Three.js addon)
+    // Note: In a real app, this would be imported at the top
+    // For now, we check if it's available via THREE.DecalGeometry
+    if (!THREE.DecalGeometry) {
+      console.warn('DecalGeometry not available - skipping bullet decal');
+      return;
+    }
+
+    const decalGeometry = new THREE.DecalGeometry(
+      targetMesh,
+      position,
+      orientation,
+      size
+    );
+
+    const decalMaterial = new THREE.MeshBasicMaterial({
+      map: this._bulletHoleTexture,
+      transparent: true,
+      depthTest: true,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      opacity: 0.8,
+    });
+
+    const decalMesh = new THREE.Mesh(decalGeometry, decalMaterial);
+    this.scene.add(decalMesh);
+
+    // Track decal with creation time
+    const now = performance.now() / 1000;
+    this.decals.push({ mesh: decalMesh, createdAt: now });
+
+    // Remove oldest decal if limit exceeded
+    if (this.decals.length > this.maxDecals) {
+      const oldest = this.decals.shift();
+      this.scene.remove(oldest.mesh);
+      oldest.mesh.geometry.dispose();
+      oldest.mesh.material.dispose();
+    }
   }
 
   /**
@@ -406,8 +502,29 @@ export default class CombatFeedback {
    * @param {THREE.Vector3} endPosition - Impact position (or max range)
    */
   spawnTracer(startPosition, endPosition) {
-    // Tracers will be added in Task 2
-    // Stub for now
+    const line = this._acquireFromPool(this.tracerPool, this.tracerActive);
+    if (!line) return; // Pool exhausted
+
+    // Set line geometry positions
+    const positions = line.geometry.attributes.position.array;
+    positions[0] = startPosition.x;
+    positions[1] = startPosition.y;
+    positions[2] = startPosition.z;
+    positions[3] = endPosition.x;
+    positions[4] = endPosition.y;
+    positions[5] = endPosition.z;
+    line.geometry.attributes.position.needsUpdate = true;
+
+    // Tracer state
+    line.userData = {
+      startPos: startPosition.clone(),
+      endPos: endPosition.clone(),
+      lifetime: 0.15, // 0.15s
+      age: 0,
+    };
+
+    line.visible = true;
+    line.material.opacity = 1.0;
   }
 
   /**
@@ -415,8 +532,25 @@ export default class CombatFeedback {
    * @param {THREE.Vector3} position - World position of enemy muzzle
    */
   showEnemyMuzzleFlash(position) {
-    // Enemy flashes will be added in Task 2
-    // Stub for now
+    const sprite = this._acquireFromPool(this.enemyFlashPool, this.enemyFlashActive);
+    if (!sprite) return; // Pool exhausted
+
+    sprite.position.copy(position);
+
+    // Random scale
+    const scale = 0.2 + Math.random() * 0.1; // 0.2-0.3
+    sprite.scale.set(scale, scale, 1);
+
+    // Random rotation (same as FP muzzle flash)
+    sprite.material.rotation = Math.random() * Math.PI * 2;
+
+    sprite.userData = {
+      lifetime: 0.05, // 50ms
+      age: 0,
+    };
+
+    sprite.visible = true;
+    sprite.material.opacity = 1.0;
   }
 
   /**
@@ -501,7 +635,57 @@ export default class CombatFeedback {
       }
     }
 
-    // Tracers and enemy flashes will be added in Task 2
+    // Update tracers
+    for (let i = this.tracerActive.length - 1; i >= 0; i--) {
+      const line = this.tracerActive[i];
+      const data = line.userData;
+
+      data.age += dt;
+
+      // Tracer "slides" - start position moves toward end position
+      const slideProgress = data.age / data.lifetime;
+      const currentStart = data.startPos.clone().lerp(data.endPos, slideProgress);
+
+      const positions = line.geometry.attributes.position.array;
+      positions[0] = currentStart.x;
+      positions[1] = currentStart.y;
+      positions[2] = currentStart.z;
+      line.geometry.attributes.position.needsUpdate = true;
+
+      // Fade
+      line.material.opacity = 1.0 - slideProgress;
+
+      // Expired?
+      if (data.age >= data.lifetime) {
+        this._releaseToPool(this.tracerPool, this.tracerActive, i);
+      }
+    }
+
+    // Update enemy muzzle flashes
+    for (let i = this.enemyFlashActive.length - 1; i >= 0; i--) {
+      const sprite = this.enemyFlashActive[i];
+      const data = sprite.userData;
+
+      data.age += dt;
+
+      // Fade
+      const fadeProgress = data.age / data.lifetime;
+      sprite.material.opacity = 1.0 - fadeProgress;
+
+      // Expired?
+      if (data.age >= data.lifetime) {
+        this._releaseToPool(this.enemyFlashPool, this.enemyFlashActive, i);
+      }
+    }
+
+    // Cleanup old decals (older than 60s)
+    const cutoffTime = now - this.decalLifetime;
+    while (this.decals.length > 0 && this.decals[0].createdAt < cutoffTime) {
+      const old = this.decals.shift();
+      this.scene.remove(old.mesh);
+      old.mesh.geometry.dispose();
+      old.mesh.material.dispose();
+    }
   }
 
   /**
