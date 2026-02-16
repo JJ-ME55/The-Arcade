@@ -1,3 +1,10 @@
+// Import engine modules
+import { WeaponSystem, WeaponType } from '../src/engine/weapons.js';
+import { testHitscan, createHitboxSet, updateHitboxPositions } from '../src/engine/combat.js';
+import { getRecoilAngle, AccuracyModel, getFinalShotAngle } from '../src/engine/recoil-patterns.js';
+import { DamageSystem } from '../src/engine/damage.js';
+import CombatFeedback from '../src/combat-feedback.js';
+
 export default class MovementVisualizer {
   constructor(opts = {}) {
     this.THREE = opts.THREE;
@@ -191,9 +198,7 @@ export default class MovementVisualizer {
           'fp_arms.glb',
           { rifle: 'rifle.glb', pistol: 'pistol.glb', knife: 'knife.glb' }
         );
-        this.fpWeapon.switchWeapon('rifle'); // Default weapon
-        this.currentWeapon = 'rifle';
-        this._updateAmmoHUD();
+        this.fpWeapon.switchWeapon('rifle'); // Default weapon visual
         const weaponLoadTime = performance.now() - weaponStartTime;
         console.log(`FP weapon loaded in ${weaponLoadTime.toFixed(1)}ms`);
       }
@@ -215,6 +220,37 @@ export default class MovementVisualizer {
           this.ragdollSystem = null;
         }
       }
+
+      // Initialize combat systems
+      if (this.statusEl) {
+        this.statusEl.textContent = 'Initializing combat systems...';
+      }
+
+      // Weapon system
+      this.weaponSystem = new WeaponSystem(WeaponType.AK47);
+
+      // Accuracy model
+      this.accuracyModel = new AccuracyModel();
+
+      // Damage system
+      this.damageSystem = new DamageSystem();
+      this.damageSystem.registerPlayer('local');
+      this.damageSystem.registerPlayer('mannequin_red');
+      this.damageSystem.registerPlayer('mannequin_blue');
+
+      // Combat feedback (visual effects)
+      this.combatFeedback = new CombatFeedback(this.THREE, this.scene);
+
+      // Initialize hitbox sets for mannequins
+      this.hitboxSets = {
+        mannequin_red: createHitboxSet('mannequin_red'),
+        mannequin_blue: createHitboxSet('mannequin_blue'),
+      };
+
+      console.log('Combat systems initialized');
+
+      // Initialize ammo HUD with weapon system
+      this._updateAmmoHUD();
 
       // Update status
       if (this.statusEl) {
@@ -396,7 +432,14 @@ export default class MovementVisualizer {
     // Full-auto firing: hold left mouse to keep shooting
     this.fireHeld = false;
     this.fireTimer = 0;
-    this.fireRates = { rifle: 0.1, pistol: 0.18, knife: 0.4 }; // seconds between shots
+
+    // Weapon-specific movement speeds (CS:S values converted from HU/s to m/s)
+    this.WEAPON_SPEED_MS = {
+      [WeaponType.AK47]: 4.51,   // 215 HU/s
+      [WeaponType.M4A1]: 4.63,   // 221 HU/s
+      [WeaponType.PISTOL]: 5.03, // 240 HU/s
+      [WeaponType.KNIFE]: 5.24,  // 250 HU/s
+    };
 
     document.addEventListener('mousedown', (e) => {
       if (!document.pointerLockElement) return;
@@ -427,26 +470,8 @@ export default class MovementVisualizer {
     // punchAngle accumulates on fire, decays exponentially each frame
     this.punchAngle = { x: 0, y: 0 };  // Current viewpunch (pitch, yaw)
     this.punchDecay = 18;               // Exponential decay rate (CS:GO default)
-    this.recoilIndex = 0;               // Shot count in current spray
-    this.lastShotTime = 0;
-    this.recoilCooldown = 0.55;         // Seconds before spray pattern resets
 
-    // Per-weapon recoil configs (pitch kick per shot, horizontal variance)
-    this.recoilConfig = {
-      rifle:  { kick: 0.022, hVariance: 0.008, maxVertical: 0.35 },
-      pistol: { kick: 0.035, hVariance: 0.012, maxVertical: 0.25 },
-      knife:  { kick: 0,     hVariance: 0,     maxVertical: 0 },
-    };
-
-    // Ammo system
-    this.weaponAmmo = {
-      rifle:  { mag: 30, maxMag: 30, reserve: 90, reloadTime: 2.5 },
-      pistol: { mag: 12, maxMag: 12, reserve: 36, reloadTime: 1.5 },
-      knife:  { mag: Infinity, maxMag: Infinity, reserve: 0, reloadTime: 0 },
-    };
-    this.reloading = false;
-    this.reloadTimer = 0;
-    this.currentWeapon = 'rifle';
+    // Ammo HUD element
     this.ammoEl = document.getElementById('ammo');
   }
 
@@ -459,13 +484,23 @@ export default class MovementVisualizer {
       if (e.code === 'ShiftLeft') this.input.crouch = true;
       if (e.code === 'Space' && !prev) this.input.jumpPressed = true;
 
-      // Weapon switching
-      if (e.code === 'Digit1' && this.fpWeapon) this._switchWeapon('rifle');
-      if (e.code === 'Digit2' && this.fpWeapon) this._switchWeapon('pistol');
-      if (e.code === 'Digit3' && this.fpWeapon) this._switchWeapon('knife');
+      // Weapon switching (1=rifle toggle AK/M4, 2=pistol, 3=knife)
+      if (e.code === 'Digit1' && this.fpWeapon && this.weaponSystem) {
+        // Toggle between AK-47 and M4A1
+        if (this.weaponSystem.currentWeapon === WeaponType.AK47) {
+          this._switchWeapon(WeaponType.M4A1);
+        } else if (this.weaponSystem.currentWeapon === WeaponType.M4A1) {
+          this._switchWeapon(WeaponType.AK47);
+        } else {
+          // From pistol/knife, default to AK-47
+          this._switchWeapon(WeaponType.AK47);
+        }
+      }
+      if (e.code === 'Digit2' && this.fpWeapon && this.weaponSystem) this._switchWeapon(WeaponType.PISTOL);
+      if (e.code === 'Digit3' && this.fpWeapon && this.weaponSystem) this._switchWeapon(WeaponType.KNIFE);
 
       // Reload
-      if (e.code === 'KeyR') this._startReload();
+      if (e.code === 'KeyR' && this.weaponSystem) this._startReload();
 
       // Ragdoll test trigger (T key)
       if (e.code === 'KeyT' && this.ragdollSystem && this.testMannequinRed) {
@@ -499,6 +534,39 @@ export default class MovementVisualizer {
     const pos = this.pos;
     const vel = this.vel;
 
+    // Update combat systems each tick
+    const currentTime = performance.now() / 1000;
+    if (this.weaponSystem) {
+      this.weaponSystem.update(dt, currentTime);
+    }
+
+    const speed = Math.hypot(vel.x, vel.z);
+    const timeSinceLastShot = this.weaponSystem ? (currentTime - this.weaponSystem.lastShotTime) : 999;
+    if (this.accuracyModel && this.weaponSystem) {
+      this.accuracyModel.update(
+        dt,
+        speed * 47.7, // Convert m/s to HU/s for accuracy model (expects HU/s)
+        this.onGround,
+        this.input.crouch,
+        timeSinceLastShot,
+        this.weaponSystem.currentWeapon
+      );
+    }
+
+    if (this.damageSystem) {
+      this.damageSystem.update(dt);
+    }
+
+    // Update hitbox positions from mannequin bone transforms
+    if (this.testMannequinRed && this.hitboxSets) {
+      const bonePositions = this._extractBoneWorldPositions(this.testMannequinRed);
+      updateHitboxPositions(this.hitboxSets.mannequin_red, bonePositions);
+    }
+    if (this.testMannequinBlue && this.hitboxSets) {
+      const bonePositions = this._extractBoneWorldPositions(this.testMannequinBlue);
+      updateHitboxPositions(this.hitboxSets.mannequin_blue, bonePositions);
+    }
+
     // Jump buffering: queue press for 100ms so landing doesn't eat inputs
     if (this.input.jumpPressed) {
       this.jumpBufferTime = 0.1;
@@ -525,7 +593,20 @@ export default class MovementVisualizer {
     let wishspeed = 0;
     if (wishDir.lengthSq() > 0) {
       wishDir.normalize();
-      wishspeed = cfg.maxSpeed;
+      // Use weapon-specific movement speed
+      if (this.weaponSystem) {
+        wishspeed = this.WEAPON_SPEED_MS[this.weaponSystem.currentWeapon] || cfg.maxSpeed;
+      } else {
+        wishspeed = cfg.maxSpeed;
+      }
+    }
+
+    // Apply tagging speed reduction
+    if (this.damageSystem) {
+      const localHealth = this.damageSystem.getHealth('local');
+      if (localHealth) {
+        wishspeed *= localHealth.tagSpeedMultiplier;
+      }
     }
 
     // Crouch slows movement by 25%
@@ -701,109 +782,225 @@ export default class MovementVisualizer {
     this.playerCollider.end.set(pos.x, pos.y + crouchJumpOffset + playerHeight - capsuleRadius, pos.z);
   }
 
-  _switchWeapon(name) {
-    if (name === this.currentWeapon) return;
-    this._cancelReload();
-    this.currentWeapon = name;
-    this.fpWeapon.switchWeapon(name);
+  _extractBoneWorldPositions(instance) {
+    const bonePositions = {};
+    if (!instance || !instance.bones) return bonePositions;
+
+    for (const bone of instance.bones) {
+      const worldPos = new this.THREE.Vector3();
+      bone.getWorldPosition(worldPos);
+      bonePositions[bone.name] = { x: worldPos.x, y: worldPos.y, z: worldPos.z };
+    }
+
+    return bonePositions;
+  }
+
+  _switchWeapon(weaponType) {
+    if (!this.weaponSystem) return;
+
+    // Use WeaponSystem to switch
+    const success = this.weaponSystem.switchWeapon(weaponType);
+    if (!success) return;
+
+    // Update FP weapon visual
+    const visualName = this._weaponTypeToVisualName(weaponType);
+    if (this.fpWeapon && visualName) {
+      this.fpWeapon.switchWeapon(visualName);
+    }
+
     this._updateAmmoHUD();
   }
 
-  _startReload() {
-    if (this.reloading) return;
-    const ammo = this.weaponAmmo[this.currentWeapon];
-    if (!ammo || ammo.mag >= ammo.maxMag || ammo.reserve <= 0) return;
+  _weaponTypeToVisualName(weaponType) {
+    switch (weaponType) {
+      case WeaponType.AK47:
+      case WeaponType.M4A1:
+        return 'rifle'; // Both rifles use same visual model for now
+      case WeaponType.PISTOL:
+        return 'pistol';
+      case WeaponType.KNIFE:
+        return 'knife';
+      default:
+        return 'rifle';
+    }
+  }
 
-    const isEmpty = ammo.mag <= 0;
-    this.reloading = true;
+  _startReload() {
+    if (!this.weaponSystem) return;
+
+    const success = this.weaponSystem.startReload();
+    if (!success) return;
+
     this._updateAmmoHUD();
 
     // Start CS:S-style reload animation on FP weapon
     if (this.fpWeapon) {
+      const config = this.weaponSystem.getWeaponConfig();
+      const isEmpty = this.weaponSystem.getAmmo().magazine === 0;
+
       this.fpWeapon.startReload(
         isEmpty,
         () => {
-          // Ammo refills mid-animation (CS:S behavior)
-          const needed = ammo.maxMag - ammo.mag;
-          const available = Math.min(needed, ammo.reserve);
-          ammo.mag += available;
-          ammo.reserve -= available;
+          // Ammo refills mid-animation (handled by WeaponSystem)
           this._updateAmmoHUD();
         },
         () => {
-          // Animation complete — can fire again
-          this.reloading = false;
+          // Animation complete
           this._updateAmmoHUD();
         }
       );
     }
   }
 
-  _cancelReload() {
-    this.reloading = false;
-    if (this.fpWeapon) this.fpWeapon.cancelReload();
-    this._updateAmmoHUD();
-  }
-
   _updateAmmoHUD() {
-    if (!this.ammoEl) return;
-    const ammo = this.weaponAmmo[this.currentWeapon];
-    if (!ammo || ammo.maxMag === Infinity) {
-      this.ammoEl.innerHTML = `<div class="weapon-name">${this.currentWeapon}</div>`;
+    if (!this.ammoEl || !this.weaponSystem) return;
+
+    const weaponType = this.weaponSystem.currentWeapon;
+    const ammo = this.weaponSystem.getAmmo();
+    const config = this.weaponSystem.getWeaponConfig();
+
+    // Weapon name display
+    const weaponName = weaponType.toString();
+
+    if (!config.hasAmmo) {
+      this.ammoEl.innerHTML = `<div class="weapon-name">${weaponName}</div>`;
       return;
     }
-    if (this.reloading) {
-      this.ammoEl.innerHTML = `<div class="weapon-name">${this.currentWeapon}</div><div class="reloading">RELOADING...</div><div class="reserve">/ ${ammo.reserve}</div>`;
+
+    const isReloading = this.weaponSystem.state === 'RELOADING';
+    if (isReloading) {
+      this.ammoEl.innerHTML = `<div class="weapon-name">${weaponName}</div><div class="reloading">RELOADING...</div><div class="reserve">/ ${ammo.reserve}</div>`;
       return;
     }
-    this.ammoEl.innerHTML = `<div class="weapon-name">${this.currentWeapon}</div><span class="mag">${ammo.mag}</span> <span class="reserve">/ ${ammo.reserve}</span>`;
+
+    this.ammoEl.innerHTML = `<div class="weapon-name">${weaponName}</div><span class="mag">${ammo.magazine}</span> <span class="reserve">/ ${ammo.reserve}</span>`;
   }
 
   _fireWeapon() {
-    if (!this.fpWeapon) return;
-    if (this.reloading) return;
+    if (!this.fpWeapon || !this.weaponSystem) return;
 
-    const ammo = this.weaponAmmo[this.currentWeapon];
-    if (ammo && ammo.mag <= 0) {
-      this._startReload();
-      return;
-    }
+    const currentTime = performance.now() / 1000;
 
+    // Use WeaponSystem instead of manual ammo tracking
+    const fireResult = this.weaponSystem.fire(currentTime);
+    if (!fireResult) return;
+
+    // Trigger FP weapon visual effect
     this.fpWeapon.fire();
 
-    // Consume ammo
-    if (ammo && ammo.mag !== Infinity) {
-      ammo.mag--;
-      this._updateAmmoHUD();
-      if (ammo.mag <= 0) this._startReload();
+    // Get recoil angle from pattern system
+    const speed = Math.hypot(this.vel.x, this.vel.z) * 47.7; // Convert to HU/s
+    const accuracy = this.accuracyModel ? this.accuracyModel.accuracy : 1.0;
+    const shotAngle = getFinalShotAngle(
+      fireResult.weaponType,
+      fireResult.shotIndex,
+      accuracy,
+      this.input.crouch
+    );
+
+    // Apply viewpunch recoil to camera
+    this.camera_pitch += shotAngle.y * (Math.PI / 180);
+    this.camera_yaw += shotAngle.x * (Math.PI / 180);
+    // Track for exponential decay
+    this.punchAngle.x += shotAngle.y * (Math.PI / 180);
+    this.punchAngle.y += shotAngle.x * (Math.PI / 180);
+
+    // Construct hitscan ray from camera
+    const rayOrigin = {
+      x: this.camera.position.x,
+      y: this.camera.position.y,
+      z: this.camera.position.z
+    };
+
+    const camDir = new this.THREE.Vector3();
+    this.camera.getWorldDirection(camDir);
+
+    // Apply shot angle offset to ray direction
+    const pitchAxis = new this.THREE.Vector3(1, 0, 0);
+    pitchAxis.applyQuaternion(this.camera.quaternion);
+    camDir.applyAxisAngle(pitchAxis, shotAngle.y * Math.PI / 180);
+
+    const yawAxis = new this.THREE.Vector3(0, 1, 0);
+    camDir.applyAxisAngle(yawAxis, shotAngle.x * Math.PI / 180);
+
+    camDir.normalize();
+    const rayDir = { x: camDir.x, y: camDir.y, z: camDir.z };
+
+    // Test hitscan against all targets
+    const targets = [];
+    if (this.hitboxSets) {
+      for (const [id, hbs] of Object.entries(this.hitboxSets)) {
+        targets.push({ id, hitboxes: hbs });
+      }
     }
 
-    const weaponName = this.fpWeapon.currentWeaponName;
-    const cfg = this.recoilConfig[weaponName];
-    if (!cfg || cfg.kick === 0) return;
+    const hit = testHitscan(rayOrigin, rayDir, targets, 'local');
 
-    const now = performance.now() / 1000;
-
-    // Reset spray if cooldown elapsed since last shot
-    if (now - this.lastShotTime > this.recoilCooldown) {
-      this.recoilIndex = 0;
+    // Tracer (every 4th bullet)
+    if (this.combatFeedback && fireResult.shotIndex % 4 === 0) {
+      const endPos = hit
+        ? hit.hitPosition
+        : {
+            x: rayOrigin.x + rayDir.x * 100,
+            y: rayOrigin.y + rayDir.y * 100,
+            z: rayOrigin.z + rayDir.z * 100
+          };
+      this.combatFeedback.spawnTracer(
+        new this.THREE.Vector3(rayOrigin.x, rayOrigin.y, rayOrigin.z),
+        new this.THREE.Vector3(endPos.x, endPos.y, endPos.z)
+      );
     }
-    this.lastShotTime = now;
 
-    // CS:S pattern: mostly vertical early, more horizontal variance later
-    const verticalKick = cfg.kick * (1 + this.recoilIndex * 0.08);
-    const horizontalRange = cfg.hVariance * (1 + this.recoilIndex * 0.15);
-    const horizontalKick = (Math.random() - 0.5) * 2 * horizontalRange;
+    if (hit) {
+      // Apply damage
+      const weaponConfig = this.weaponSystem.getWeaponConfig();
+      const damageResult = this.damageSystem.applyDamage('local', hit, weaponConfig);
 
-    // Accumulate viewpunch (capped at max vertical)
-    this.punchAngle.x = Math.min(this.punchAngle.x + verticalKick, cfg.maxVertical);
-    this.punchAngle.y += horizontalKick;
+      if (damageResult) {
+        // Visual feedback: blood spray
+        const hitPos3 = new this.THREE.Vector3(hit.hitPosition.x, hit.hitPosition.y, hit.hitPosition.z);
+        const hitDir3 = new this.THREE.Vector3(rayDir.x, rayDir.y, rayDir.z);
+        this.combatFeedback.onPlayerHit(hitPos3, hitDir3, hit.isHeadshot);
 
-    // Apply immediately to camera
-    this.camera_pitch += verticalKick;
-    this.camera_yaw += horizontalKick;
+        // Log damage for debug
+        console.log(`HIT ${hit.targetId} [${hit.zone}] ${damageResult.damageDealt} dmg (${damageResult.remainingHp} HP left)`);
 
-    this.recoilIndex++;
+        // If killed, trigger ragdoll
+        if (damageResult.killed) {
+          console.log(`KILLED ${hit.targetId}!`);
+          // Trigger ragdoll on killed mannequin
+          const instance = hit.targetId === 'mannequin_red' ? this.testMannequinRed : this.testMannequinBlue;
+          if (instance && this.ragdollSystem) {
+            this.ragdollSystem.spawnRagdoll(
+              instance,
+              new this.THREE.Vector3(rayDir.x * 5, 2, rayDir.z * 5),
+              this.scene
+            );
+            if (hit.targetId === 'mannequin_red') this.testMannequinRed = null;
+            else this.testMannequinBlue = null;
+          }
+        }
+      }
+    } else {
+      // No player hit — test environment (wall/floor hit)
+      const raycaster = new this.THREE.Raycaster(
+        new this.THREE.Vector3(rayOrigin.x, rayOrigin.y, rayOrigin.z),
+        new this.THREE.Vector3(rayDir.x, rayDir.y, rayDir.z),
+        0.1,
+        200
+      );
+      const worldHits = raycaster.intersectObject(this.scene, true);
+      if (worldHits.length > 0 && this.combatFeedback) {
+        const wh = worldHits[0];
+        this.combatFeedback.onEnvironmentHit(wh.point, wh.face?.normal || new this.THREE.Vector3(0, 1, 0));
+        if (wh.object?.isMesh) {
+          this.combatFeedback.addBulletDecal(wh.point, wh.face?.normal || new this.THREE.Vector3(0, 1, 0), wh.object);
+        }
+      }
+    }
+
+    // Update ammo HUD
+    this._updateAmmoHUD();
   }
 
   start() {
@@ -832,6 +1029,11 @@ export default class MovementVisualizer {
     // Step ragdoll physics
     if (this.ragdollSystem) {
       this.ragdollSystem.step(this.dt);
+    }
+
+    // Update combat feedback (visual effects)
+    if (this.combatFeedback) {
+      this.combatFeedback.update(delta);
     }
 
     // Update camera (crouch-jump raises viewpoint when crouching in air)
@@ -887,7 +1089,28 @@ export default class MovementVisualizer {
       const vz = this.vel.z.toFixed(2);
       const sp = speed.toFixed(2);
       const ground = this.onGround ? 'Y' : 'N';
-      this.statusEl.textContent = `pos: ${px}, ${py}, ${pz}\nvel: ${vx}, ${vy}, ${vz}\nspeed: ${sp} m/s | ground: ${ground}`;
+
+      let statusText = `pos: ${px}, ${py}, ${pz}\nvel: ${vx}, ${vy}, ${vz}\nspeed: ${sp} m/s | ground: ${ground}`;
+
+      if (this.weaponSystem) {
+        const weapon = this.weaponSystem.currentWeapon;
+        const shotsFired = this.weaponSystem.shotsFired;
+        const accuracy = this.accuracyModel ? (this.accuracyModel.accuracy * 100).toFixed(0) : '100';
+        statusText += `\nweapon: ${weapon} | shots: ${shotsFired} | acc: ${accuracy}%`;
+      }
+
+      if (this.damageSystem) {
+        const redHealth = this.damageSystem.getHealth('mannequin_red');
+        const blueHealth = this.damageSystem.getHealth('mannequin_blue');
+        if (redHealth) {
+          statusText += `\nRed: ${redHealth.hp.toFixed(0)} HP | ${redHealth.armor.toFixed(0)} armor`;
+        }
+        if (blueHealth) {
+          statusText += `\nBlue: ${blueHealth.hp.toFixed(0)} HP | ${blueHealth.armor.toFixed(0)} armor`;
+        }
+      }
+
+      this.statusEl.textContent = statusText;
     }
 
     // Two-pass rendering: world scene + first-person weapon
@@ -897,10 +1120,11 @@ export default class MovementVisualizer {
     this.renderer.render(this.scene, this.camera);
 
     // Full-auto firing
-    if (this.fireHeld && this.fpWeapon && this.fpWeapon.currentWeaponName) {
+    if (this.fireHeld && this.fpWeapon && this.weaponSystem) {
       this.fireTimer += delta;
-      const rate = this.fireRates[this.fpWeapon.currentWeaponName] || 0.15;
-      while (this.fireTimer >= rate) {
+      const config = this.weaponSystem.getWeaponConfig();
+      const rate = config.fireRate;
+      while (this.fireTimer >= rate && this.weaponSystem.canFire()) {
         this._fireWeapon();
         this.fireTimer -= rate;
       }
