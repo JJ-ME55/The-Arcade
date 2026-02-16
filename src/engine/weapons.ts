@@ -199,10 +199,9 @@ export class WeaponSystem {
     if (this.state !== WeaponState.IDLE) return false;
     if (this.currentWeapon === WeaponType.KNIFE) return false;
 
-    const config = this.getWeaponConfig();
     const ammoState = this.ammo.get(this.currentWeapon)!;
 
-    return ammoState.magazine > 0 && this.stateTime >= config.fireRate;
+    return ammoState.magazine > 0;
   }
 
   // Can reload check
