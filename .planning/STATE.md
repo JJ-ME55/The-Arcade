@@ -9,10 +9,10 @@
 ## Current Position
 
 **Phase:** 4 of 9 -- Weapons & Combat
-**Plan:** 1 of 6 in phase
+**Plan:** 3 of 6 in phase
 **Status:** In progress
-**Last activity:** 2026-02-16 - Completed 04-01-PLAN.md (Weapon System & Recoil Patterns)
-**Progress:** [###.......] 24/85 requirements
+**Last activity:** 2026-02-16 - Completed 04-03-PLAN.md (Damage Calculation & HP System)
+**Progress:** [###.......] 26/85 requirements
 
 ## Phase Overview
 
@@ -33,10 +33,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Plans completed | 17 |
+| Plans completed | 19 |
 | Plans failed | 0 |
-| Requirements done | 24/85 |
-| Current streak | 17 |
+| Requirements done | 26/85 |
+| Current streak | 19 |
 
 ## Accumulated Context
 
@@ -59,6 +59,9 @@
 | D8 | 03-06 | Ammo refill at 50% through reload animation (CS:S behavior) | Matches Source engine timing where magazine swap happens mid-animation |
 | D9 | 04-01 | Spray pattern storage as per-shot delta angles rather than cumulative offsets | More natural for recoil system implementation, easier to reason about pattern progression |
 | D10 | 04-01 | Spray pattern reset after 0.45s of no firing | CS:S authentic recovery timing, enables burst control skill |
+| D11 | 04-03 | Armor absorbs 50% of damage, consumes 25% as durability | CS:S authentic armor behavior, lasts through multiple hits |
+| D12 | 04-03 | Tagging scales linearly with damage up to 80% max slow | Proportional penalty rewards high-damage weapons, prevents full immobilization |
+| D13 | 04-03 | Knife backstab deals 200 damage | Ensures backstab is always lethal even with 100HP + 100 armor |
 
 ### Architecture Notes
 - Game engine is standalone TypeScript, zero React dependency, communicates via event bus
@@ -75,6 +78,8 @@
 - Weapon state machine with CS:S timing enforcement (draw blocks fire, reload commits at 50%, cannot cancel)
 - Fixed 30-shot spray patterns with random spread overlay (AK-47 left pull, M4A1 right drift)
 - Movement-based accuracy with instant counter-strafe recovery (CS:S mechanic)
+- CS:S damage order: base * multiplier * armor (50% reduction when protected)
+- HP/armor/helmet system with tagging on hit (0.1s duration, scales with damage)
 
 ### Research Flags
 - Phase 1 research COMPLETE: CS:S movement algorithm documented, standard floating-point math chosen, Three.js patterns identified
@@ -93,9 +98,9 @@
 ## Session Continuity
 
 **Last session:** 2026-02-16
-**Stopped at:** Completed 04-01-PLAN.md (Weapon System & Recoil Patterns)
+**Stopped at:** Completed 04-03-PLAN.md (Damage Calculation & HP System)
 **Resume file:** None
-**Next action:** Continue Phase 4 (04-02: Hitbox Geometry & Hitscan Engine)
+**Next action:** Continue Phase 4 (04-04: Combat Feedback - Particles & Decals)
 
 ---
-*Last updated: 2026-02-16 (04-01 complete: Weapon System & Recoil Patterns)*
+*Last updated: 2026-02-16 (04-03 complete: Damage Calculation & HP System)*
