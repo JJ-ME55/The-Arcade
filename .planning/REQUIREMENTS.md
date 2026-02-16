@@ -29,7 +29,7 @@
 
 ### Map (MAP)
 
-- [ ] **MAP-01**: aim_ag_texture2 map faithfully recreated with 4-floor vertical layout
+- [ ] **MAP-01**: aim_ag_texture2 inspired arena with multi-level vertical layout
 - [ ] **MAP-02**: Map uses block geometry with flat solid-color surfaces (dev texture aesthetic)
 - [ ] **MAP-03**: Map is symmetrical with neither spawn side having an advantage
 - [ ] **MAP-04**: Map has one fixed spawn point per team on opposite ends
