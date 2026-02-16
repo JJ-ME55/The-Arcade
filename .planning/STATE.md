@@ -11,7 +11,7 @@
 **Phase:** 4 of 9 -- Weapons & Combat
 **Plan:** 1 of 6 in phase
 **Status:** In progress
-**Last activity:** 2026-02-16 - Completed 04-02-PLAN.md
+**Last activity:** 2026-02-16 - Completed 04-01-PLAN.md (Weapon System & Recoil Patterns)
 **Progress:** [###.......] 24/85 requirements
 
 ## Phase Overview
@@ -33,10 +33,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Plans completed | 16 |
+| Plans completed | 17 |
 | Plans failed | 0 |
 | Requirements done | 24/85 |
-| Current streak | 16 |
+| Current streak | 17 |
 
 ## Accumulated Context
 
@@ -57,6 +57,8 @@
 | D6 | 03-04 | Attach weapons to Hand.R bone for future animation compatibility | Enables reload animations, weapon sway, aim-down-sights adjustments via bone transforms |
 | D7 | 03-06 | CS:S ViewPunch recoil with exponential decay instead of linear recovery | Feels more natural, matches CS:S behavior — slow decay while firing, faster recovery on release |
 | D8 | 03-06 | Ammo refill at 50% through reload animation (CS:S behavior) | Matches Source engine timing where magazine swap happens mid-animation |
+| D9 | 04-01 | Spray pattern storage as per-shot delta angles rather than cumulative offsets | More natural for recoil system implementation, easier to reason about pattern progression |
+| D10 | 04-01 | Spray pattern reset after 0.45s of no firing | CS:S authentic recovery timing, enables burst control skill |
 
 ### Architecture Notes
 - Game engine is standalone TypeScript, zero React dependency, communicates via event bus
@@ -70,6 +72,9 @@
 - Ragdoll physics: Rapier.js WASM (12-body ragdolls with joint constraints, ground plane collision only)
 - Two-pass weapon rendering: world scene → clearDepth → weapon scene (prevents wall clipping)
 - Weapon models built along X-axis in Blender, need -PI/2 Y rotation after GLTF import to point along -Z (forward)
+- Weapon state machine with CS:S timing enforcement (draw blocks fire, reload commits at 50%, cannot cancel)
+- Fixed 30-shot spray patterns with random spread overlay (AK-47 left pull, M4A1 right drift)
+- Movement-based accuracy with instant counter-strafe recovery (CS:S mechanic)
 
 ### Research Flags
 - Phase 1 research COMPLETE: CS:S movement algorithm documented, standard floating-point math chosen, Three.js patterns identified
@@ -88,9 +93,9 @@
 ## Session Continuity
 
 **Last session:** 2026-02-16
-**Stopped at:** Completed 04-02-PLAN.md
+**Stopped at:** Completed 04-01-PLAN.md (Weapon System & Recoil Patterns)
 **Resume file:** None
-**Next action:** Continue Phase 4 (04-03: Weapon Firing System)
+**Next action:** Continue Phase 4 (04-02: Hitbox Geometry & Hitscan Engine)
 
 ---
-*Last updated: 2026-02-16 (04-02 complete: Hitbox Geometry & Hitscan Engine)*
+*Last updated: 2026-02-16 (04-01 complete: Weapon System & Recoil Patterns)*
