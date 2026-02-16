@@ -9,10 +9,10 @@
 ## Current Position
 
 **Phase:** 4 of 9 -- Weapons & Combat
-**Plan:** 4 of 6 in phase
+**Plan:** 5 of 6 in phase
 **Status:** In progress
-**Last activity:** 2026-02-16 - Completed 04-04-PLAN.md (Combat Feedback - Particles & Decals)
-**Progress:** [###.......] 27/85 requirements
+**Last activity:** 2026-02-16 - Completed 04-05-PLAN.md (Full Combat Integration)
+**Progress:** [###.......] 28/85 requirements
 
 ## Phase Overview
 
@@ -33,10 +33,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Plans completed | 20 |
+| Plans completed | 21 |
 | Plans failed | 0 |
-| Requirements done | 27/85 |
-| Current streak | 20 |
+| Requirements done | 28/85 |
+| Current streak | 21 |
 
 ## Accumulated Context
 
@@ -66,6 +66,9 @@
 | D15 | 04-04 | Helmet spark as separate headshot effect | 80ms bright flash provides instant visual "dink" confirmation |
 | D16 | 04-04 | Tracer sliding effect | Start position lerps toward end over 0.15s (mimics actual tracer behavior) |
 | D17 | 04-04 | Decal limit 100 with 60s TTL | Balances visual accumulation with performance, no mid-combat cleanup |
+| D18 | 04-05 | Weapon 1 key toggles AK-47/M4A1 for testing | Both rifles testable immediately without waiting for Phase 5 freeze-time UI |
+| D19 | 04-05 | Hitbox updates every tick before fire events | Ensures hit detection uses current frame bone positions (critical for moving targets) |
+| D20 | 04-05 | Ray angle offset via quaternion-aware axis-angle rotation | Prevents incorrect spread when looking straight up/down (gimbal lock avoidance) |
 
 ### Architecture Notes
 - Game engine is standalone TypeScript, zero React dependency, communicates via event bus
@@ -86,6 +89,10 @@
 - HP/armor/helmet system with tagging on hit (0.1s duration, scales with damage)
 - Object-pooled combat effects: blood (300), sparks (200), helmet flash (5), tracers (20), enemy flash (8)
 - All visual effects use procedural CanvasTextures, zero runtime allocation during combat
+- Full combat integration: fire → hitscan → damage → feedback loop in visual/main.js
+- Weapon-specific movement speeds (AK=4.51, M4=4.63, Pistol=5.03, Knife=5.24 m/s)
+- Hitbox position updates every tick from bone world transforms
+- src/index.ts exports all engine modules for clean import
 
 ### Research Flags
 - Phase 1 research COMPLETE: CS:S movement algorithm documented, standard floating-point math chosen, Three.js patterns identified
@@ -104,9 +111,9 @@
 ## Session Continuity
 
 **Last session:** 2026-02-16
-**Stopped at:** Completed 04-04-PLAN.md (Combat Feedback - Particles & Decals)
+**Stopped at:** Completed 04-05-PLAN.md (Full Combat Integration)
 **Resume file:** None
-**Next action:** Continue Phase 4 (04-05: Full Combat Integration)
+**Next action:** Continue Phase 4 (04-06: Verification & Testing)
 
 ---
-*Last updated: 2026-02-16 (04-04 complete: Combat Feedback - Particles & Decals)*
+*Last updated: 2026-02-16 (04-05 complete: Full Combat Integration)*
