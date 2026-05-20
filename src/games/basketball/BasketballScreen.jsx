@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 import { makeBasketballGameConfig } from './scene.js';
-import { BasketballHUD } from './hud.js';
+import { BasketballHUD } from './hud.jsx';
 
 /**
  * BasketballScreen — top-level React component mounting the Phaser

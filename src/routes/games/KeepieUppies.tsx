@@ -1,6 +1,6 @@
 // @ts-nocheck — KeepieUppiesScreen is plain JS, lifted from
 // arcade/keepie-uppies on the SolShot repo. Strict TS not yet applied.
-import { KeepieUppiesScreen } from '@/games/keepie-uppies/KeepieUppiesScreen.js';
+import { KeepieUppiesScreen } from '@/games/keepie-uppies/KeepieUppiesScreen.jsx';
 
 /**
  * Mounts the Keepie Uppies Phaser scene at /play/keepie-uppies. The

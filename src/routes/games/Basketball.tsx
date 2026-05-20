@@ -1,6 +1,6 @@
 // @ts-nocheck — BasketballScreen is plain JS, lifted from arcade/basketball
 // branch on the SolShot repo. Strict TS not yet applied to lifted game code.
-import { BasketballScreen } from '@/games/basketball/BasketballScreen.js';
+import { BasketballScreen } from '@/games/basketball/BasketballScreen.jsx';
 
 /**
  * Mounts the Basketball Phaser scene at /play/basketball. The lifted
