@@ -1,18 +1,13 @@
+// @ts-nocheck — BasketballScreen is plain JS, lifted from arcade/basketball
+// branch on the SolShot repo. Strict TS not yet applied to lifted game code.
+import { BasketballScreen } from '@/games/basketball/BasketballScreen.js';
+
 /**
- * Basketball — placeholder. Game scene lifts from the SolShot repo's
- * `arcade/basketball` branch at `client/src/games/basketball/`.
- *
- * Once lifted, mount the Phaser scene here. Server-authoritative scoring
- * unchanged — `apiFetch` to `/api/arcade/score` with the attempt result.
+ * Mounts the Basketball Phaser scene at /play/basketball. The lifted
+ * BasketballScreen handles its own Phaser game lifecycle (mount on
+ * effect, destroy on unmount) and captures `?session=<jwt>` from the
+ * URL for arcade-bot launches.
  */
 export function Basketball() {
-  return (
-    <main style={{ padding: 'var(--space-8)', textAlign: 'center' }}>
-      <h1 style={{ color: 'var(--accent)' }}>Basketball</h1>
-      <p style={{ opacity: 0.7 }}>
-        Lift the Phaser scene from <code>arcade/basketball</code> branch ·{' '}
-        <code>client/src/games/basketball/</code>
-      </p>
-    </main>
-  );
+  return <BasketballScreen />;
 }

@@ -1,18 +1,12 @@
+// @ts-nocheck — KeepieUppiesScreen is plain JS, lifted from
+// arcade/keepie-uppies on the SolShot repo. Strict TS not yet applied.
+import { KeepieUppiesScreen } from '@/games/keepie-uppies/KeepieUppiesScreen.js';
+
 /**
- * Keepie Uppies — placeholder. Game scene lifts from the SolShot repo's
- * `arcade/keepie-uppies` branch at `client/src/games/keepie-uppies/`.
- *
- * Once lifted, mount the Phaser scene here. Server-authoritative scoring
- * unchanged — `apiFetch` to `/api/arcade/score` with the attempt result.
+ * Mounts the Keepie Uppies Phaser scene at /play/keepie-uppies. The
+ * lifted KeepieUppiesScreen handles its own Phaser game lifecycle and
+ * captures `?session=<jwt>` from the URL for arcade-bot launches.
  */
 export function KeepieUppies() {
-  return (
-    <main style={{ padding: 'var(--space-8)', textAlign: 'center' }}>
-      <h1 style={{ color: 'var(--accent)' }}>Keepie Uppies</h1>
-      <p style={{ opacity: 0.7 }}>
-        Lift the Phaser scene from <code>arcade/keepie-uppies</code> branch ·{' '}
-        <code>client/src/games/keepie-uppies/</code>
-      </p>
-    </main>
-  );
+  return <KeepieUppiesScreen />;
 }
