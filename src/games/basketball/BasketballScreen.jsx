@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { makeBasketballGameConfig } from './scene.js';
 import { BasketballHUD } from './hud.jsx';
 import { GameChrome } from '@/components/GameChrome.jsx';
+import { TelegramLinkBanner } from '@/components/TelegramLinkBanner.jsx';
 import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
 
 /**
@@ -27,7 +28,7 @@ export function BasketballScreen() {
             if (session) sessionStorage.setItem('arcade_session', session);
         } catch (_) { /* no leaderboard for this play; game still works */ }
     }, []);
-    useArcadeSessionMint('basketball');
+    const { status: sessionStatus } = useArcadeSessionMint('basketball');
 
     useEffect(() => {
         if (!phaserHostRef.current) return;
@@ -51,6 +52,7 @@ export function BasketballScreen() {
             <div ref={phaserHostRef} style={styles.phaserHost} />
             <BasketballHUD />
             <GameChrome onMute={handleMute} />
+            {sessionStatus === 'tg_not_linked' && <TelegramLinkBanner />}
         </div>
     );
 }

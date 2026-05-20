@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useArcadeAuth } from './useAuth';
 
 const API_BASE = import.meta.env.VITE_SOLSHOT_API_BASE;
@@ -18,16 +18,20 @@ const API_BASE = import.meta.env.VITE_SOLSHOT_API_BASE;
  *   - 'arcade_session'  (basketball, keepie-uppies)
  *   - 'arcadeSession'   (free-kicks)
  *
- * Limitations:
- * - Requires user to have linked their Telegram (server returns 412
- *   tg_not_linked otherwise). Users without linked TG play in free-mode
- *   — game still works, scores aren't submitted.
- * - Skips if sessionStorage already has a JWT (bot users keep theirs).
+ * Returns { status } so the caller can render UI based on outcome:
+ *   - 'idle'           — pre-Privy, pre-mount, or skipped
+ *   - 'has_session'    — sessionStorage already has a JWT (bot user)
+ *   - 'minting'        — fetch in flight
+ *   - 'ok'             — session minted, scores will submit
+ *   - 'tg_not_linked'  — 412 from server, user needs to link TG (free-play)
+ *   - 'error'          — network/server failure (free-play)
  *
  * @param {'basketball'|'keepieuppies'|'freekicks'} gameSlug
+ * @returns {{ status: 'idle' | 'has_session' | 'minting' | 'ok' | 'tg_not_linked' | 'error' }}
  */
 export function useArcadeSessionMint(gameSlug) {
     const auth = useArcadeAuth();
+    const [status, setStatus] = useState('idle');
 
     useEffect(() => {
         if (!auth.ready || !auth.authenticated || !API_BASE || !gameSlug) return;
@@ -38,6 +42,7 @@ export function useArcadeSessionMint(gameSlug) {
                 sessionStorage.getItem('arcade_session') ||
                 sessionStorage.getItem('arcadeSession')
             ) {
+                setStatus('has_session');
                 return;
             }
         } catch {
@@ -45,6 +50,7 @@ export function useArcadeSessionMint(gameSlug) {
         }
 
         let cancelled = false;
+        setStatus('minting');
 
         (async () => {
             try {
@@ -61,22 +67,29 @@ export function useArcadeSessionMint(gameSlug) {
                 if (cancelled) return;
 
                 if (resp.status === 412) {
-                    // tg_not_linked — free-play mode, no submit. Game still works.
+                    setStatus('tg_not_linked');
                     return;
                 }
-                if (!resp.ok) return;
+                if (!resp.ok) {
+                    setStatus('error');
+                    return;
+                }
 
                 const data = await resp.json();
-                if (!data?.session) return;
+                if (!data?.session) {
+                    setStatus('error');
+                    return;
+                }
 
                 try {
                     sessionStorage.setItem('arcade_session', data.session);
                     sessionStorage.setItem('arcadeSession', data.session);
+                    setStatus('ok');
                 } catch {
-                    /* sessionStorage write failed — silent */
+                    setStatus('error');
                 }
             } catch {
-                /* network/parse failure — free-play mode */
+                if (!cancelled) setStatus('error');
             }
         })();
 
@@ -84,6 +97,8 @@ export function useArcadeSessionMint(gameSlug) {
             cancelled = true;
         };
     }, [auth.ready, auth.authenticated, gameSlug]);
+
+    return { status };
 }
 
 export default useArcadeSessionMint;

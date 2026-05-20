@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { GameChrome } from '@/components/GameChrome.jsx';
+import { TelegramLinkBanner } from '@/components/TelegramLinkBanner.jsx';
 import { bootFreeKicks } from './boot.js';
 import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
 
@@ -23,7 +24,7 @@ export function FreeKicksScreen() {
     // Web-user score submission via Privy → server-minted JWT.
     // Bot users get their JWT from ?session= in the URL (handled inside
     // bootFreeKicks). Hook is no-op if a session JWT already exists.
-    useArcadeSessionMint('freekicks');
+    const { status: sessionStatus } = useArcadeSessionMint('freekicks');
 
     useEffect(() => {
         if (!gameRef.current) return;
@@ -65,6 +66,7 @@ export function FreeKicksScreen() {
                 <button id="replay" style={styles.replay}>Tap to play again</button>
             </div>
             <GameChrome onMute={handleMute} />
+            {sessionStatus === 'tg_not_linked' && <TelegramLinkBanner />}
         </div>
     );
 }

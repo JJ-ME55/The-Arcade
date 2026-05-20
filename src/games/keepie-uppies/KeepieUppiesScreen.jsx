@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 import { createScene } from './scene.js';
 import { GameChrome } from '@/components/GameChrome.jsx';
+import { TelegramLinkBanner } from '@/components/TelegramLinkBanner.jsx';
 import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
 
 /**
@@ -22,7 +23,7 @@ export function KeepieUppiesScreen() {
             if (session) sessionStorage.setItem('arcade_session', session);
         } catch (_) { /* no leaderboard for this play; game still works */ }
     }, []);
-    useArcadeSessionMint('keepieuppies');
+    const { status: sessionStatus } = useArcadeSessionMint('keepieuppies');
 
     useEffect(() => {
         if (!phaserHostRef.current || gameRef.current) return;
@@ -55,6 +56,7 @@ export function KeepieUppiesScreen() {
         <div style={styles.root}>
             <div ref={phaserHostRef} style={styles.phaserHost} />
             <GameChrome onMute={handleMute} />
+            {sessionStatus === 'tg_not_linked' && <TelegramLinkBanner />}
         </div>
     );
 }
