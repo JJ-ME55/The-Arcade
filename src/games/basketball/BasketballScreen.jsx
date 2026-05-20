@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { makeBasketballGameConfig } from './scene.js';
 import { BasketballHUD } from './hud.jsx';
 import { GameChrome } from '@/components/GameChrome.jsx';
+import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
 
 /**
  * BasketballScreen — mounts the Phaser scene + HUD + arcade chrome.
@@ -17,12 +18,16 @@ export function BasketballScreen() {
     const phaserHostRef = useRef(null);
     const gameRef = useRef(null);
 
+    // Bot users — JWT comes via the URL (?session=). Web users — JWT
+    // gets minted server-side via Privy auth (useArcadeSessionMint).
+    // Either way the existing game submit logic reads sessionStorage.
     useEffect(() => {
         try {
             const session = new URLSearchParams(window.location.search).get('session');
             if (session) sessionStorage.setItem('arcade_session', session);
         } catch (_) { /* no leaderboard for this play; game still works */ }
     }, []);
+    useArcadeSessionMint('basketball');
 
     useEffect(() => {
         if (!phaserHostRef.current) return;

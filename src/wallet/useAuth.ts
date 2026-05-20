@@ -1,4 +1,4 @@
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, getAccessToken as privyGetAccessToken } from '@privy-io/react-auth';
 
 const PRIVY_ENABLED = Boolean(import.meta.env.VITE_PRIVY_APP_ID);
 
@@ -8,6 +8,11 @@ export interface ArcadeAuth {
   callsign: string | null;
   login: () => void;
   logout: () => Promise<void>;
+  /**
+   * Fetch a fresh Privy access token for server-side auth. Returns null
+   * if Privy isn't configured OR the user isn't authenticated.
+   */
+  getAccessToken: () => Promise<string | null>;
 }
 
 /**
@@ -34,6 +39,7 @@ export function useArcadeAuth(): ArcadeAuth {
         console.warn('[useArcadeAuth] Privy not configured — VITE_PRIVY_APP_ID missing.');
       },
       logout: async () => {},
+      getAccessToken: async () => null,
     };
   }
 
@@ -46,5 +52,13 @@ export function useArcadeAuth(): ArcadeAuth {
       null,
     login: privy.login,
     logout: privy.logout,
+    getAccessToken: async () => {
+      try {
+        const token = await privyGetAccessToken();
+        return token ?? null;
+      } catch {
+        return null;
+      }
+    },
   };
 }

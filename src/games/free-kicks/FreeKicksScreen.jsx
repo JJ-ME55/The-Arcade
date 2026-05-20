@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { GameChrome } from '@/components/GameChrome.jsx';
 import { bootFreeKicks } from './boot.js';
+import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
 
 /**
  * FreeKicksScreen — mounts the Three.js scene + HUD + arcade chrome.
@@ -18,6 +19,11 @@ import { bootFreeKicks } from './boot.js';
 export function FreeKicksScreen() {
     const gameRef = useRef(null);
     const teardownRef = useRef(null);
+
+    // Web-user score submission via Privy → server-minted JWT.
+    // Bot users get their JWT from ?session= in the URL (handled inside
+    // bootFreeKicks). Hook is no-op if a session JWT already exists.
+    useArcadeSessionMint('freekicks');
 
     useEffect(() => {
         if (!gameRef.current) return;

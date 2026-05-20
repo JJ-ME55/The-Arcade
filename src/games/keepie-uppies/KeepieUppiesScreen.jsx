@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 import { createScene } from './scene.js';
 import { GameChrome } from '@/components/GameChrome.jsx';
+import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
 
 /**
  * KeepieUppiesScreen — mounts the Phaser scene + arcade chrome.
@@ -14,12 +15,14 @@ export function KeepieUppiesScreen() {
     const phaserHostRef = useRef(null);
     const gameRef = useRef(null);
 
+    // Bot users — JWT via URL. Web users — JWT minted by Privy auth.
     useEffect(() => {
         try {
             const session = new URLSearchParams(window.location.search).get('session');
             if (session) sessionStorage.setItem('arcade_session', session);
         } catch (_) { /* no leaderboard for this play; game still works */ }
     }, []);
+    useArcadeSessionMint('keepieuppies');
 
     useEffect(() => {
         if (!phaserHostRef.current || gameRef.current) return;
