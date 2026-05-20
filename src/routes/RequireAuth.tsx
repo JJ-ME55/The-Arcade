@@ -1,10 +1,15 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useArcadeAuth } from '@/wallet/useAuth';
+import { useArcadeRegister } from '@/wallet/useArcadeRegister.js';
 
 /**
  * Route guard. Redirects unauthenticated users to / (the cabinet)
  * with the intended path in state so the post-sign-in flow can
  * deep-link back.
+ *
+ * Also fires `useArcadeRegister()` so the SolShot server gets a User
+ * doc keyed on the Privy DID the first time the user lands on any
+ * authed route. Closes the orphan-arcade-user gap.
  *
  * If Privy isn't configured (no VITE_PRIVY_APP_ID), this lets all
  * traffic through — Fish can still navigate the routes during early
@@ -13,6 +18,7 @@ import { useArcadeAuth } from '@/wallet/useAuth';
 export function RequireAuth() {
   const auth = useArcadeAuth();
   const location = useLocation();
+  useArcadeRegister();
 
   if (!auth.ready) {
     return (
