@@ -144,26 +144,34 @@ Plans:
 
 ## Phase 4.1: Model & Visual Quality (INSERTED)
 
-**Goal:** Upgrade placeholder geometric weapons, arms, and mannequin models to higher quality. Improve materials, proportions, and visual fidelity of all player-visible 3D assets while keeping the geometric/low-poly art style.
+**Goal:** Replace the placeholder geometric weapons, arms, and player/opponent models with realistic, commercially-licensed assets. Move all player-visible 3D assets from the placeholder block look to a cohesive realistic art style, with the opponent reading clearly as a human soldier and driven by the existing procedural animation + ragdoll systems.
 
 **Dependencies:** Phase 4 (combat mechanics finalized before investing in visual polish)
 
+**Direction note (2026-05-22):** Original "keep geometric/low-poly" intent was overturned after an in-engine prototype. User saw a realistic Mixamo soldier (three.js Soldier.glb "Vanguard") in the arena and chose realistic for ALL player-visible models. Mixamo (Adobe) content is royalty-free for commercial use — safe for the staking game. Confirmed: Mixamo skeleton bone names map 1:1 to the current 19-bone armature, so the rig migration is a contained remap.
+
 **Requirements:**
-- VISUAL-01: Higher-fidelity weapon models (rifle, pistol, knife) with better proportions and detail
-- VISUAL-02: Improved first-person arms with better geometry and materials
-- VISUAL-03: Enhanced mannequin model with more defined proportions and cleaner geometry
-- VISUAL-04: Consistent art style across all player-visible models (cohesive low-poly aesthetic)
+- VISUAL-01: Realistic weapon models (rifle, pistol, knife) with accurate proportions and detail, commercially licensed
+- VISUAL-02: Realistic first-person arms with proper geometry and materials (gloves/sleeves), matching the soldier style
+- VISUAL-03: Realistic human soldier player/opponent model with clear RED/BLUE team identification, rigged to drive the existing procedural animations and Rapier ragdoll
+- VISUAL-04: Consistent realistic art style across all player-visible models (opponent, arms, weapons cohere)
 
 **Success Criteria:**
-1. Weapon models look recognizable and well-proportioned — a rifle looks like a rifle, not a collection of boxes
-2. First-person arms have visible definition (forearm/hand shape) and materials that convey a sleeve/glove look
-3. Third-person mannequin has clean proportions and reads clearly as a human figure at gameplay distances
-4. All models maintain a cohesive geometric/low-poly art style that feels intentional rather than placeholder
+1. Weapon models look like real weapons (a rifle reads as a rifle) with believable materials, not placeholder boxes
+2. First-person arms read as realistic gloved/sleeved arms whose style matches the soldier
+3. Third-person opponent reads clearly as a realistic human soldier at gameplay distances, with red vs blue team color instantly distinguishable
+4. The realistic opponent runs/strafes/crouches/jumps/shoots/reloads via the existing procedural animation system and collapses correctly into ragdoll on death
+5. All player-visible models share a cohesive realistic art style; all assets are commercially licensed (safe to ship in a real-money game)
 
-**Plans:** 0 plans
+**Plans:** 6 plans in 4 waves
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 4.1 to break down)
+- [ ] 04.1-01-PLAN.md — Character rig migration (Mixamo soldier → renamed bones + baked rest pose → soldier.glb)
+- [ ] 04.1-02-PLAN.md — Realistic weapon sourcing + licensing + web optimization (rifle/pistol/knife.glb)
+- [ ] 04.1-03-PLAN.md — Soldier game integration, animation axis tuning, team colors, prototype removal
+- [ ] 04.1-04-PLAN.md — Ragdoll capsule recalibration for soldier proportions
+- [ ] 04.1-05-PLAN.md — Realistic FP arms + weapon orientation re-tuning in FP view
+- [ ] 04.1-06-PLAN.md — Visual verification checkpoint
 
 ---
 
