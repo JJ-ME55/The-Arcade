@@ -208,11 +208,43 @@ export default class MovementVisualizer {
 
         const mannequinStartTime = performance.now();
         this.playerModelManager = new this.PlayerModel(this.THREE);
-        await this.playerModelManager.load('mannequin_neutral.glb');
+        await this.playerModelManager.load('soldier.glb');
         const mannequinLoadTime = performance.now() - mannequinStartTime;
         console.log(`Mannequin loaded in ${mannequinLoadTime.toFixed(1)}ms`);
 
-        // Spawn test mannequins
+        // Debug: measure actual mannequin size and hierarchy in Three.js
+        {
+          const scene = this.playerModelManager.sourceScene;
+          const bbox = new this.THREE.Box3().setFromObject(scene);
+          const size = new this.THREE.Vector3();
+          bbox.getSize(size);
+          console.log(`[DEBUG] Mannequin GLB bbox: min=(${bbox.min.x.toFixed(3)}, ${bbox.min.y.toFixed(3)}, ${bbox.min.z.toFixed(3)}) max=(${bbox.max.x.toFixed(3)}, ${bbox.max.y.toFixed(3)}, ${bbox.max.z.toFixed(3)})`);
+          console.log(`[DEBUG] Mannequin GLB size: w=${size.x.toFixed(3)} h=${size.y.toFixed(3)} d=${size.z.toFixed(3)}`);
+          // Dump full scene hierarchy with transforms
+          scene.traverse((obj) => {
+            const s = obj.scale;
+            const p = obj.position;
+            const isSkinned = obj.isSkinnedMesh ? ' [SKINNED]' : '';
+            const isBone = obj.isBone ? ' [BONE]' : '';
+            const isMesh = obj.isMesh ? ' [MESH]' : '';
+            if (s.x !== 1 || s.y !== 1 || s.z !== 1 || p.x !== 0 || p.y !== 0 || p.z !== 0 || isSkinned || isBone) {
+              console.log(`[DEBUG]   ${obj.name}${isMesh}${isSkinned}${isBone} pos=(${p.x.toFixed(3)},${p.y.toFixed(3)},${p.z.toFixed(3)}) scale=(${s.x.toFixed(3)},${s.y.toFixed(3)},${s.z.toFixed(3)})`);
+            }
+          });
+          // Check bone world positions
+          const skeleton = this.playerModelManager.sourceSkeleton;
+          if (skeleton) {
+            skeleton.bones.forEach(bone => {
+              const wp = new this.THREE.Vector3();
+              bone.getWorldPosition(wp);
+              if (bone.name === 'Head' || bone.name === 'Root' || bone.name === 'Foot.L') {
+                console.log(`[DEBUG] Bone ${bone.name} worldPos=(${wp.x.toFixed(3)}, ${wp.y.toFixed(3)}, ${wp.z.toFixed(3)})`);
+              }
+            });
+          }
+        }
+
+        // Spawn test mannequins (now soldiers via soldier.glb)
         this._spawnTestMannequins();
       }
 
@@ -267,6 +299,7 @@ export default class MovementVisualizer {
       this.damageSystem.registerPlayer('local');
       this.damageSystem.registerPlayer('mannequin_red');
       this.damageSystem.registerPlayer('mannequin_blue');
+      this.damageSystem.registerPlayer('mannequin_green');
 
       // Combat feedback (visual effects)
       this.combatFeedback = new CombatFeedback(this.THREE, this.scene);
@@ -275,6 +308,7 @@ export default class MovementVisualizer {
       this.hitboxSets = {
         mannequin_red: createHitboxSet('mannequin_red'),
         mannequin_blue: createHitboxSet('mannequin_blue'),
+        mannequin_green: createHitboxSet('mannequin_green'),
       };
 
       console.log('Combat systems initialized');
@@ -355,6 +389,17 @@ export default class MovementVisualizer {
     this.mannequinOriginalPositions.red = redPos.clone();
     this.mannequinOriginalPositions.blue = bluePos.clone();
 
+    // Spawn green mannequin directly in front of player spawn (close-range test target)
+    const greenPos = this.spawnRed.clone();
+    greenPos.z -= 5; // 5m in front of player (player faces -Z)
+    this.testMannequinGreen = this.playerModelManager.spawn(0x22cc44, greenPos);
+    this.scene.add(this.testMannequinGreen.scene);
+    if (this.testMannequinGreen.helper) {
+      this.scene.add(this.testMannequinGreen.helper);
+    }
+    console.log(`Green mannequin spawned at (${greenPos.x.toFixed(2)}, ${greenPos.y.toFixed(2)}, ${greenPos.z.toFixed(2)})`);
+    this.mannequinOriginalPositions.green = greenPos.clone();
+
     // Initialize animation state for test mannequins
     this.testMannequinRedVel = new THREE.Vector3(0, 0, 2); // Walking forward at 2 m/s
   }
@@ -373,9 +418,10 @@ export default class MovementVisualizer {
       }
     }
 
-    // Reset health for both mannequins
+    // Reset health for all mannequins
     this.damageSystem.resetPlayer('mannequin_red');
     this.damageSystem.resetPlayer('mannequin_blue');
+    this.damageSystem.resetPlayer('mannequin_green');
 
     // Re-spawn red mannequin if missing (killed/ragdolled)
     if (!this.testMannequinRed) {
@@ -398,10 +444,21 @@ export default class MovementVisualizer {
       }
     }
 
+    // Re-spawn green mannequin if missing
+    if (!this.testMannequinGreen) {
+      const greenPos = this.mannequinOriginalPositions.green || this.spawnRed.clone();
+      this.testMannequinGreen = this.playerModelManager.spawn(0x22cc44, greenPos.clone());
+      this.scene.add(this.testMannequinGreen.scene);
+      if (this.testMannequinGreen.helper) {
+        this.scene.add(this.testMannequinGreen.helper);
+      }
+    }
+
     // Re-initialize hitbox sets
     this.hitboxSets = {
       mannequin_red: createHitboxSet('mannequin_red'),
       mannequin_blue: createHitboxSet('mannequin_blue'),
+      mannequin_green: createHitboxSet('mannequin_green'),
     };
 
     // Reset weapon ammo too
@@ -546,7 +603,9 @@ export default class MovementVisualizer {
       if (e.button === 0) {
         this.fireHeld = true;
         // Fire immediately on first click
-        if (this.fpWeapon) this._fireWeapon();
+        if (this.fpWeapon) {
+          try { this._fireWeapon(); } catch (e) { console.error('_fireWeapon error:', e); }
+        }
         this.fireTimer = 0;
       }
       if (e.button === 2 && this.fpWeapon) {
@@ -678,6 +737,10 @@ export default class MovementVisualizer {
     if (this.testMannequinBlue && this.hitboxSets) {
       const bonePositions = this._extractBoneWorldPositions(this.testMannequinBlue);
       updateHitboxPositions(this.hitboxSets.mannequin_blue, bonePositions);
+    }
+    if (this.testMannequinGreen && this.hitboxSets) {
+      const bonePositions = this._extractBoneWorldPositions(this.testMannequinGreen);
+      updateHitboxPositions(this.hitboxSets.mannequin_green, bonePositions);
     }
 
     // Jump buffering: queue press for 100ms so landing doesn't eat inputs
@@ -899,10 +962,10 @@ export default class MovementVisualizer {
     const bonePositions = {};
     if (!instance || !instance.bones) return bonePositions;
 
-    for (const bone of instance.bones) {
+    for (const [name, bone] of Object.entries(instance.bones)) {
       const worldPos = new this.THREE.Vector3();
       bone.getWorldPosition(worldPos);
-      bonePositions[bone.name] = { x: worldPos.x, y: worldPos.y, z: worldPos.z };
+      bonePositions[name] = { x: worldPos.x, y: worldPos.y, z: worldPos.z };
     }
 
     return bonePositions;
@@ -1100,15 +1163,24 @@ export default class MovementVisualizer {
         if (damageResult.killed) {
           console.log(`KILLED ${hit.targetId}!`);
           // Trigger ragdoll on killed mannequin
-          const instance = hit.targetId === 'mannequin_red' ? this.testMannequinRed : this.testMannequinBlue;
+          const instanceMap = {
+            mannequin_red: 'testMannequinRed',
+            mannequin_blue: 'testMannequinBlue',
+            mannequin_green: 'testMannequinGreen',
+          };
+          const propName = instanceMap[hit.targetId];
+          const instance = propName ? this[propName] : null;
           if (instance && this.ragdollSystem) {
             this.ragdollSystem.spawnRagdoll(
               instance,
               new this.THREE.Vector3(rayDir.x * 5, 2, rayDir.z * 5),
               this.scene
             );
-            if (hit.targetId === 'mannequin_red') this.testMannequinRed = null;
-            else this.testMannequinBlue = null;
+            if (propName) this[propName] = null;
+          } else if (instance && propName) {
+            // No ragdoll system — just hide the mannequin
+            instance.scene.visible = false;
+            this[propName] = null;
           }
         }
       }
@@ -1294,30 +1366,44 @@ export default class MovementVisualizer {
     this.camera.quaternion.setFromEuler(euler);
 
     // Update test mannequins (if loaded)
-    if (this.playerModelManager && this.testMannequinRed && this.testMannequinBlue) {
+    if (this.playerModelManager) {
       const time = now / 1000; // Convert to seconds
 
-      // Red mannequin: walking state
-      this.playerModelManager.updateAnimation(this.testMannequinRed, delta, {
-        velocity: this.testMannequinRedVel,
-        onGround: true,
-        crouching: false,
-        time: time,
-        shooting: false,
-        reloading: false,
-        knifing: false,
-      });
+      if (this.testMannequinRed) {
+        this.playerModelManager.updateAnimation(this.testMannequinRed, delta, {
+          velocity: this.testMannequinRedVel,
+          onGround: true,
+          crouching: false,
+          time: time,
+          shooting: false,
+          reloading: false,
+          knifing: false,
+        });
+      }
 
-      // Blue mannequin: idle state
-      this.playerModelManager.updateAnimation(this.testMannequinBlue, delta, {
-        velocity: new this.THREE.Vector3(0, 0, 0),
-        onGround: true,
-        crouching: false,
-        time: time,
-        shooting: false,
-        reloading: false,
-        knifing: false,
-      });
+      if (this.testMannequinBlue) {
+        this.playerModelManager.updateAnimation(this.testMannequinBlue, delta, {
+          velocity: new this.THREE.Vector3(0, 0, 0),
+          onGround: true,
+          crouching: false,
+          time: time,
+          shooting: false,
+          reloading: false,
+          knifing: false,
+        });
+      }
+
+      if (this.testMannequinGreen) {
+        this.playerModelManager.updateAnimation(this.testMannequinGreen, delta, {
+          velocity: new this.THREE.Vector3(0, 0, 0),
+          onGround: true,
+          crouching: false,
+          time: time,
+          shooting: false,
+          reloading: false,
+          knifing: false,
+        });
+      }
     }
 
     // Update ragdoll visuals
@@ -1355,6 +1441,10 @@ export default class MovementVisualizer {
         if (blueHealth) {
           statusText += `\nBlue: ${blueHealth.hp.toFixed(0)} HP | ${blueHealth.armor.toFixed(0)} armor`;
         }
+        const greenHealth = this.damageSystem.getHealth('mannequin_green');
+        if (greenHealth) {
+          statusText += `\nGreen: ${greenHealth.hp.toFixed(0)} HP | ${greenHealth.armor.toFixed(0)} armor`;
+        }
       }
 
       this.statusEl.textContent = statusText;
@@ -1377,7 +1467,11 @@ export default class MovementVisualizer {
       const config = this.weaponSystem.getWeaponConfig();
       const rate = config.fireRate;
       while (this.fireTimer >= rate && this.weaponSystem.canFire()) {
-        this._fireWeapon();
+        try {
+          this._fireWeapon();
+        } catch (e) {
+          console.error('_fireWeapon error:', e);
+        }
         this.fireTimer -= rate;
       }
     }
