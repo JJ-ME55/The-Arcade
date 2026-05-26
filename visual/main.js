@@ -686,6 +686,15 @@ export default class MovementVisualizer {
         this._respawnMannequins();
       }
 
+      // Hitbox wireframe overlay toggle (H key)
+      if (e.code === 'KeyH') {
+        this.hitboxDebugEnabled = !this.hitboxDebugEnabled;
+        if (this.hitboxDebugGroup) {
+          this.hitboxDebugGroup.visible = this.hitboxDebugEnabled;
+        }
+        console.log('Hitbox debug:', this.hitboxDebugEnabled ? 'ON' : 'OFF');
+      }
+
       keys[e.code] = true;
       this._updateAxis(keys);
     });
@@ -743,6 +752,11 @@ export default class MovementVisualizer {
     if (this.testMannequinGreen && this.hitboxSets) {
       const bonePositions = this._extractBoneWorldPositions(this.testMannequinGreen);
       updateHitboxPositions(this.hitboxSets.mannequin_green, bonePositions);
+    }
+
+    // Hitbox wireframe overlay (toggle with H)
+    if (this.hitboxSets) {
+      this._updateHitboxDebug(this.hitboxSets);
     }
 
     // Jump buffering: queue press for 100ms so landing doesn't eat inputs
@@ -958,6 +972,49 @@ export default class MovementVisualizer {
 
     this.playerCollider.start.set(pos.x, pos.y + capsuleRadius + crouchJumpOffset, pos.z);
     this.playerCollider.end.set(pos.x, pos.y + crouchJumpOffset + playerHeight - capsuleRadius, pos.z);
+  }
+
+  // Debug wireframe overlay of the live hitboxes (toggle with H). Red=head,
+  // green=torso, blue=limbs. Lets us confirm head/chest/limb alignment vs the model.
+  _updateHitboxDebug(hitboxSets) {
+    const THREE = this.THREE;
+    if (!this.hitboxDebugGroup) {
+      this.hitboxDebugGroup = new THREE.Group();
+      this.hitboxDebugGroup.visible = !!this.hitboxDebugEnabled;
+      this.scene.add(this.hitboxDebugGroup);
+      this.hitboxDebugMeshes = {};
+    }
+    if (!this.hitboxDebugEnabled) return;
+    const colorFor = (z) => (z === 'head' ? 0xff2222 : (z === 'chest' || z === 'stomach') ? 0x22ff22 : 0x3399ff);
+    const up = new THREE.Vector3(0, 1, 0);
+    for (const [setId, set] of Object.entries(hitboxSets)) {
+      for (const hb of set) {
+        const key = setId + '_' + hb.zone;
+        let mesh = this.hitboxDebugMeshes[key];
+        if (!mesh) {
+          let geo;
+          if (hb.shape === 'sphere') geo = new THREE.SphereGeometry(hb.radius, 12, 10);
+          else if (hb.shape === 'box') geo = new THREE.BoxGeometry(hb.halfExtents.x * 2, hb.halfExtents.y * 2, hb.halfExtents.z * 2);
+          else geo = new THREE.CylinderGeometry(hb.radius, hb.radius, 1, 10, 1, true);
+          mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: colorFor(hb.zone), wireframe: true, depthTest: false, transparent: true, opacity: 0.8 }));
+          mesh.renderOrder = 999;
+          this.hitboxDebugGroup.add(mesh);
+          this.hitboxDebugMeshes[key] = mesh;
+        }
+        if (hb.shape === 'capsule') {
+          if (!hb.endA || !hb.endB) continue;
+          const va = new THREE.Vector3(hb.endA.x, hb.endA.y, hb.endA.z);
+          const vb = new THREE.Vector3(hb.endB.x, hb.endB.y, hb.endB.z);
+          const dir = vb.clone().sub(va);
+          const len = dir.length() || 0.01;
+          mesh.position.copy(va).add(vb).multiplyScalar(0.5);
+          mesh.scale.set(1, len, 1);
+          mesh.quaternion.setFromUnitVectors(up, dir.normalize());
+        } else {
+          mesh.position.set(hb.center.x, hb.center.y, hb.center.z);
+        }
+      }
+    }
   }
 
   _extractBoneWorldPositions(instance) {

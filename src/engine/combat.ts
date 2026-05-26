@@ -51,12 +51,13 @@ export function updateHitboxPositions(
     const bonePos = boneWorldPositions[hitbox.boneName];
     if (!bonePos) continue; // Bone not found, skip
 
+    const off = hitbox.offset;
     if (hitbox.shape === 'sphere') {
-      // Sphere: center follows bone
-      hitbox.center = { ...bonePos };
+      // Sphere: center follows bone (+ optional offset, e.g. raise head to skull)
+      hitbox.center = off ? vecAdd(bonePos, off) : { ...bonePos };
     } else if (hitbox.shape === 'box') {
-      // Box: center follows bone
-      hitbox.center = { ...bonePos };
+      // Box: center follows bone (+ optional offset)
+      hitbox.center = off ? vecAdd(bonePos, off) : { ...bonePos };
     } else if (hitbox.shape === 'capsule') {
       // Capsule: endA = bone position, endB = target bone position
       if (hitbox.zone === 'arm_l') {
@@ -68,12 +69,14 @@ export function updateHitboxPositions(
         hitbox.endB = boneWorldPositions['Hand.R'] || hitbox.endB;
         hitbox.center = hitbox.endA;
       } else if (hitbox.zone === 'leg_l') {
+        // Thigh -> Foot so the capsule covers the full leg (hip through ankle),
+        // not just hip-to-knee (Shin bone is at the knee).
         hitbox.endA = boneWorldPositions['Thigh.L'] || hitbox.endA;
-        hitbox.endB = boneWorldPositions['Shin.L'] || hitbox.endB;
+        hitbox.endB = boneWorldPositions['Foot.L'] || boneWorldPositions['Shin.L'] || hitbox.endB;
         hitbox.center = hitbox.endA;
       } else if (hitbox.zone === 'leg_r') {
         hitbox.endA = boneWorldPositions['Thigh.R'] || hitbox.endA;
-        hitbox.endB = boneWorldPositions['Shin.R'] || hitbox.endB;
+        hitbox.endB = boneWorldPositions['Foot.R'] || boneWorldPositions['Shin.R'] || hitbox.endB;
         hitbox.center = hitbox.endA;
       }
     }

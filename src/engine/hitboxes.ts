@@ -61,6 +61,10 @@ export interface Hitbox {
   // Shared: all shapes have center
   center: Vec3;
 
+  // Optional world-space offset applied to the bone position (e.g. raise the head
+  // sphere from the neck-base Head bone up to the visual head center).
+  offset?: Vec3;
+
   // Sphere: center + radius
   radius?: number;
 
@@ -268,7 +272,8 @@ export function rayBoxIntersect(
  */
 export function createDefaultHitboxTemplate(): Hitbox[] {
   return [
-    // HEAD: Sphere, 15% larger than visual (~0.12 visual -> ~0.14 hitbox)
+    // HEAD: Sphere. The Mixamo 'Head' bone sits at the neck/chin, so offset the
+    // sphere UP to the visual head center. Slightly generous (CS:S style).
     {
       zone: 'head',
       shape: 'sphere',
@@ -276,10 +281,11 @@ export function createDefaultHitboxTemplate(): Hitbox[] {
       armorProtected: true, // Protected only if hasHelmet
       boneName: 'Head',
       center: { x: 0, y: 0, z: 0 },
-      radius: 0.14,
+      offset: { x: 0, y: 0.12, z: 0 },
+      radius: 0.16,
     },
 
-    // CHEST: Box, ~0.3w x 0.25h x 0.2d
+    // CHEST: Box, sized for the bulkier armored soldier torso (upper chest).
     {
       zone: 'chest',
       shape: 'box',
@@ -287,10 +293,11 @@ export function createDefaultHitboxTemplate(): Hitbox[] {
       armorProtected: true, // Protected if hasArmor
       boneName: 'Chest',
       center: { x: 0, y: 0, z: 0 },
-      halfExtents: { x: 0.15, y: 0.125, z: 0.1 },
+      offset: { x: 0, y: 0.06, z: 0 },
+      halfExtents: { x: 0.19, y: 0.16, z: 0.15 },
     },
 
-    // STOMACH: Box, ~0.28w x 0.2h x 0.18d
+    // STOMACH: Box, lower torso (pelvis/abdomen).
     {
       zone: 'stomach',
       shape: 'box',
@@ -298,7 +305,8 @@ export function createDefaultHitboxTemplate(): Hitbox[] {
       armorProtected: true, // Protected if hasArmor
       boneName: 'Spine',
       center: { x: 0, y: 0, z: 0 },
-      halfExtents: { x: 0.14, y: 0.1, z: 0.09 },
+      offset: { x: 0, y: 0.05, z: 0 },
+      halfExtents: { x: 0.17, y: 0.14, z: 0.13 },
     },
 
     // LEFT ARM: Capsule, radius ~0.06, from UpperArm to Hand
@@ -311,7 +319,7 @@ export function createDefaultHitboxTemplate(): Hitbox[] {
       center: { x: 0, y: 0, z: 0 },
       endA: { x: 0, y: 0, z: 0 },
       endB: { x: 0, y: 0, z: 0 },
-      radius: 0.06,
+      radius: 0.075,
     },
 
     // RIGHT ARM: Capsule, radius ~0.06, from UpperArm to Hand
@@ -324,7 +332,7 @@ export function createDefaultHitboxTemplate(): Hitbox[] {
       center: { x: 0, y: 0, z: 0 },
       endA: { x: 0, y: 0, z: 0 },
       endB: { x: 0, y: 0, z: 0 },
-      radius: 0.06,
+      radius: 0.075,
     },
 
     // LEFT LEG: Capsule, radius ~0.08, from Thigh to Shin end
@@ -337,7 +345,7 @@ export function createDefaultHitboxTemplate(): Hitbox[] {
       center: { x: 0, y: 0, z: 0 },
       endA: { x: 0, y: 0, z: 0 },
       endB: { x: 0, y: 0, z: 0 },
-      radius: 0.08,
+      radius: 0.095,
     },
 
     // RIGHT LEG: Capsule, radius ~0.08, from Thigh to Shin end
@@ -350,7 +358,7 @@ export function createDefaultHitboxTemplate(): Hitbox[] {
       center: { x: 0, y: 0, z: 0 },
       endA: { x: 0, y: 0, z: 0 },
       endB: { x: 0, y: 0, z: 0 },
-      radius: 0.08,
+      radius: 0.095,
     },
   ];
 }
