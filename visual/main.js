@@ -706,42 +706,33 @@ export default class MovementVisualizer {
         this._respawnMannequins();
       }
 
-      // [FOREGRIP TUNE] move the left-hand IK target on the rifle (gun-local m).
-      // Arrows = along/across barrel, PageUp/Down = up/down. 0.02m steps.
-      if (this.foregripOffset) {
-        const F = this.foregripOffset;
-        let t = true;
-        if (e.code === 'ArrowUp') F[0] += 0.02;
-        else if (e.code === 'ArrowDown') F[0] -= 0.02;
-        else if (e.code === 'ArrowLeft') F[2] += 0.02;
-        else if (e.code === 'ArrowRight') F[2] -= 0.02;
-        else if (e.code === 'PageUp') F[1] += 0.02;
-        else if (e.code === 'PageDown') F[1] -= 0.02;
-        else t = false;
-        if (t) {
-          [this.testMannequinRed, this.testMannequinBlue, this.testMannequinGreen].forEach((s) => {
-            if (s && s.leftHandTarget) s.leftHandTarget.position.set(F[0], F[1], F[2]);
-          });
-          console.log(`foregrip = [${F.map((v) => v.toFixed(2)).join(', ')}]`);
-        }
+      // [FP TUNE] G toggles target between ARMS and GUN. Arrows = x/z, PgUp/Dn = y,
+      // IJKL/UO = rot x/y/z, -/= = scale. (Arms model is tuned, not the group, since
+      // the group's pos/rot is overwritten each frame by bob/recoil.)
+      if (e.code === 'KeyG' && this.fpWeapon) {
+        this.fpTuneGun = !this.fpTuneGun;
+        console.log('FP tune target:', this.fpTuneGun ? 'GUN' : 'ARMS');
       }
-
-      // [IK ROLL TUNE] cancel forearm twist. [ ] = upper-arm roll, ; ' = forearm roll.
-      if (this.playerModelManager) {
-        const pm = this.playerModelManager;
+      const fpTuneTgt = this.fpWeapon ? (this.fpTuneGun ? this.fpWeapon.currentWeaponModel : this.fpWeapon.fpArmsModel) : null;
+      if (fpTuneTgt) {
+        const wg = fpTuneTgt;
         let t = true;
-        if (e.code === 'BracketLeft') pm.ikRoll = (pm.ikRoll || 0) - 0.1;
-        else if (e.code === 'BracketRight') pm.ikRoll = (pm.ikRoll || 0) + 0.1;
-        else if (e.code === 'Semicolon') pm.ikForeRoll = (pm.ikForeRoll || 0) - 0.1;
-        else if (e.code === 'Quote') pm.ikForeRoll = (pm.ikForeRoll || 0) + 0.1;
-        else if (e.code === 'Comma') pm.ikBackRoll = (pm.ikBackRoll || 0) - 0.1;
-        else if (e.code === 'Period') pm.ikBackRoll = (pm.ikBackRoll || 0) + 0.1;
-        else if (e.code === 'Minus') pm.ikBackUpperRoll = (pm.ikBackUpperRoll || 0) - 0.1;
-        else if (e.code === 'Equal') pm.ikBackUpperRoll = (pm.ikBackUpperRoll || 0) + 0.1;
-        else if (e.code === 'Digit9') pm.ikBackSwing = (pm.ikBackSwing || 0) - 0.1;
-        else if (e.code === 'Digit0') pm.ikBackSwing = (pm.ikBackSwing || 0) + 0.1;
+        if (e.code === 'ArrowUp') wg.position.z -= 0.02;
+        else if (e.code === 'ArrowDown') wg.position.z += 0.02;
+        else if (e.code === 'ArrowLeft') wg.position.x -= 0.02;
+        else if (e.code === 'ArrowRight') wg.position.x += 0.02;
+        else if (e.code === 'PageUp') wg.position.y += 0.02;
+        else if (e.code === 'PageDown') wg.position.y -= 0.02;
+        else if (e.code === 'KeyI') wg.rotation.x += 0.1;
+        else if (e.code === 'KeyK') wg.rotation.x -= 0.1;
+        else if (e.code === 'KeyJ') wg.rotation.y += 0.1;
+        else if (e.code === 'KeyL') wg.rotation.y -= 0.1;
+        else if (e.code === 'KeyU') wg.rotation.z += 0.1;
+        else if (e.code === 'KeyO') wg.rotation.z -= 0.1;
+        else if (e.code === 'Minus') wg.scale.multiplyScalar(0.9);
+        else if (e.code === 'Equal') wg.scale.multiplyScalar(1.1);
         else t = false;
-        if (t) console.log(`ikRoll=${(pm.ikRoll || 0).toFixed(2)} ikForeRoll=${(pm.ikForeRoll || 0).toFixed(2)} ikBackRoll=${(pm.ikBackRoll || 0).toFixed(2)} ikBackUpperRoll=${(pm.ikBackUpperRoll || 0).toFixed(2)} ikBackSwing=${(pm.ikBackSwing || 0).toFixed(2)}`);
+        if (t) console.log(`FP pos=[${wg.position.x.toFixed(2)},${wg.position.y.toFixed(2)},${wg.position.z.toFixed(2)}] rot=[${wg.rotation.x.toFixed(2)},${wg.rotation.y.toFixed(2)},${wg.rotation.z.toFixed(2)}] scale=${wg.scale.x.toFixed(3)}`);
       }
 
       // Hitbox wireframe overlay toggle (H key)

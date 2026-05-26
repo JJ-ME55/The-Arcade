@@ -154,6 +154,10 @@ export class FirstPersonWeapon {
     this.weaponGroup = new THREE.Group();
     this.weaponGroup.position.set(0.15, -0.15, -0.35);
     this.weaponGroup.add(this.fpArmsModel);
+    // Baked FP arms fit (realistic soldier arms): position/orient/scale in view.
+    this.fpArmsModel.position.set(0.16, -0.04, 0.00);
+    this.fpArmsModel.rotation.set(-0.20, 3.50, -0.30);
+    this.fpArmsModel.scale.setScalar(0.830);
     this.weaponCamera.add(this.weaponGroup);
     this.weaponScene.add(this.weaponCamera);
 
