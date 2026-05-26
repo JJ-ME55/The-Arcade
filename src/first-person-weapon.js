@@ -40,9 +40,9 @@ export class FirstPersonWeapon {
     // Weapon-specific offsets (tuned for Hand.R bone attachment)
     // Weapons built along X-axis in Blender, need -90deg Y rotation to point forward (-Z)
     this.weaponOffsets = {
-      rifle:  { pos: [0, 0, -0.15], rot: [0, -Math.PI/2, 0] },
-      pistol: { pos: [0, 0, -0.08], rot: [0, -Math.PI/2, 0] },
-      knife:  { pos: [0, 0, -0.05], rot: [Math.PI/2, -Math.PI/2, 0] },
+      rifle:  { pos: [0, 0, -0.15], rot: [0, -Math.PI/2, 0], scale: 1 },
+      pistol: { pos: [0, 0, -0.08], rot: [0, -Math.PI/2, 0], scale: 1 },
+      knife:  { pos: [0, 0, -0.05], rot: [Math.PI/2, -Math.PI/2, 0], scale: 1 },
     };
 
     // Reload animation state
@@ -127,17 +127,16 @@ export class FirstPersonWeapon {
     const armsGltf = await loader.loadAsync(armsUrl);
     this.fpArmsModel = armsGltf.scene;
 
-    // Find Hand.R bone for weapon attachment
+    // Find the right-hand bone for weapon attachment. GLTFLoader strips dots from
+    // node names, so the bone is 'HandR' (not 'Hand.R') — accept both.
     this.handRBone = null;
     this.fpArmsModel.traverse((obj) => {
-      if (obj.isBone && obj.name === 'Hand.R') {
+      if (obj.isBone && (obj.name === 'Hand.R' || obj.name === 'HandR')) {
         this.handRBone = obj;
       }
     });
-
-    // Fallback: try getObjectByName
     if (!this.handRBone) {
-      this.handRBone = this.fpArmsModel.getObjectByName('Hand.R');
+      this.handRBone = this.fpArmsModel.getObjectByName('HandR') || this.fpArmsModel.getObjectByName('Hand.R');
     }
 
     if (!this.handRBone) {
@@ -225,10 +224,11 @@ export class FirstPersonWeapon {
     // Get new weapon model
     const weaponModel = this.weaponModels[name];
 
-    // Apply weapon-specific offset
+    // Apply weapon-specific offset + scale
     const offset = this.weaponOffsets[name];
     weaponModel.position.set(...offset.pos);
     weaponModel.rotation.set(...offset.rot);
+    weaponModel.scale.setScalar(offset.scale != null ? offset.scale : 1);
 
     // Attach to Hand.R bone
     if (this.handRBone) {
