@@ -35,9 +35,9 @@ export class PlayerModel {
     // Arm pose corrections (radians), tuned in-engine and baked as defaults.
     this.ikRoll = 0.20;          // front upper arm roll about its axis
     this.ikForeRoll = 1.00;      // front forearm roll about its axis
-    this.ikBackRoll = 0.90;      // back (right) wrist roll — gun pinned so it doesn't move
+    this.ikBackRoll = 1.40;      // back (right) wrist roll — gun pinned so it doesn't move
     this.ikBackUpperRoll = 6.30; // back (right) upper-arm roll (like [ ] on the front)
-    this.ikBackSwing = 0;        // back (right) upper-arm swing side-to-side (about world Y)
+    this.ikBackSwing = -0.40;    // back (right) upper-arm swing side-to-side (about world Y)
   }
 
   /**
