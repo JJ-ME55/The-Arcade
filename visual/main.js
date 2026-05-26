@@ -265,6 +265,22 @@ export default class MovementVisualizer {
         console.log(`FP weapon loaded in ${weaponLoadTime.toFixed(1)}ms`);
       }
 
+      // Arm the third-person soldiers: attach a rifle to the right hand bone so
+      // opponents are visibly armed. Bone-child => follows the hand through anim.
+      if (this.GLTFLoader) {
+        try {
+          const tpGltf = await new this.GLTFLoader().loadAsync('rifle.glb?v=' + Date.now());
+          this.tpRifleProto = tpGltf.scene;
+          // Hand.R lives under the soldier's 0.01 node scale, so scale ~100 to
+          // restore real weapon size. pos is in bone-local units (1 = ~0.01m world).
+          this.tpWeaponXform = { scale: 100, pos: [0, 0, 0], rot: [0, -Math.PI / 2, 0] };
+          [this.testMannequinRed, this.testMannequinBlue, this.testMannequinGreen]
+            .forEach((s) => this._armSoldier(s));
+        } catch (e) {
+          console.warn('TP weapon load failed:', e);
+        }
+      }
+
       // Initialize ragdoll physics if RagdollSystem is provided
       if (this.RagdollSystem) {
         if (this.statusEl) {
@@ -1015,6 +1031,22 @@ export default class MovementVisualizer {
         }
       }
     }
+  }
+
+  // Attach a clone of the rifle to a soldier's right-hand bone (third-person).
+  _armSoldier(instance) {
+    if (!instance || !this.tpRifleProto || !instance.bones) return;
+    const handR = instance.bones['Hand.R'];
+    if (!handR) { console.warn('arm: Hand.R not found'); return; }
+    if (instance.tpWeapon && instance.tpWeapon.parent) instance.tpWeapon.parent.remove(instance.tpWeapon);
+    const w = this.tpRifleProto.clone(true);
+    const x = this.tpWeaponXform;
+    w.scale.setScalar(x.scale);
+    w.position.set(x.pos[0], x.pos[1], x.pos[2]);
+    w.rotation.set(x.rot[0], x.rot[1], x.rot[2]);
+    w.traverse((c) => { if (c.isMesh) c.frustumCulled = false; });
+    handR.add(w);
+    instance.tpWeapon = w;
   }
 
   _extractBoneWorldPositions(instance) {
