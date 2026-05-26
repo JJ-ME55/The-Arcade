@@ -1047,6 +1047,7 @@ export default class MovementVisualizer {
     w.traverse((c) => { if (c.isMesh) c.frustumCulled = false; });
     handR.add(w);
     instance.tpWeapon = w;
+    instance.armed = true; // use the rifle (weapon-carry) mocap clips
   }
 
   _extractBoneWorldPositions(instance) {

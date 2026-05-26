@@ -145,15 +145,23 @@ export class PlayerModel {
     const actions = {};
     if (hasClips) {
       mixer = new THREE.AnimationMixer(clonedScene);
-      ['Idle', 'Walk', 'Run'].forEach((clipName) => {
+      // Unarmed locomotion + armed (rifle) locomotion + directional + action clips.
+      const wanted = [
+        'Idle', 'Walk', 'Run',
+        'Rifle_Idle', 'Rifle_Walk', 'Rifle_Run',
+        'Rifle_WalkBack', 'Rifle_RunBack', 'Rifle_StrafeL', 'Rifle_StrafeR',
+        'Reload', 'Fire', 'Rifle_Jump',
+      ];
+      wanted.forEach((clipName) => {
         const clip = this.sourceAnimations.find((c) => c.name === clipName);
         if (!clip) return;
         const action = mixer.clipAction(clip);
         action.enabled = true;
-        action.setEffectiveWeight(clipName === 'Idle' ? 1 : 0);
+        action.setEffectiveWeight(0);
         action.play();
         actions[clipName] = action;
       });
+      if (actions['Idle']) actions['Idle'].setEffectiveWeight(1);
     }
 
     // No scaling — model is built at 1.8m in Blender, exported 1:1
@@ -176,6 +184,7 @@ export class PlayerModel {
       helper,
       mixer,
       actions,
+      armed: false, // set true when a weapon is attached -> use rifle clips
       // Animation state
       animTime: 0,
       shootTime: 0,
@@ -206,25 +215,8 @@ export class PlayerModel {
     const speed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
 
     // ---------- Baked-clip locomotion (CS-style) + procedural combat overlays ----------
-    if (mixer && actions.Idle) {
-      // Speed-blended weights across idle/walk/run. Hold idle as base while airborne.
-      const WALK_TOP = 1.8; // m/s where walk fully replaces idle
-      const RUN_TOP = 5.0;  // m/s where run fully replaces walk
-      let wIdle = 0, wWalk = 0, wRun = 0;
-      if (!onGround || speed < 0.3) {
-        wIdle = 1;
-      } else if (speed < WALK_TOP) {
-        const t = (speed - 0.3) / (WALK_TOP - 0.3);
-        wIdle = 1 - t; wWalk = t;
-      } else if (speed < RUN_TOP) {
-        const t = (speed - WALK_TOP) / (RUN_TOP - WALK_TOP);
-        wWalk = 1 - t; wRun = t;
-      } else {
-        wRun = 1;
-      }
-      actions.Idle.setEffectiveWeight(wIdle);
-      if (actions.Walk) actions.Walk.setEffectiveWeight(wWalk);
-      if (actions.Run) actions.Run.setEffectiveWeight(wRun);
+    if (mixer && (actions.Idle || actions.Rifle_Idle)) {
+      this._blendLocomotion(instance, velocity, onGround, speed);
       mixer.update(dt);
 
       // Keep locomotion in-place: clips may carry root translation; pin Root
@@ -354,6 +346,54 @@ export class PlayerModel {
   }
 
   // ========== INTERNAL ANIMATION FUNCTIONS ==========
+
+  /**
+   * Set locomotion clip weights. Unarmed: idle/walk/run by speed. Armed: a
+   * directional blend (forward/back/strafe) of the rifle clips based on movement
+   * direction relative to facing, with walk/run by speed. CS-style.
+   */
+  _blendLocomotion(instance, velocity, onGround, speed) {
+    const a = instance.actions;
+    const loco = ['Idle', 'Walk', 'Run', 'Rifle_Idle', 'Rifle_Walk', 'Rifle_Run',
+      'Rifle_WalkBack', 'Rifle_RunBack', 'Rifle_StrafeL', 'Rifle_StrafeR'];
+    loco.forEach((n) => { if (a[n]) a[n].setEffectiveWeight(0); });
+
+    const armed = instance.armed && a.Rifle_Idle;
+    const idle = armed ? a.Rifle_Idle : a.Idle;
+
+    // Idle (or airborne -> hold idle; jump overlay handles the air pose)
+    if (!onGround || speed < 0.3) { if (idle) idle.setEffectiveWeight(1); return; }
+
+    const WALK_TOP = 1.8, RUN_TOP = 5.0;
+    const runF = speed >= RUN_TOP ? 1 : (speed > WALK_TOP ? (speed - WALK_TOP) / (RUN_TOP - WALK_TOP) : 0);
+    const moveW = speed >= WALK_TOP ? 1 : Math.min(1, (speed - 0.3) / (WALK_TOP - 0.3));
+    if (idle) idle.setEffectiveWeight(1 - moveW);
+
+    if (!armed) {
+      if (a.Walk) a.Walk.setEffectiveWeight(moveW * (1 - runF));
+      if (a.Run) a.Run.setEffectiveWeight(moveW * runF);
+      return;
+    }
+
+    // Directional: movement direction in the model's local frame (faces -Z).
+    const yaw = instance.scene.rotation.y;
+    const c = Math.cos(-yaw), s = Math.sin(-yaw);
+    const lx = velocity.x * c - velocity.z * s;
+    const lz = velocity.x * s + velocity.z * c;
+    const fwd = -lz, right = lx;
+    const len = Math.hypot(fwd, right) || 1;
+    const nf = fwd / len, nr = right / len;
+    const wF = Math.max(0, nf), wB = Math.max(0, -nf), wR = Math.max(0, nr), wL = Math.max(0, -nr);
+    const sum = wF + wB + wR + wL || 1;
+    const fF = wF / sum, fB = wB / sum, fR = wR / sum, fL = wL / sum;
+
+    if (a.Rifle_Walk) a.Rifle_Walk.setEffectiveWeight(moveW * fF * (1 - runF));
+    if (a.Rifle_Run) a.Rifle_Run.setEffectiveWeight(moveW * fF * runF);
+    if (a.Rifle_WalkBack) a.Rifle_WalkBack.setEffectiveWeight(moveW * fB * (1 - runF));
+    if (a.Rifle_RunBack) a.Rifle_RunBack.setEffectiveWeight(moveW * fB * runF);
+    if (a.Rifle_StrafeR) a.Rifle_StrafeR.setEffectiveWeight(moveW * fR);
+    if (a.Rifle_StrafeL) a.Rifle_StrafeL.setEffectiveWeight(moveW * fL);
+  }
 
   _resetBones(bones) {
     // Restore each bone to its captured rest orientation (NOT identity — Mixamo

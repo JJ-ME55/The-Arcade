@@ -29,6 +29,24 @@ SRC      = argv[0] if len(argv) > 0 else "visual/soldier_proto.glb"
 OUT_GLB  = argv[1] if len(argv) > 1 else "visual/soldier.glb"
 PREVIEW  = argv[2] if len(argv) > 2 else "visual/soldier_preview.png"
 ARM_DEG  = float(argv[3]) if len(argv) > 3 else 70.0  # degrees to swing arms down from T-pose
+ANIMS_DIR = argv[4] if len(argv) > 4 else "visual/blender/anims/basic_shooter_pack"
+
+# Mixamo shooter-pack FBX filename -> clean clip name bundled into soldier.glb.
+ANIM_MAP = {
+    "rifle aiming idle.fbx": "Rifle_Idle",
+    "walking.fbx": "Rifle_Walk",
+    "rifle run.fbx": "Rifle_Run",
+    "walking backwards.fbx": "Rifle_WalkBack",
+    "run backwards.fbx": "Rifle_RunBack",
+    "strafe left.fbx": "Rifle_StrafeL",
+    "strafe right.fbx": "Rifle_StrafeR",
+    "reloading.fbx": "Reload",
+    "firing rifle.fbx": "Fire",
+    "rifle jump.fbx": "Rifle_Jump",
+    "turn left.fbx": "Turn_L",
+    "turning right 45 degrees.fbx": "Turn_R",
+    "hit reaction.fbx": "Hit",
+}
 
 RENAME_MAP = {
     "Hips": "Root",
@@ -137,6 +155,99 @@ log("bones after rename (%d): %s" % (len(names), names))
 # handled procedurally in src/player-model.js (plan 03), iterated against the live
 # game renderer. ARM_DEG is retained for a possible future GUI-Blender pass.
 log("skipping rest-pose bake (handled in player-model.js); ARM_DEG=%.1f ignored" % ARM_DEG)
+
+# ---- import + retarget shooter-pack animations ------------------------------
+# Each Mixamo FBX (Without Skin) imports as its own armature + one action. We
+# rename its bones to our scheme (so the action's F-curve targets match the
+# soldier's bones), grab+rename the action, then delete the imported armature.
+# On export (ACTIONS mode) the retargeted actions bind to the soldier armature.
+def retarget_anim(fbx_path, clip_name):
+    before_objs = set(bpy.data.objects)
+    try:
+        bpy.ops.import_scene.fbx(filepath=os.path.abspath(fbx_path),
+                                 automatic_bone_orientation=False,
+                                 ignore_leaf_bones=True)
+    except Exception as e:
+        log("  FAILED import %s: %s" % (fbx_path, e)); return False
+    new_objs = [o for o in bpy.data.objects if o not in before_objs]
+    src = next((o for o in new_objs if o.type == "ARMATURE"), None)
+    if src is None:
+        for o in new_objs: bpy.data.objects.remove(o, do_unlink=True)
+        return False
+
+    # Rename source bones to our scheme so constraint subtarget-by-name matches.
+    bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.context.view_layer.objects.active = src
+    bpy.ops.object.mode_set(mode="EDIT")
+    eb2 = src.data.edit_bones
+    for b in list(eb2):
+        if b.name.startswith("mixamorig:"):
+            b.name = b.name[len("mixamorig:"):]
+    for s, d in RENAME_MAP.items():
+        if s in eb2:
+            eb2[s].name = d
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    src_act = src.animation_data.action if src.animation_data else None
+    if not src_act:
+        for o in new_objs: bpy.data.objects.remove(o, do_unlink=True)
+        return False
+    f0, f1 = int(src_act.frame_range[0]), int(src_act.frame_range[1])
+
+    # Constraint-based retarget: each soldier bone copies the source bone's
+    # WORLD-space rotation (cancels rest-pose/bone-roll differences), then bake.
+    bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.context.view_layer.objects.active = armature
+    if not armature.animation_data:
+        armature.animation_data_create()
+    armature.animation_data.action = None
+    bpy.ops.object.mode_set(mode="POSE")
+    for pb in armature.pose.bones:
+        if pb.name in src.pose.bones:
+            cr = pb.constraints.new("COPY_ROTATION")
+            cr.target = src
+            cr.subtarget = pb.name
+            cr.target_space = "WORLD"
+            cr.owner_space = "WORLD"
+    bpy.ops.nla.bake(frame_start=f0, frame_end=f1, step=1, only_selected=False,
+                     visual_keying=True, clear_constraints=True,
+                     use_current_action=True, bake_types={"POSE"})
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    baked = armature.animation_data.action
+    ok = False
+    if baked:
+        baked.name = clip_name
+        baked.use_fake_user = True
+        ok = True
+    armature.animation_data.action = None  # detach so the next clip bakes fresh
+
+    # delete the raw source action so it doesn't bloat / export as junk
+    try:
+        src_act.use_fake_user = False
+        bpy.data.actions.remove(src_act)
+    except Exception:
+        pass
+    for o in new_objs:
+        bpy.data.objects.remove(o, do_unlink=True)
+    return ok
+
+abs_anims = os.path.abspath(ANIMS_DIR)
+if os.path.isdir(abs_anims):
+    log("bundling shooter-pack anims from %s" % abs_anims)
+    for fname, clip in ANIM_MAP.items():
+        fpath = os.path.join(abs_anims, fname)
+        if os.path.exists(fpath):
+            if retarget_anim(fpath, clip):
+                log("  + %s -> %s" % (fname, clip))
+            else:
+                log("  ? no action found in %s" % fname)
+        else:
+            log("  (missing) %s" % fname)
+    # re-activate the soldier armature for export
+    bpy.context.view_layer.objects.active = armature
+else:
+    log("no anims dir at %s (skipping pack bundling)" % abs_anims)
 
 # ---- export -----------------------------------------------------------------
 abs_out = os.path.abspath(OUT_GLB)
