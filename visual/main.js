@@ -273,7 +273,7 @@ export default class MovementVisualizer {
           this.tpRifleProto = tpGltf.scene;
           // Hand.R lives under the soldier's 0.01 node scale, so scale ~100 to
           // restore real weapon size. pos is in bone-local units (1 = ~0.01m world).
-          this.tpWeaponXform = { scale: 100, pos: [0, 0, 0], rot: [0, -Math.PI / 2, 0] };
+          this.tpWeaponXform = { scale: 100, pos: [0, 0, 0], rot: [0.10, -3.17, 1.70] };
           [this.testMannequinRed, this.testMannequinBlue, this.testMannequinGreen]
             .forEach((s) => this._armSoldier(s));
         } catch (e) {
