@@ -365,9 +365,11 @@ export default class MovementVisualizer {
   _spawnTestMannequins() {
     const THREE = this.THREE;
 
-    // Spawn red mannequin near red spawn (walking)
+    // Spawn red mannequin in the open arena (walk-in-place test); offset to the
+    // side of the green one so it isn't clipping the spawn wall.
     const redPos = this.spawnRed.clone();
-    redPos.x += 3; // Offset to side so it's visible
+    redPos.x -= 3; // to the side
+    redPos.z -= 5; // forward into open floor (away from spawn wall)
     this.testMannequinRed = this.playerModelManager.spawn(0xcc2200, redPos);
     this.scene.add(this.testMannequinRed.scene);
     if (this.testMannequinRed.helper) {
