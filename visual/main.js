@@ -159,6 +159,7 @@ export default class MovementVisualizer {
 
       // Add map to scene
       this.scene.add(gltf.scene);
+      this.mapScene = gltf.scene; // environment-only ref for bullet/wall raycasts
 
       // Add grid line overlay to all materials (dev texture look)
       this._addGridLines(gltf.scene);
@@ -273,7 +274,7 @@ export default class MovementVisualizer {
           this.tpRifleProto = tpGltf.scene;
           // Hand.R lives under the soldier's 0.01 node scale, so scale ~100 to
           // restore real weapon size. pos is in bone-local units (1 = ~0.01m world).
-          this.tpWeaponXform = { scale: 100, pos: [0, 0, 0], rot: [0.10, -3.17, 1.70] };
+          this.tpWeaponXform = { scale: 100, pos: [-2, 24, 0], rot: [0.20, -3.17, 1.40] };
           [this.testMannequinRed, this.testMannequinBlue, this.testMannequinGreen]
             .forEach((s) => this._armSoldier(s));
         } catch (e) {
@@ -1284,7 +1285,10 @@ export default class MovementVisualizer {
         0.1,
         200
       );
-      const worldHits = raycaster.intersectObject(this.scene, true);
+      // Raycast ONLY the environment (the map), not the whole scene — the scene
+      // contains combat-feedback Sprites which throw without raycaster.camera.
+      raycaster.camera = this.camera; // safety for any sprite encountered
+      const worldHits = raycaster.intersectObject(this.mapScene || this.scene, true);
       if (worldHits.length > 0 && this.combatFeedback) {
         const wh = worldHits[0];
         this.combatFeedback.onEnvironmentHit(wh.point, wh.face?.normal || new this.THREE.Vector3(0, 1, 0));
