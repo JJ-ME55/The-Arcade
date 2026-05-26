@@ -706,39 +706,48 @@ export default class MovementVisualizer {
         this._respawnMannequins();
       }
 
-      // [FP TUNE] G toggles target between ARMS and GUN. Arrows = x/z, PgUp/Dn = y,
-      // IJKL/UO = rot x/y/z, -/= = scale. (Arms model is tuned, not the group, since
-      // the group's pos/rot is overwritten each frame by bob/recoil.)
+      // [FP TUNE] G cycles target: ARMS, GUN, then each arm piece. Arrows = x/z,
+      // PgUp/Dn = y, IJKL/UO = rot x/y/z, -/= = scale. Rotating FP_upper_* swings
+      // the whole arm at the shoulder; FP_lower_* hinges the forearm at the elbow.
+      const FP_TARGETS = ['ARMS', 'GUN', 'FP_upper_R', 'FP_fore_R', 'FP_hand_R', 'FP_upper_L', 'FP_fore_L', 'FP_hand_L'];
+      const fpTargetObj = (nm) => {
+        if (!this.fpWeapon) return null;
+        if (nm === 'ARMS') return this.fpWeapon.fpArmsModel;
+        if (nm === 'GUN') return this.fpWeapon.currentWeaponModel;
+        return this.fpWeapon.fpArmsModel ? this.fpWeapon.fpArmsModel.getObjectByName(nm) : null;
+      };
       if (e.code === 'KeyG' && this.fpWeapon) {
-        this.fpTuneGun = !this.fpTuneGun;
-        console.log('FP tune target:', this.fpTuneGun ? 'GUN' : 'ARMS');
+        this.fpTuneIdx = ((this.fpTuneIdx || 0) + 1) % FP_TARGETS.length;
+        const nm = FP_TARGETS[this.fpTuneIdx];
+        console.log('FP tune target:', nm, fpTargetObj(nm) ? '(found)' : '(NOT FOUND)');
       }
-      // [P] dump BOTH arms + gun transforms together so nothing gets dropped.
+      // [P] dump every FP transform at once so nothing gets dropped on bake.
       if (e.code === 'KeyP' && this.fpWeapon) {
-        const a = this.fpWeapon.fpArmsModel, g = this.fpWeapon.currentWeaponModel;
         const f = (o) => o ? `pos[${o.position.x.toFixed(3)},${o.position.y.toFixed(3)},${o.position.z.toFixed(3)}] rot[${o.rotation.x.toFixed(2)},${o.rotation.y.toFixed(2)},${o.rotation.z.toFixed(2)}] scale${o.scale.x.toFixed(3)}` : 'none';
-        console.log('=== FP DUMP ===\n  ARMS ' + f(a) + '\n  GUN  ' + f(g));
+        console.log('=== FP DUMP ===\n' + FP_TARGETS.map((n) => '  ' + n + ' ' + f(fpTargetObj(n))).join('\n'));
       }
-      const fpTuneTgt = this.fpWeapon ? (this.fpTuneGun ? this.fpWeapon.currentWeaponModel : this.fpWeapon.fpArmsModel) : null;
-      if (fpTuneTgt) {
-        const wg = fpTuneTgt;
-        let t = true;
-        if (e.code === 'ArrowUp') wg.position.z -= 0.02;
-        else if (e.code === 'ArrowDown') wg.position.z += 0.02;
-        else if (e.code === 'ArrowLeft') wg.position.x -= 0.02;
-        else if (e.code === 'ArrowRight') wg.position.x += 0.02;
-        else if (e.code === 'PageUp') wg.position.y += 0.02;
-        else if (e.code === 'PageDown') wg.position.y -= 0.02;
-        else if (e.code === 'KeyI') wg.rotation.x += 0.1;
-        else if (e.code === 'KeyK') wg.rotation.x -= 0.1;
-        else if (e.code === 'KeyJ') wg.rotation.y += 0.1;
-        else if (e.code === 'KeyL') wg.rotation.y -= 0.1;
-        else if (e.code === 'KeyU') wg.rotation.z += 0.1;
-        else if (e.code === 'KeyO') wg.rotation.z -= 0.1;
-        else if (e.code === 'Minus') wg.scale.multiplyScalar(0.9);
-        else if (e.code === 'Equal') wg.scale.multiplyScalar(1.1);
-        else t = false;
-        if (t) console.log(`FP pos=[${wg.position.x.toFixed(2)},${wg.position.y.toFixed(2)},${wg.position.z.toFixed(2)}] rot=[${wg.rotation.x.toFixed(2)},${wg.rotation.y.toFixed(2)},${wg.rotation.z.toFixed(2)}] scale=${wg.scale.x.toFixed(3)}`);
+      {
+        const name = FP_TARGETS[this.fpTuneIdx || 0];
+        const wg = fpTargetObj(name);
+        if (wg) {
+          let t = true;
+          if (e.code === 'ArrowUp') wg.position.z -= 0.02;
+          else if (e.code === 'ArrowDown') wg.position.z += 0.02;
+          else if (e.code === 'ArrowLeft') wg.position.x -= 0.02;
+          else if (e.code === 'ArrowRight') wg.position.x += 0.02;
+          else if (e.code === 'PageUp') wg.position.y += 0.02;
+          else if (e.code === 'PageDown') wg.position.y -= 0.02;
+          else if (e.code === 'KeyI') wg.rotation.x += 0.1;
+          else if (e.code === 'KeyK') wg.rotation.x -= 0.1;
+          else if (e.code === 'KeyJ') wg.rotation.y += 0.1;
+          else if (e.code === 'KeyL') wg.rotation.y -= 0.1;
+          else if (e.code === 'KeyU') wg.rotation.z += 0.1;
+          else if (e.code === 'KeyO') wg.rotation.z -= 0.1;
+          else if (e.code === 'Minus') wg.scale.multiplyScalar(0.9);
+          else if (e.code === 'Equal') wg.scale.multiplyScalar(1.1);
+          else t = false;
+          if (t) console.log(`FP[${name}] pos=[${wg.position.x.toFixed(2)},${wg.position.y.toFixed(2)},${wg.position.z.toFixed(2)}] rot=[${wg.rotation.x.toFixed(2)},${wg.rotation.y.toFixed(2)},${wg.rotation.z.toFixed(2)}] scale=${wg.scale.x.toFixed(3)}`);
+        }
       }
 
       // Hitbox wireframe overlay toggle (H key)
