@@ -31,6 +31,13 @@ export class PlayerModel {
       ['UpperArm.L', 'z', 1.3],
       ['UpperArm.R', 'z', 1.3],
     ];
+
+    // Arm pose corrections (radians), tuned in-engine and baked as defaults.
+    this.ikRoll = 0.20;          // front upper arm roll about its axis
+    this.ikForeRoll = 1.00;      // front forearm roll about its axis
+    this.ikBackRoll = 0.90;      // back (right) wrist roll — gun pinned so it doesn't move
+    this.ikBackUpperRoll = 6.30; // back (right) upper-arm roll (like [ ] on the front)
+    this.ikBackSwing = 0;        // back (right) upper-arm swing side-to-side (about world Y)
   }
 
   /**
@@ -240,6 +247,17 @@ export class PlayerModel {
       if (knifing) instance.knifeTime = 0;
       if (instance.knifeTime < 0.4) { this._animateKnife(bones, instance.knifeTime); instance.knifeTime += dt; }
 
+      // FRONT (left) arm roll corrections on top of the mocap hold. [ ] = upper
+      // arm, ; ' = forearm. Arm stays where the mocap puts it; this only rolls.
+      if (instance.armed) {
+        instance.scene.updateMatrixWorld(true);
+        if (this.ikRoll) this._rollBone(bones['UpperArm.L'], bones['ForeArm.L'], this.ikRoll);
+        if (this.ikForeRoll) this._rollBone(bones['ForeArm.L'], bones['Hand.L'], this.ikForeRoll);
+        // Back (right) wrist roll: rolls the visible hand but pins the rifle's
+        // world transform so the gun does NOT move with it.
+        if ((this.ikBackRoll || this.ikBackUpperRoll || this.ikBackSwing) && instance.tpWeapon) this._rollBackHandPinGun(instance, bones);
+      }
+
       instance.animTime += dt;
       return;
     }
@@ -346,6 +364,136 @@ export class PlayerModel {
   }
 
   // ========== INTERNAL ANIMATION FUNCTIONS ==========
+
+  /**
+   * Aim a bone so its child-direction points at a world target. Direction-only
+   * (ignores roll), so it's robust to the rig's rest/bone-roll convention.
+   */
+  /**
+   * Roll the right wrist (Hand.R) about the forearm axis, then restore the rifle's
+   * world position+orientation so the gun stays put while only the hand turns.
+   */
+  _rollBackHandPinGun(instance, bones) {
+    const THREE = this.THREE;
+    const hr = bones['Hand.R'], fr = bones['ForeArm.R'], ur = bones['UpperArm.R'];
+    const gun = instance.tpWeapon;
+    if (!hr || !fr || !gun) return;
+    // Reset the gun to its original grip first (prevents per-frame drift/spin),
+    // then capture the INTENDED world transform from the mocap-posed hand.
+    if (instance.gunRestPos) gun.position.copy(instance.gunRestPos);
+    if (instance.gunRestQuat) gun.quaternion.copy(instance.gunRestQuat);
+    gun.updateMatrixWorld(true);
+    const gunPos = gun.getWorldPosition(new THREE.Vector3());
+    const gunQuat = gun.getWorldQuaternion(new THREE.Quaternion());
+
+    // Back upper-arm side-to-side swing (rotate about world Y at the shoulder).
+    if (this.ikBackSwing && ur) {
+      const yq = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.ikBackSwing);
+      const urWorld = ur.getWorldQuaternion(new THREE.Quaternion());
+      const urParentInv = ur.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+      ur.quaternion.copy(urParentInv.multiply(yq.multiply(urWorld)));
+      ur.updateMatrixWorld(true);
+    }
+    // Back UPPER-arm roll (equivalent of [ ] on the front).
+    if (this.ikBackUpperRoll && ur) this._rollBone(ur, fr, this.ikBackUpperRoll);
+    // Wrist roll: roll Hand.R about the forearm->hand world axis.
+    if (this.ikBackRoll) {
+      const axis = hr.getWorldPosition(new THREE.Vector3())
+        .sub(fr.getWorldPosition(new THREE.Vector3())).normalize();
+      if (axis.lengthSq() > 1e-9) {
+        const q = new THREE.Quaternion().setFromAxisAngle(axis, this.ikBackRoll);
+        const hrWorld = hr.getWorldQuaternion(new THREE.Quaternion());
+        const hrParentInv = hr.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+        hr.quaternion.copy(hrParentInv.multiply(q.multiply(hrWorld)));
+        hr.updateMatrixWorld(true);
+      }
+    }
+
+    // Restore the gun's world transform (it's a child of Hand.R, so it moved).
+    hr.updateMatrixWorld(true);
+    gun.quaternion.copy(hr.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(gunQuat));
+    gun.position.copy(hr.worldToLocal(gunPos));
+    gun.updateMatrixWorld(true);
+  }
+
+  /** Roll a bone about its own (child-direction) axis by `angle` radians, world-space. */
+  _rollBone(bone, childBone, angle) {
+    if (!angle) return;
+    const THREE = this.THREE;
+    const bp = bone.getWorldPosition(new THREE.Vector3());
+    const cp = childBone.getWorldPosition(new THREE.Vector3());
+    const axis = cp.sub(bp).normalize();
+    if (axis.lengthSq() < 1e-9) return;
+    const q = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+    const bw = bone.getWorldQuaternion(new THREE.Quaternion());
+    const newWorld = q.multiply(bw);
+    const pwInv = bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+    bone.quaternion.copy(pwInv.multiply(newWorld));
+    bone.updateMatrixWorld(true);
+  }
+
+  _aimBone(bone, childBone, targetWorld) {
+    const THREE = this.THREE;
+    const bp = bone.getWorldPosition(new THREE.Vector3());
+    const cp = childBone.getWorldPosition(new THREE.Vector3());
+    const cur = cp.sub(bp).normalize();
+    const des = targetWorld.clone().sub(bp).normalize();
+    if (cur.lengthSq() < 1e-9 || des.lengthSq() < 1e-9) return;
+    const delta = new THREE.Quaternion().setFromUnitVectors(cur, des);
+    const bw = bone.getWorldQuaternion(new THREE.Quaternion());
+    const newWorld = delta.multiply(bw);
+    const pwInv = bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+    bone.quaternion.copy(pwInv.multiply(newWorld));
+    bone.updateMatrixWorld(true);
+  }
+
+  /**
+   * 2-bone IK: rotate UpperArm.L + ForeArm.L so Hand.L reaches the rifle foregrip
+   * target (instance.leftHandTarget, an Object3D on the weapon). Analytic elbow
+   * placement with a downward pole; aims each bone via _aimBone.
+   */
+  _solveLeftHandIK(instance) {
+    const THREE = this.THREE;
+    const b = instance.bones;
+    const up = b['UpperArm.L'], fore = b['ForeArm.L'], hand = b['Hand.L'];
+    const target = instance.leftHandTarget;
+    if (!up || !fore || !hand || !target) return;
+
+    instance.scene.updateMatrixWorld(true);
+    const root = up.getWorldPosition(new THREE.Vector3());
+    const elbow = fore.getWorldPosition(new THREE.Vector3());
+    const wrist = hand.getWorldPosition(new THREE.Vector3());
+    const tgt = target.getWorldPosition(new THREE.Vector3());
+
+    const L1 = elbow.distanceTo(root);
+    const L2 = wrist.distanceTo(elbow);
+    if (!PlayerModel._ikLogged) {
+      PlayerModel._ikLogged = true;
+      const r = tgt.clone().sub(root);
+      const f = (v) => v.toFixed(2);
+      console.log(`[IK] shoulder=(${f(root.x)},${f(root.y)},${f(root.z)}) target=(${f(tgt.x)},${f(tgt.y)},${f(tgt.z)}) rel=(${f(r.x)},${f(r.y)},${f(r.z)}) | reach=${f(L1 + L2)} need=${f(r.length())} (model faces -Z; want rel.z<0 fwd, rel.y near 0)`);
+    }
+    const toT = tgt.clone().sub(root);
+    const d = THREE.MathUtils.clamp(toT.length(), Math.abs(L1 - L2) + 1e-4, L1 + L2 - 1e-4);
+    const dir = toT.normalize();
+
+    // Elbow pole: roughly down + toward body so the arm bends naturally.
+    const pole = (instance._ikPole || (instance._ikPole = new THREE.Vector3(0, -1, 0)));
+    let perp = pole.clone().sub(dir.clone().multiplyScalar(pole.dot(dir)));
+    if (perp.lengthSq() < 1e-6) perp = new THREE.Vector3(0, 0, 1).sub(dir.clone().multiplyScalar(dir.z));
+    perp.normalize();
+
+    const cosA = THREE.MathUtils.clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1);
+    const angRoot = Math.acos(cosA);
+    const elbowPos = root.clone()
+      .add(dir.clone().multiplyScalar(Math.cos(angRoot) * L1))
+      .add(perp.multiplyScalar(Math.sin(angRoot) * L1));
+
+    this._aimBone(up, fore, elbowPos);
+    this._aimBone(fore, hand, tgt);
+    // Untwist the wrist IN PLACE (forearm roll about its own axis doesn't move the hand).
+    this._rollBone(fore, hand, this.ikForeRoll || 0);
+  }
 
   /**
    * Set locomotion clip weights. Unarmed: idle/walk/run by speed. Armed: a

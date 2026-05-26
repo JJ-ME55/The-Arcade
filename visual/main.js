@@ -275,6 +275,9 @@ export default class MovementVisualizer {
           // Hand.R lives under the soldier's 0.01 node scale, so scale ~100 to
           // restore real weapon size. pos is in bone-local units (1 = ~0.01m world).
           this.tpWeaponXform = { scale: 100, pos: [-2, 24, 0], rot: [0.20, -3.17, 1.40] };
+          // Foregrip target for left-hand IK, in gun-local metres (tunable in-game).
+          // -X is forward along the barrel (the +X end is the stock); -Y is down.
+          this.foregripOffset = [-0.28, -0.03, 0];
           [this.testMannequinRed, this.testMannequinBlue, this.testMannequinGreen]
             .forEach((s) => this._armSoldier(s));
         } catch (e) {
@@ -703,6 +706,44 @@ export default class MovementVisualizer {
         this._respawnMannequins();
       }
 
+      // [FOREGRIP TUNE] move the left-hand IK target on the rifle (gun-local m).
+      // Arrows = along/across barrel, PageUp/Down = up/down. 0.02m steps.
+      if (this.foregripOffset) {
+        const F = this.foregripOffset;
+        let t = true;
+        if (e.code === 'ArrowUp') F[0] += 0.02;
+        else if (e.code === 'ArrowDown') F[0] -= 0.02;
+        else if (e.code === 'ArrowLeft') F[2] += 0.02;
+        else if (e.code === 'ArrowRight') F[2] -= 0.02;
+        else if (e.code === 'PageUp') F[1] += 0.02;
+        else if (e.code === 'PageDown') F[1] -= 0.02;
+        else t = false;
+        if (t) {
+          [this.testMannequinRed, this.testMannequinBlue, this.testMannequinGreen].forEach((s) => {
+            if (s && s.leftHandTarget) s.leftHandTarget.position.set(F[0], F[1], F[2]);
+          });
+          console.log(`foregrip = [${F.map((v) => v.toFixed(2)).join(', ')}]`);
+        }
+      }
+
+      // [IK ROLL TUNE] cancel forearm twist. [ ] = upper-arm roll, ; ' = forearm roll.
+      if (this.playerModelManager) {
+        const pm = this.playerModelManager;
+        let t = true;
+        if (e.code === 'BracketLeft') pm.ikRoll = (pm.ikRoll || 0) - 0.1;
+        else if (e.code === 'BracketRight') pm.ikRoll = (pm.ikRoll || 0) + 0.1;
+        else if (e.code === 'Semicolon') pm.ikForeRoll = (pm.ikForeRoll || 0) - 0.1;
+        else if (e.code === 'Quote') pm.ikForeRoll = (pm.ikForeRoll || 0) + 0.1;
+        else if (e.code === 'Comma') pm.ikBackRoll = (pm.ikBackRoll || 0) - 0.1;
+        else if (e.code === 'Period') pm.ikBackRoll = (pm.ikBackRoll || 0) + 0.1;
+        else if (e.code === 'Minus') pm.ikBackUpperRoll = (pm.ikBackUpperRoll || 0) - 0.1;
+        else if (e.code === 'Equal') pm.ikBackUpperRoll = (pm.ikBackUpperRoll || 0) + 0.1;
+        else if (e.code === 'Digit9') pm.ikBackSwing = (pm.ikBackSwing || 0) - 0.1;
+        else if (e.code === 'Digit0') pm.ikBackSwing = (pm.ikBackSwing || 0) + 0.1;
+        else t = false;
+        if (t) console.log(`ikRoll=${(pm.ikRoll || 0).toFixed(2)} ikForeRoll=${(pm.ikForeRoll || 0).toFixed(2)} ikBackRoll=${(pm.ikBackRoll || 0).toFixed(2)} ikBackUpperRoll=${(pm.ikBackUpperRoll || 0).toFixed(2)} ikBackSwing=${(pm.ikBackSwing || 0).toFixed(2)}`);
+      }
+
       // Hitbox wireframe overlay toggle (H key)
       if (e.code === 'KeyH') {
         this.hitboxDebugEnabled = !this.hitboxDebugEnabled;
@@ -1048,7 +1089,19 @@ export default class MovementVisualizer {
     w.traverse((c) => { if (c.isMesh) c.frustumCulled = false; });
     handR.add(w);
     instance.tpWeapon = w;
+    // Original grip transform (local to Hand.R) — used to re-pin the gun each
+    // frame when the back-hand wrist roll is applied, so it can't drift/spin.
+    instance.gunRestPos = w.position.clone();
+    instance.gunRestQuat = w.quaternion.clone();
     instance.armed = true; // use the rifle (weapon-carry) mocap clips
+
+    // Foregrip target for left-hand IK: a point on the rifle (forward along the
+    // barrel, in gun-local metres) that the left hand will be solved onto.
+    const fg = this.foregripOffset || [0.2, 0, 0];
+    const grip = new this.THREE.Object3D();
+    grip.position.set(fg[0], fg[1], fg[2]);
+    w.add(grip);
+    instance.leftHandTarget = grip;
   }
 
   _extractBoneWorldPositions(instance) {
