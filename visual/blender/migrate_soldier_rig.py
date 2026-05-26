@@ -77,13 +77,19 @@ for m in all_meshes:
         bpy.data.objects.remove(m, do_unlink=True)
 log("armature=%s  skinned meshes=%s" % (armature.name, [m.name for m in meshes]))
 
-# ---- apply SCALE ONLY (applying rotation to a skinned armature corrupts the
-# skin bind -> exploded mesh). Rest-pose / arms-down is handled in player-model.js. ----
+# ---- apply rotation + scale so the exported root is identity (the GLB import
+# adds a -90deg X to the armature; leaving it makes the model lie flat in three.js).
+# NOTE: it was the rest-pose *pose bake* (armature_apply) that exploded the skin,
+# not transform_apply — that step stays disabled below. ----
 bpy.ops.object.select_all(action="DESELECT")
 for o in bpy.data.objects:
     o.select_set(True)
 bpy.context.view_layer.objects.active = armature
-bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+# Rotation ONLY. Do NOT apply scale: baking scale rescales the skeleton but not
+# the baked clip translation keyframes (authored in cm), which flings the model
+# off-screen. Leaving the native armature scale keeps mesh + bones + clip motion
+# consistent (renders ~1.7m like the source).
+bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
 
 from mathutils import Vector
 
@@ -93,18 +99,10 @@ def world_height():
     maxz = max(v.z for v in corners)
     return maxz - minz
 
-TARGET_H = 1.8
+# height for reference only — do NOT normalize via scale-apply (breaks clip
+# translation magnitudes). Native source scale renders ~1.7m, which is fine.
 h = world_height()
-log("height after scale apply = %.3f" % h)
-if h > 0:   # normalize to player height (handles cm-scale FBX and oversized GLB alike)
-    f = TARGET_H / h
-    log("normalizing height -> scaling x%.4f" % f)
-    bpy.ops.object.select_all(action="DESELECT")
-    for o in bpy.data.objects: o.select_set(True)
-    bpy.context.view_layer.objects.active = armature
-    armature.scale = (f, f, f)
-    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    log("height now = %.3f" % world_height())
+log("native height = %.3f (kept; not scale-normalized to preserve clip motion)" % h)
 
 # capture framing target NOW (bound_box is valid here; it goes stale after armature_apply)
 _corners = [m.matrix_world @ Vector(c) for m in meshes for c in m.bound_box]
@@ -143,12 +141,16 @@ log("skipping rest-pose bake (handled in player-model.js); ARM_DEG=%.1f ignored"
 # ---- export -----------------------------------------------------------------
 abs_out = os.path.abspath(OUT_GLB)
 bpy.ops.object.select_all(action="SELECT")
+n_actions = len(bpy.data.actions)
+log("actions present for export: %d -> %s" % (n_actions, [a.name for a in bpy.data.actions]))
 bpy.ops.export_scene.gltf(
     filepath=abs_out,
     export_format="GLB",
     export_skins=True,
     export_yup=True,
-    export_animations=False,
+    export_animations=True,
+    export_animation_mode="ACTIONS",
+    export_nla_strips=True,
     use_selection=False,
 )
 log("exported %s (%d bytes)" % (abs_out, os.path.getsize(abs_out)))

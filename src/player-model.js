@@ -42,6 +42,10 @@ export class PlayerModel {
     const gltf = await this.loader.loadAsync(url);
 
     this.sourceScene = gltf.scene;
+    // Baked mocap locomotion clips (Idle/Walk/Run) shipped in soldier.glb. These
+    // drive natural locomotion; procedural code is reserved for combat overlays.
+    this.sourceAnimations = gltf.animations || [];
+    console.log(`Mannequin animations: [${this.sourceAnimations.map((a) => a.name).join(', ')}]`);
 
     // Find skeleton in source scene
     this.sourceScene.traverse((child) => {
@@ -121,15 +125,36 @@ export class PlayerModel {
       if (!bones[dotted] && bones[actual]) bones[dotted] = bones[actual];
     });
 
-    // Compose arms-down (and any other) corrections into the captured rest pose.
-    this.restOffsets.forEach(([name, axis, angle]) => {
-      const bone = bones[name];
-      if (!bone || !bone.userData.restQuat) return;
-      const e = new THREE.Euler(axis === 'x' ? angle : 0, axis === 'y' ? angle : 0, axis === 'z' ? angle : 0);
-      const q = new THREE.Quaternion().setFromEuler(e);
-      bone.userData.restQuat.multiply(q);
-      bone.quaternion.copy(bone.userData.restQuat);
-    });
+    // Arms-down rest offset only matters for the procedural fallback (no clips).
+    // When baked locomotion clips drive the pose, they define arm position.
+    const hasClips = this.sourceAnimations && this.sourceAnimations.length > 0;
+    if (!hasClips) {
+      this.restOffsets.forEach(([name, axis, angle]) => {
+        const bone = bones[name];
+        if (!bone || !bone.userData.restQuat) return;
+        const e = new THREE.Euler(axis === 'x' ? angle : 0, axis === 'y' ? angle : 0, axis === 'z' ? angle : 0);
+        const q = new THREE.Quaternion().setFromEuler(e);
+        bone.userData.restQuat.multiply(q);
+        bone.quaternion.copy(bone.userData.restQuat);
+      });
+    }
+
+    // Baked-clip locomotion: one AnimationMixer per instance, idle/walk/run actions
+    // played simultaneously with speed-blended weights (CS-style locomotion).
+    let mixer = null;
+    const actions = {};
+    if (hasClips) {
+      mixer = new THREE.AnimationMixer(clonedScene);
+      ['Idle', 'Walk', 'Run'].forEach((clipName) => {
+        const clip = this.sourceAnimations.find((c) => c.name === clipName);
+        if (!clip) return;
+        const action = mixer.clipAction(clip);
+        action.enabled = true;
+        action.setEffectiveWeight(clipName === 'Idle' ? 1 : 0);
+        action.play();
+        actions[clipName] = action;
+      });
+    }
 
     // No scaling — model is built at 1.8m in Blender, exported 1:1
 
@@ -149,6 +174,8 @@ export class PlayerModel {
       bones,
       teamColor,
       helper,
+      mixer,
+      actions,
       // Animation state
       animTime: 0,
       shootTime: 0,
@@ -172,11 +199,60 @@ export class PlayerModel {
    *     shooting: boolean, reloading: boolean, knifing: boolean }
    */
   updateAnimation(instance, dt, state) {
-    const { bones } = instance;
+    const { bones, mixer, actions } = instance;
     const { velocity, onGround, crouching, time, shooting, reloading, knifing } = state;
 
     // Calculate speed from velocity
     const speed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
+
+    // ---------- Baked-clip locomotion (CS-style) + procedural combat overlays ----------
+    if (mixer && actions.Idle) {
+      // Speed-blended weights across idle/walk/run. Hold idle as base while airborne.
+      const WALK_TOP = 1.8; // m/s where walk fully replaces idle
+      const RUN_TOP = 5.0;  // m/s where run fully replaces walk
+      let wIdle = 0, wWalk = 0, wRun = 0;
+      if (!onGround || speed < 0.3) {
+        wIdle = 1;
+      } else if (speed < WALK_TOP) {
+        const t = (speed - 0.3) / (WALK_TOP - 0.3);
+        wIdle = 1 - t; wWalk = t;
+      } else if (speed < RUN_TOP) {
+        const t = (speed - WALK_TOP) / (RUN_TOP - WALK_TOP);
+        wWalk = 1 - t; wRun = t;
+      } else {
+        wRun = 1;
+      }
+      actions.Idle.setEffectiveWeight(wIdle);
+      if (actions.Walk) actions.Walk.setEffectiveWeight(wWalk);
+      if (actions.Run) actions.Run.setEffectiveWeight(wRun);
+      mixer.update(dt);
+
+      // Keep locomotion in-place: clips may carry root translation; pin Root
+      // horizontally (world position is driven externally via scene.position).
+      const root = bones['Root'];
+      if (root && root.userData.restPos) {
+        root.position.x = root.userData.restPos.x;
+        root.position.z = root.userData.restPos.z;
+      }
+
+      // Procedural overlays on top of the clip pose (additive via _rot).
+      if (!onGround) {
+        this._animateJump(bones, velocity);
+      } else if (crouching) {
+        this._animateCrouch(bones, speed, time);
+      }
+      if (shooting) instance.shootTime = 0;
+      if (instance.shootTime < 0.1) { this._animateShooting(bones, instance.shootTime); instance.shootTime += dt; }
+      if (reloading) instance.reloadTime = 0;
+      if (instance.reloadTime < 2.0) { this._animateReload(bones, instance.reloadTime); instance.reloadTime += dt; }
+      if (knifing) instance.knifeTime = 0;
+      if (instance.knifeTime < 0.4) { this._animateKnife(bones, instance.knifeTime); instance.knifeTime += dt; }
+
+      instance.animTime += dt;
+      return;
+    }
+
+    // ---------- Fallback: fully procedural (no baked clips) ----------
     const isMoving = speed >= 0.5;
 
     // Reset all bone rotations to default each frame (clean slate)
