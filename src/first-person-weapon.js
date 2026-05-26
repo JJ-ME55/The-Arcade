@@ -40,7 +40,7 @@ export class FirstPersonWeapon {
     // Weapon-specific offsets (tuned for Hand.R bone attachment)
     // Weapons built along X-axis in Blender, need -90deg Y rotation to point forward (-Z)
     this.weaponOffsets = {
-      rifle:  { pos: [0, 0, -0.15], rot: [0, -Math.PI/2, 0], scale: 1 },
+      rifle:  { pos: [0.02, 0.00, 0.29], rot: [-0.60, -1.87, -0.50], scale: 1.210 },
       pistol: { pos: [0, 0, -0.08], rot: [0, -Math.PI/2, 0], scale: 1 },
       knife:  { pos: [0, 0, -0.05], rot: [Math.PI/2, -Math.PI/2, 0], scale: 1 },
     };

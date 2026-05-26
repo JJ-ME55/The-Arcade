@@ -713,6 +713,12 @@ export default class MovementVisualizer {
         this.fpTuneGun = !this.fpTuneGun;
         console.log('FP tune target:', this.fpTuneGun ? 'GUN' : 'ARMS');
       }
+      // [P] dump BOTH arms + gun transforms together so nothing gets dropped.
+      if (e.code === 'KeyP' && this.fpWeapon) {
+        const a = this.fpWeapon.fpArmsModel, g = this.fpWeapon.currentWeaponModel;
+        const f = (o) => o ? `pos[${o.position.x.toFixed(3)},${o.position.y.toFixed(3)},${o.position.z.toFixed(3)}] rot[${o.rotation.x.toFixed(2)},${o.rotation.y.toFixed(2)},${o.rotation.z.toFixed(2)}] scale${o.scale.x.toFixed(3)}` : 'none';
+        console.log('=== FP DUMP ===\n  ARMS ' + f(a) + '\n  GUN  ' + f(g));
+      }
       const fpTuneTgt = this.fpWeapon ? (this.fpTuneGun ? this.fpWeapon.currentWeaponModel : this.fpWeapon.fpArmsModel) : null;
       if (fpTuneTgt) {
         const wg = fpTuneTgt;
