@@ -27,3 +27,40 @@ body {
 #screen {
     display: block;
 }
+
+#powerHud {
+    position: fixed;
+    bottom: max(env(safe-area-inset-bottom, 0px), 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(70vw, 520px);
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: rgba(20, 28, 13, 0.72);
+    border: 1px solid #2e3e20;
+    border-radius: 6px;
+    z-index: 10;
+    pointer-events: auto;
+    font-family: "Share Tech Mono", ui-monospace, Menlo, monospace;
+    color: #c8b87a;
+}
+
+#powerHud.is-visible {
+    display: flex;
+}
+
+#powerHudLabel {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+}
+
+#powerSlider {
+    flex: 1;
+    height: 44px;
+    accent-color: #c8781a;
+    touch-action: manipulation;
+    margin: 0;
+}

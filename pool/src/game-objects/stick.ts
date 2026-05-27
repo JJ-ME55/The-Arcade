@@ -1,6 +1,7 @@
 import { IStickConfig, IInputConfig } from './../game.config.type';
 import { Keyboard } from '../input/keyboard';
 import { Mouse } from '../input/mouse';
+import { PowerHud } from '../input/power-hud';
 import { GameConfig } from '../game.config';
 import { Assets } from '../assets';
 import { Canvas2D } from '../canvas';
@@ -62,32 +63,31 @@ export class Stick {
 
     //------Private Methods------//
 
-    private increasePower(): void {
-        this._power += stickConfig.powerToAddPerFrame;
-        this._origin.addToX(stickConfig.movementPerFrame);
-    }
-
-    private decreasePower(): void {
-        this._power -= stickConfig.powerToAddPerFrame;
-        this._origin.addToX(-stickConfig.movementPerFrame);
-    }
-    
-    private isLessThanMaxPower(): boolean {
-        return this._power < stickConfig.maxPower;
-    }
-
-    private isMoreThanMinPower(): boolean {
-        return this._power >= 0;
+    private setPower(target: number): void {
+        const clamped = Math.max(0, Math.min(stickConfig.maxPower, target));
+        const delta = clamped - this._power;
+        if (delta === 0) return;
+        this._power = clamped;
+        this._origin.addToX(delta * stickConfig.movementPerFrame);
     }
 
     private updatePower(): void {
+        let target = PowerHud.value;
 
-        if (Keyboard.isDown(inputConfig.increaseShotPowerKey) && this.isLessThanMaxPower()) {
-            this.increasePower();
+        if (Keyboard.isDown(inputConfig.increaseShotPowerKey)) {
+            target += stickConfig.powerToAddPerFrame;
         }
-        else if (Keyboard.isDown(inputConfig.decreaseShotPowerKey) && this.isMoreThanMinPower()) {
-            this.decreasePower();
+        else if (Keyboard.isDown(inputConfig.decreaseShotPowerKey)) {
+            target -= stickConfig.powerToAddPerFrame;
         }
+
+        target = Math.max(0, Math.min(stickConfig.maxPower, target));
+        // HUD is the source of truth — keep it in sync so the slider thumb visibly
+        // tracks keyboard input on desktop and the next read sees the clamped value.
+        if (PowerHud.value !== target) {
+            PowerHud.value = target;
+        }
+        this.setPower(target);
     }
 
     private updateRotation(): void {
@@ -102,6 +102,8 @@ export class Stick {
         this._power = 0;
         this._visible = false;
         this._movable = false;
+        PowerHud.reset();
+        PowerHud.hide();
     }
 
     public show(position: Vector2): void {
@@ -109,6 +111,8 @@ export class Stick {
         this._origin = Vector2.copy(stickConfig.origin);
         this._movable = true;
         this._visible = true;
+        PowerHud.reset();
+        PowerHud.show();
     }
 
     public shoot(): void {
@@ -121,6 +125,13 @@ export class Stick {
         if(this._movable) {
             this.updateRotation();
             this.updatePower();
+        }
+        // Keep HUD synced with stick state every frame — covers the case where Stick is
+        // constructed with default visible/movable=true (initMatch) without a show() call.
+        if (this._visible && this._movable) {
+            PowerHud.show();
+        } else {
+            PowerHud.hide();
         }
     }
 
