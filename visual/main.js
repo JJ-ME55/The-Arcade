@@ -5,6 +5,7 @@ import { getRecoilAngle, AccuracyModel, getFinalShotAngle } from '../src/engine/
 import { DamageSystem } from '../src/engine/damage.js';
 import CombatFeedback from '../src/combat-feedback.js';
 import { ArenaNavMesh } from '../src/navmesh.js';
+import { Bot } from '../src/bot.js';
 
 export default class MovementVisualizer {
   constructor(opts = {}) {
@@ -297,6 +298,10 @@ export default class MovementVisualizer {
         }
       }
 
+      // Opponent bot AI: now that soldiers are spawned, armed, and the navmesh is
+      // baked, wrap each in a Bot that roams the arena (perception/combat next).
+      this._initBots();
+
       // Initialize ragdoll physics if RagdollSystem is provided
       if (this.RagdollSystem) {
         if (this.statusEl) {
@@ -436,6 +441,23 @@ export default class MovementVisualizer {
 
     // Initialize animation state for test mannequins
     this.testMannequinRedVel = new THREE.Vector3(0, 0, 2); // Walking forward at 2 m/s
+  }
+
+  /**
+   * Create a roaming Bot for each spawned soldier. Bots own movement + animation
+   * from here on, replacing the hardcoded per-mannequin updateAnimation calls.
+   */
+  _initBots() {
+    if (!this.navMesh || !this.navMesh.ready || !this.playerModelManager) return;
+    this.bots = [];
+    const make = (instance, id) => {
+      if (!instance) return;
+      this.bots.push(new Bot(this.THREE, this.playerModelManager, instance, this.navMesh, { id }));
+    };
+    make(this.testMannequinRed, 'mannequin_red');
+    make(this.testMannequinBlue, 'mannequin_blue');
+    make(this.testMannequinGreen, 'mannequin_green');
+    console.log(`Bots initialized: ${this.bots.length} roaming`);
   }
 
   _respawnMannequins() {
@@ -1540,45 +1562,10 @@ export default class MovementVisualizer {
     const euler = new THREE.Euler(this.camera_pitch, this.camera_yaw, 0, 'YXZ');
     this.camera.quaternion.setFromEuler(euler);
 
-    // Update test mannequins (if loaded)
-    if (this.playerModelManager) {
-      const time = now / 1000; // Convert to seconds
-
-      if (this.testMannequinRed) {
-        this.playerModelManager.updateAnimation(this.testMannequinRed, delta, {
-          velocity: this.testMannequinRedVel,
-          onGround: true,
-          crouching: false,
-          time: time,
-          shooting: false,
-          reloading: false,
-          knifing: false,
-        });
-      }
-
-      if (this.testMannequinBlue) {
-        this.playerModelManager.updateAnimation(this.testMannequinBlue, delta, {
-          velocity: new this.THREE.Vector3(0, 0, 0),
-          onGround: true,
-          crouching: false,
-          time: time,
-          shooting: false,
-          reloading: false,
-          knifing: false,
-        });
-      }
-
-      if (this.testMannequinGreen) {
-        this.playerModelManager.updateAnimation(this.testMannequinGreen, delta, {
-          velocity: new this.THREE.Vector3(0, 0, 0),
-          onGround: true,
-          crouching: false,
-          time: time,
-          shooting: false,
-          reloading: false,
-          knifing: false,
-        });
-      }
+    // Update opponent bots (roam the navmesh + drive their own locomotion).
+    if (this.bots && this.bots.length) {
+      const time = now / 1000;
+      for (const bot of this.bots) bot.update(delta, time);
     }
 
     // Update ragdoll visuals

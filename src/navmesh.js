@@ -103,6 +103,23 @@ export class ArenaNavMesh {
     return new THREE.Vector3(r.point.x, r.point.y, r.point.z);
   }
 
+  /**
+   * Walkable surface height directly under/around a world position. Used to keep
+   * a moving bot glued to ramps/slopes instead of snapping to waypoint heights.
+   * The tall y half-extent lets it find the floor when the query point is above it,
+   * while staying on the bot's current level in multi-storey areas.
+   * @returns {number|null} surface y, or null if off-navmesh
+   */
+  sampleHeight(pos) {
+    if (!this.ready) return null;
+    const r = this.query.findClosestPoint(
+      { x: pos.x, y: pos.y, z: pos.z },
+      { halfExtents: { x: 0.6, y: 4.0, z: 0.6 } }
+    );
+    if (!r.success) return null;
+    return r.point.y;
+  }
+
   /** A uniformly random walkable point. Returns THREE.Vector3 or null. */
   randomPoint(THREE) {
     if (!this.ready) return null;
