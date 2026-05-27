@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Free-Kick Madness — Playtest</title>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #0a0a14;
+            color: #fff;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+        }
+        #game {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+        }
+        #game canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
+        #hud {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #hud-lives {
+            position: absolute;
+            top: 20px;
+            left: 16px;
+            font-size: 24px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+            letter-spacing: 2px;
+        }
+        #hud-score {
+            position: absolute;
+            top: 22px;
+            right: 16px;
+            font-size: 22px;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+        }
+        #hud-scenario {
+            position: absolute;
+            top: 22px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            color: #cfd8dc;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+            white-space: nowrap;
+        }
+        #hud-hint {
+            position: absolute;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 13px;
+            color: rgba(180, 195, 255, 0.85);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+            white-space: nowrap;
+        }
+        #popup {
+            position: absolute;
+            top: 42%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 56px;
+            font-weight: 900;
+            color: #ffe680;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.8), 0 0 30px rgba(0,0,0,0.4);
+            opacity: 0;
+            transition: opacity 0.5s ease, transform 0.4s ease;
+            text-align: center;
+            white-space: pre-wrap;
+            pointer-events: none;
+        }
+        #replay {
+            position: absolute;
+            bottom: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            padding: 14px 28px;
+            font-size: 18px;
+            border-radius: 12px;
+            display: none;
+            pointer-events: auto;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        #replay:active {
+            transform: translateX(-50%) scale(0.95);
+        }
+        #run-over-info {
+            position: absolute;
+            top: 56%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            color: #cfd8dc;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+            text-align: center;
+            display: none;
+            pointer-events: none;
+            white-space: pre-wrap;
+        }
+        #safari-hatch {
+            position: absolute;
+            bottom: 22%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 13px;
+            color: rgba(180, 195, 255, 0.9);
+            text-decoration: underline;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+            display: none;
+            pointer-events: auto;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <div id="game"></div>
+    <div id="hud">
+        <div id="hud-lives">❤️❤️❤️❤️❤️</div>
+        <div id="hud-score">0 pts</div>
+        <div id="hud-scenario">12m • 0° • 3-man wall</div>
+        <div id="hud-hint">Swipe up to shoot. Curve to bend.</div>
+        <div id="popup"></div>
+        <div id="run-over-info"></div>
+        <a id="safari-hatch" href="#" target="_blank" rel="noopener">Open in Safari ↗</a>
+        <button id="replay">Tap to play again</button>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
