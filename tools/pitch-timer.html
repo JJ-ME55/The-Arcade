@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SolShot — Pitch Timer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #0e1209;
+    --bone: #e8e4d0;
+    --olive: #b8a88a;
+    --accent: #e8a430;
+    --gg: #14F195;
+    --red: #cf4646;
+    --f-display: 'Black Ops One', cursive;
+    --f-mono: 'Share Tech Mono', monospace;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg-deep);
+    color: var(--bone);
+    font-family: var(--f-mono);
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.55) 100%);
+    pointer-events: none;
+    z-index: 9;
+  }
+
+  .wordmark {
+    font-family: var(--f-display);
+    font-size: clamp(56px, 9vw, 120px);
+    letter-spacing: 0.05em;
+    line-height: 1;
+    margin-bottom: 60px;
+    text-shadow: 0 3px 10px rgba(0,0,0,0.8);
+  }
+  .wordmark .sol { color: var(--bone); }
+  .wordmark .shot {
+    color: var(--accent);
+    text-shadow: 0 0 30px rgba(232, 164, 48, 0.35), 0 3px 10px rgba(0,0,0,0.8);
+  }
+
+  .timer {
+    font-family: var(--f-display);
+    font-size: clamp(140px, 24vw, 280px);
+    letter-spacing: 0.02em;
+    line-height: 1;
+    color: var(--gg);
+    text-shadow: 0 0 50px var(--gg), 0 0 100px rgba(20, 241, 149, 0.20);
+    transition: color 0.3s, text-shadow 0.3s;
+    font-variant-numeric: tabular-nums;
+  }
+  .timer.warning {
+    color: var(--accent);
+    text-shadow: 0 0 50px var(--accent), 0 0 100px rgba(232, 164, 48, 0.25);
+  }
+  .timer.critical {
+    color: var(--red);
+    text-shadow: 0 0 50px var(--red), 0 0 100px rgba(207, 70, 70, 0.30);
+    animation: crit-pulse 0.6s ease-in-out infinite;
+  }
+  .timer.done {
+    color: var(--red);
+    text-shadow: 0 0 50px var(--red), 0 0 100px rgba(207, 70, 70, 0.45);
+    animation: crit-pulse 0.4s ease-in-out infinite;
+  }
+  @keyframes crit-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  .progress-track {
+    width: clamp(280px, 50vw, 600px);
+    height: 2px;
+    background: rgba(232, 216, 154, 0.10);
+    margin-top: 32px;
+    margin-bottom: 60px;
+    position: relative;
+    overflow: hidden;
+  }
+  .progress-fill {
+    position: absolute;
+    inset: 0;
+    background: var(--gg);
+    transform-origin: left;
+    transition: transform 0.3s linear, background 0.3s;
+    opacity: 0.85;
+  }
+  .progress-fill.warning {
+    background: var(--accent);
+  }
+  .progress-fill.critical {
+    background: var(--red);
+  }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+  }
+  button {
+    background: transparent;
+    border: 1px solid rgba(232, 216, 154, 0.25);
+    color: var(--olive);
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    padding: 10px 22px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    text-transform: uppercase;
+  }
+  button:hover {
+    color: var(--bone);
+    border-color: var(--bone);
+  }
+  button.primary {
+    background: var(--accent);
+    color: var(--bg-deep);
+    border-color: var(--accent);
+  }
+  button.primary:hover {
+    background: var(--bone);
+    border-color: var(--bone);
+    color: var(--bg-deep);
+  }
+
+  .hackathon {
+    position: fixed;
+    bottom: 48px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 11;
+    height: clamp(38px, 5vw, 56px);
+    opacity: 0.92;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.7));
+  }
+  .hackathon img {
+    height: 100%;
+    width: auto;
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<div class="wordmark"><span class="sol">SOL</span><span class="shot">SHOT</span></div>
+
+<div class="timer" id="timer">2:00</div>
+<div class="progress-track">
+  <div class="progress-fill" id="progress-fill"></div>
+</div>
+
+<div class="controls">
+  <button id="startBtn" class="primary">START</button>
+  <button id="pauseBtn">PAUSE</button>
+  <button id="resetBtn">RESET</button>
+</div>
+
+<div class="hackathon" aria-label="Colosseum">
+  <img src="../Assets/colosseum-logo.png" alt="Colosseum" />
+</div>
+
+<script>
+  const TOTAL_SECONDS = 120;
+  let remaining = TOTAL_SECONDS;
+  let interval = null;
+  let running = false;
+  let beepedAt = new Set();
+
+  const timerEl = document.getElementById('timer');
+  const fillEl = document.getElementById('progress-fill');
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  let audioCtx = null;
+  function beep(freq, duration, volume = 0.15) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    } catch (e) { /* ignore */ }
+  }
+
+  function render() {
+    const m = Math.floor(Math.max(0, remaining) / 60);
+    const s = Math.max(0, remaining) % 60;
+    timerEl.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+
+    timerEl.classList.remove('warning', 'critical', 'done');
+    fillEl.classList.remove('warning', 'critical');
+
+    if (remaining <= 0) {
+      timerEl.classList.add('done');
+    } else if (remaining <= 10) {
+      timerEl.classList.add('critical');
+      fillEl.classList.add('critical');
+    } else if (remaining <= 30) {
+      timerEl.classList.add('warning');
+      fillEl.classList.add('warning');
+    }
+
+    const pct = Math.max(0, remaining) / TOTAL_SECONDS;
+    fillEl.style.transform = `scaleX(${pct})`;
+  }
+
+  function tick() {
+    remaining--;
+
+    if (remaining === 30 && !beepedAt.has(30)) {
+      beep(660, 0.12);
+      beepedAt.add(30);
+    } else if (remaining === 10 && !beepedAt.has(10)) {
+      beep(880, 0.15);
+      beepedAt.add(10);
+    } else if (remaining === 0 && !beepedAt.has(0)) {
+      beep(220, 0.4, 0.20);
+      beepedAt.add(0);
+      clearInterval(interval);
+      running = false;
+      startBtn.textContent = 'START';
+      startBtn.classList.add('primary');
+    }
+
+    render();
+  }
+
+  function start() {
+    if (running || remaining <= 0) return;
+    running = true;
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    interval = setInterval(tick, 1000);
+    startBtn.textContent = 'RUNNING';
+    startBtn.classList.remove('primary');
+  }
+
+  function pause() {
+    running = false;
+    clearInterval(interval);
+    startBtn.textContent = remaining > 0 ? 'RESUME' : 'START';
+    startBtn.classList.add('primary');
+  }
+
+  function reset() {
+    running = false;
+    clearInterval(interval);
+    remaining = TOTAL_SECONDS;
+    beepedAt = new Set();
+    startBtn.textContent = 'START';
+    startBtn.classList.add('primary');
+    render();
+  }
+
+  startBtn.addEventListener('click', start);
+  pauseBtn.addEventListener('click', pause);
+  resetBtn.addEventListener('click', reset);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (running) { pause(); } else { start(); }
+    } else if (e.key === 'r' || e.key === 'R') {
+      reset();
+    }
+  });
+
+  render();
+</script>
+
+</body>
+</html>

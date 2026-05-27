@@ -1,0 +1,32 @@
+// Standard
+
+Single Shot
+Big Shot
+3 Shot
+5 Shot
+Jackhammer
+Heatseeker
+Tracer
+Pile Driver
+Dirt Move
+Crazy Ivan
+Spider
+Sniper Rifle
+Magic Wall 
+Dirt Slinger 
+Zapper
+Napalm
+Hail Storm
+Ground Hog 
+Worm
+Homing Worm
+Skipper
+Chain Reaction
+Pineapple
+Firecracker
+Homing Missile
+Dirtball
+Tommy Gun 
+Mountain Mover
+Scatter Shot 
+Cruiser 
