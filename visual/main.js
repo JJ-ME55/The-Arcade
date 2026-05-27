@@ -207,11 +207,11 @@ export default class MovementVisualizer {
       // Extract spawn points
       this._extractSpawnPoints(gltf.scene);
 
-      // Position player at spawn
+      // Position player at their corner spawn (navmesh-snapped).
       if (this.spawnRed) {
-        this.pos.copy(this.spawnRed);
+        this.pos.copy(this._playerSpawnPos());
         this.pos.y += 1.0; // Raise player to standing position above spawn point
-        console.log(`Player spawned at red spawn: (${this.pos.x.toFixed(2)}, ${this.pos.y.toFixed(2)}, ${this.pos.z.toFixed(2)})`);
+        console.log(`Player spawned at corner: (${this.pos.x.toFixed(2)}, ${this.pos.y.toFixed(2)}, ${this.pos.z.toFixed(2)})`);
       } else {
         console.warn('No spawn points found, using fallback position');
       }
@@ -409,13 +409,35 @@ export default class MovementVisualizer {
    * Opponent spawn positions: the FAR end of the map (blue spawn area), spread
    * out, so the round starts with the enemy team across the arena from the player.
    */
+  /** A spawn point offset from `base` by (dx,dz), snapped onto the navmesh. */
+  _cornerSpawn(base, dx, dz) {
+    const THREE = this.THREE;
+    const p = base.clone();
+    p.x += dx; p.z += dz;
+    if (this.navMesh && this.navMesh.ready) {
+      const snapped = this.navMesh.closestPoint(p, THREE);
+      if (snapped) return snapped;
+    }
+    return p;
+  }
+
+  /** Player (red team) spawn: bottom-right corner, in the building. */
+  _playerSpawnPos() {
+    const base = this.spawnRed ? this.spawnRed.clone() : new this.THREE.Vector3(0, 0, 23);
+    return this._cornerSpawn(base, 15, -1); // +X (right) corner of the red end
+  }
+
+  /** Enemy (blue team) spawns: right up in the top-right corner, fanned inward. */
   _botSpawnPositions() {
     const THREE = this.THREE;
     const base = this.spawnBlue ? this.spawnBlue.clone() : new THREE.Vector3(0, 0, -28);
+    base.x += 18; // hard into the +X (right) edge
+    base.z -= 1;  // hard toward the -Z (top) edge
+    // Fan the squad inward (-X / +Z) from the corner so none clip the walls.
     return {
-      mannequin_red: base.clone().add(new THREE.Vector3(-4, 0, 2)),
-      mannequin_blue: base.clone(),
-      mannequin_green: base.clone().add(new THREE.Vector3(4, 0, 2)),
+      mannequin_blue: this._cornerSpawn(base, 0, 0),
+      mannequin_red: this._cornerSpawn(base, -3, 1.5),
+      mannequin_green: this._cornerSpawn(base, -1.5, 3),
     };
   }
 
@@ -481,10 +503,10 @@ export default class MovementVisualizer {
   /** Start a fresh round: reset + reposition the player and respawn the enemy squad. */
   _startRound() {
     const THREE = this.THREE;
-    // Reset & reposition the player at their spawn.
+    // Reset & reposition the player at their corner spawn.
     if (this.damageSystem) this.damageSystem.resetPlayer('local');
     if (this.spawnRed) {
-      this.pos.copy(this.spawnRed);
+      this.pos.copy(this._playerSpawnPos());
       this.pos.y += 1.0;
       this.vel.set(0, 0, 0);
     }
