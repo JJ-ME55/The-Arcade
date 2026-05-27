@@ -33,11 +33,66 @@ export class Bot {
     this.pathIndex = 0;
     this.repathCooldown = 0; // debounce failed re-paths
 
+    // --- perception ---
+    this.eyeHeight = opts.eyeHeight || 1.55;
+    this.viewRange = opts.viewRange || 38;          // metres
+    this.fovCos = Math.cos((opts.fovDeg || 130) * 0.5 * Math.PI / 180); // half-FOV cosine
+    this.lastKnownPlayerPos = null;
+    this.searchTimer = 0;
+
+    // --- combat ---
+    this.reactionTime = opts.reactionTime || 0.45;  // acquisition delay before first shot
+    this.fireInterval = opts.fireInterval || 0.16;  // seconds between shots within a burst
+    // Per-bot marksmanship (close-range hit chance); varies so they feel human,
+    // not like identical aimbots. Kept low so fights are survivable; distance
+    // falloff applied by the shooter handler.
+    this.aimSkill = opts.aimSkill != null ? opts.aimSkill : (0.10 + Math.random() * 0.12);
+    this.aimTimer = 0;        // counts down the reaction delay on acquisition
+    this.fireCooldown = 0;    // time until next shot allowed
+    this.burstShotsLeft = 0;  // remaining rounds in current burst
+    this.burstPause = 0;      // pause between bursts
+
     this._vel = new THREE.Vector3();
     this._dir = new THREE.Vector3();
+    this._eye = new THREE.Vector3();
+    this._toPlayer = new THREE.Vector3();
   }
 
   get alive() { return this.state !== BotState.DEAD; }
+
+  /** Mark this bot dead — it stops moving, perceiving, and firing immediately. */
+  markDead() {
+    this.state = BotState.DEAD;
+    this._vel.set(0, 0, 0);
+  }
+
+  /** Eye position (for line-of-sight + muzzle origin). */
+  eyePosition() {
+    return this._eye.set(this.position.x, this.position.y + this.eyeHeight, this.position.z);
+  }
+
+  /** True if the player is within range + FOV and in line-of-sight. */
+  _canSeePlayer(ctx) {
+    if (!ctx.playerAlive || !ctx.playerPos) return false;
+    this._toPlayer.set(
+      ctx.playerPos.x - this.position.x, 0, ctx.playerPos.z - this.position.z
+    );
+    const dist = this._toPlayer.length();
+    if (dist > this.viewRange || dist < 0.001) return false;
+    this._toPlayer.divideScalar(dist);
+    // FOV: bot faces (sin yaw, 0, cos yaw); compare against direction to player.
+    const fwdX = Math.sin(this.yaw), fwdZ = Math.cos(this.yaw);
+    if (fwdX * this._toPlayer.x + fwdZ * this._toPlayer.z < this.fovCos) return false;
+    // Line of sight: nothing solid between the bot's eye and the player.
+    return ctx.canSee(this.eyePosition(), ctx.playerPos);
+  }
+
+  _faceYawTo(targetX, targetZ, dt, rate = 10) {
+    const dx = targetX - this.position.x, dz = targetZ - this.position.z;
+    if (dx * dx + dz * dz < 1e-6) return;
+    const targetYaw = Math.atan2(dx, dz);
+    this.yaw = this._approachAngle(this.yaw, targetYaw, dt * rate);
+  }
 
   /** Snap to a fresh random destination and compute a path to it. */
   _pickPatrolDestination() {
@@ -52,59 +107,108 @@ export class Bot {
   /**
    * @param {number} dt - seconds
    * @param {number} time - global time (seconds) for animation phase
+   * @param {object} ctx - { playerPos, playerAlive, canSee(eye,target), fire(bot,muzzle) }
    */
-  update(dt, time) {
+  update(dt, time, ctx) {
     if (!this.nav || !this.nav.ready || this.state === BotState.DEAD) return;
-
     if (this.repathCooldown > 0) this.repathCooldown -= dt;
 
+    const canSee = ctx ? this._canSeePlayer(ctx) : false;
     let moving = false;
+    let shooting = false;
 
-    // PATROL: walk the current path; pick a new destination when finished.
-    if (this.pathIndex >= this.path.length) {
-      if (this.repathCooldown <= 0) {
-        this._pickPatrolDestination();
-        if (this.path.length === 0) this.repathCooldown = 0.5; // nav miss — retry soon
+    // --- state transitions ---
+    if (canSee) {
+      this.lastKnownPlayerPos = { x: ctx.playerPos.x, y: ctx.playerPos.y, z: ctx.playerPos.z };
+      if (this.state !== BotState.ATTACK) {
+        this.state = BotState.ATTACK;
+        this.aimTimer = this.reactionTime; // acquisition delay before first shot
+        this.burstShotsLeft = 2 + Math.floor(Math.random() * 3);
+        this.burstPause = 0;
+        this.path = []; this.pathIndex = 0;
+      }
+    } else if (this.state === BotState.ATTACK) {
+      // Lost sight: go investigate the last known position.
+      this.state = BotState.SEARCH;
+      this.searchTimer = 4.0;
+      this.path = []; this.pathIndex = 0;
+      if (this.lastKnownPlayerPos) {
+        const path = this.nav.computePath(this.position, this.lastKnownPlayerPos, this.THREE);
+        this.path = path;
+        this.pathIndex = path.length > 1 ? 1 : 0;
       }
     }
 
-    if (this.pathIndex < this.path.length) {
-      const target = this.path[this.pathIndex];
-      this._dir.set(target.x - this.position.x, 0, target.z - this.position.z);
-      const dist = this._dir.length();
-
-      if (dist < 0.35) {
-        // Reached this waypoint; advance.
-        this.pathIndex++;
+    // --- behaviour per state ---
+    if (this.state === BotState.ATTACK) {
+      moving = false; // stand and engage (no cover tactics in this pass)
+      this._vel.set(0, 0, 0);
+      // Face the player.
+      this._faceYawTo(ctx.playerPos.x, ctx.playerPos.z, dt, 12);
+      // Fire control: reaction delay, then bursts at fireInterval.
+      if (this.aimTimer > 0) {
+        this.aimTimer -= dt;
+      } else if (this.burstPause > 0) {
+        this.burstPause -= dt;
       } else {
-        this._dir.divideScalar(dist); // normalize (dist != 0 here)
-        const step = Math.min(this.walkSpeed * dt, dist);
-        this.position.x += this._dir.x * step;
-        this.position.z += this._dir.z * step;
-        // Ride the actual navmesh surface under our feet so ramps/slopes are
-        // followed smoothly (snapping to target.y made the bot float up ramps).
-        const groundY = this.nav.sampleHeight(this.position);
-        this.position.y = (groundY != null) ? groundY : target.y;
-
-        // Face the direction of travel (smoothed so turns aren't instant).
-        const targetYaw = Math.atan2(this._dir.x, this._dir.z);
-        this.yaw = this._approachAngle(this.yaw, targetYaw, dt * 8);
-
-        this._vel.set(this._dir.x * this.walkSpeed, 0, this._dir.z * this.walkSpeed);
-        moving = true;
+        this.fireCooldown -= dt;
+        if (this.fireCooldown <= 0) {
+          shooting = true;
+          this.fireCooldown = this.fireInterval;
+          if (ctx.fire) ctx.fire(this, this.eyePosition());
+          if (--this.burstShotsLeft <= 0) {
+            this.burstShotsLeft = 2 + Math.floor(Math.random() * 3);
+            this.burstPause = 0.9 + Math.random() * 1.1; // recover/retarget between bursts
+          }
+        }
       }
+    } else {
+      // PATROL / SEARCH: follow the current path. SEARCH walks to last-known pos
+      // and reverts to PATROL on a timeout; PATROL re-rolls a destination at the end.
+      if (this.state === BotState.SEARCH) {
+        this.searchTimer -= dt;
+        if (this.searchTimer <= 0) this.state = BotState.PATROL;
+      }
+
+      if (this.pathIndex >= this.path.length) {
+        if (this.state === BotState.SEARCH) {
+          this.state = BotState.PATROL; // reached last-known pos, resume patrol
+        }
+        if (this.repathCooldown <= 0) {
+          this._pickPatrolDestination();
+          if (this.path.length === 0) this.repathCooldown = 0.5;
+        }
+      }
+
+      if (this.pathIndex < this.path.length) {
+        const target = this.path[this.pathIndex];
+        this._dir.set(target.x - this.position.x, 0, target.z - this.position.z);
+        const dist = this._dir.length();
+        if (dist < 0.35) {
+          this.pathIndex++;
+        } else {
+          this._dir.divideScalar(dist);
+          const step = Math.min(this.walkSpeed * dt, dist);
+          this.position.x += this._dir.x * step;
+          this.position.z += this._dir.z * step;
+          const groundY = this.nav.sampleHeight(this.position);
+          this.position.y = (groundY != null) ? groundY : target.y;
+          this.yaw = this._approachAngle(this.yaw, Math.atan2(this._dir.x, this._dir.z), dt * 8);
+          this._vel.set(this._dir.x * this.walkSpeed, 0, this._dir.z * this.walkSpeed);
+          moving = true;
+        }
+      }
+      if (!moving) this._vel.set(0, 0, 0);
     }
 
-    if (!moving) this._vel.set(0, 0, 0);
-
-    // Drive the model: position/facing + mocap locomotion blend.
+    // Drive the model: position/facing + mocap locomotion blend (+ shoot overlay).
     this.model.setTransform(this.instance, this.position, this.yaw);
     this.model.updateAnimation(this.instance, dt, {
       velocity: this._vel,
       onGround: true,
       crouching: false,
       time,
-      shooting: false,
+      shooting,
       reloading: false,
       knifing: false,
     });

@@ -1,11 +1,13 @@
 // Import engine modules
 import { WeaponSystem, WeaponType } from '../src/engine/weapons.js';
 import { testHitscan, createHitboxSet, updateHitboxPositions } from '../src/engine/combat.js';
+import { ZONE_MULTIPLIERS } from '../src/engine/hitboxes.js';
 import { getRecoilAngle, AccuracyModel, getFinalShotAngle } from '../src/engine/recoil-patterns.js';
 import { DamageSystem } from '../src/engine/damage.js';
 import CombatFeedback from '../src/combat-feedback.js';
 import { ArenaNavMesh } from '../src/navmesh.js';
 import { Bot } from '../src/bot.js';
+import { SoundFX } from '../src/audio.js';
 
 export default class MovementVisualizer {
   constructor(opts = {}) {
@@ -399,48 +401,39 @@ export default class MovementVisualizer {
     }
   }
 
-  _spawnTestMannequins() {
+  /**
+   * Opponent spawn positions: the FAR end of the map (blue spawn area), spread
+   * out, so the round starts with the enemy team across the arena from the player.
+   */
+  _botSpawnPositions() {
     const THREE = this.THREE;
+    const base = this.spawnBlue ? this.spawnBlue.clone() : new THREE.Vector3(0, 0, -28);
+    return {
+      mannequin_red: base.clone().add(new THREE.Vector3(-4, 0, 2)),
+      mannequin_blue: base.clone(),
+      mannequin_green: base.clone().add(new THREE.Vector3(4, 0, 2)),
+    };
+  }
 
-    // Spawn red mannequin in the open arena (walk-in-place test); offset to the
-    // side of the green one so it isn't clipping the spawn wall.
-    const redPos = this.spawnRed.clone();
-    redPos.x -= 3; // to the side
-    redPos.z -= 5; // forward into open floor (away from spawn wall)
-    this.testMannequinRed = this.playerModelManager.spawn(0xcc2200, redPos);
+  _spawnTestMannequins() {
+    const pos = this._botSpawnPositions();
+
+    this.testMannequinRed = this.playerModelManager.spawn(0xcc2200, pos.mannequin_red.clone());
     this.scene.add(this.testMannequinRed.scene);
-    if (this.testMannequinRed.helper) {
-      this.scene.add(this.testMannequinRed.helper);
-    }
-    console.log(`Red mannequin spawned at (${redPos.x.toFixed(2)}, ${redPos.y.toFixed(2)}, ${redPos.z.toFixed(2)})`);
+    if (this.testMannequinRed.helper) this.scene.add(this.testMannequinRed.helper);
 
-    // Spawn blue mannequin near blue spawn (idle)
-    const bluePos = this.spawnBlue.clone();
-    bluePos.x += 3; // Offset to side
-    this.testMannequinBlue = this.playerModelManager.spawn(0x2244cc, bluePos);
+    this.testMannequinBlue = this.playerModelManager.spawn(0x2244cc, pos.mannequin_blue.clone());
     this.scene.add(this.testMannequinBlue.scene);
-    if (this.testMannequinBlue.helper) {
-      this.scene.add(this.testMannequinBlue.helper);
-    }
-    console.log(`Blue mannequin spawned at (${bluePos.x.toFixed(2)}, ${bluePos.y.toFixed(2)}, ${bluePos.z.toFixed(2)})`);
+    if (this.testMannequinBlue.helper) this.scene.add(this.testMannequinBlue.helper);
 
-    // Store original positions for respawn
-    this.mannequinOriginalPositions.red = redPos.clone();
-    this.mannequinOriginalPositions.blue = bluePos.clone();
-
-    // Spawn green mannequin directly in front of player spawn (close-range test target)
-    const greenPos = this.spawnRed.clone();
-    greenPos.z -= 5; // 5m in front of player (player faces -Z)
-    this.testMannequinGreen = this.playerModelManager.spawn(0x22cc44, greenPos);
+    this.testMannequinGreen = this.playerModelManager.spawn(0x22cc44, pos.mannequin_green.clone());
     this.scene.add(this.testMannequinGreen.scene);
-    if (this.testMannequinGreen.helper) {
-      this.scene.add(this.testMannequinGreen.helper);
-    }
-    console.log(`Green mannequin spawned at (${greenPos.x.toFixed(2)}, ${greenPos.y.toFixed(2)}, ${greenPos.z.toFixed(2)})`);
-    this.mannequinOriginalPositions.green = greenPos.clone();
+    if (this.testMannequinGreen.helper) this.scene.add(this.testMannequinGreen.helper);
 
-    // Initialize animation state for test mannequins
-    this.testMannequinRedVel = new THREE.Vector3(0, 0, 2); // Walking forward at 2 m/s
+    this.mannequinOriginalPositions.red = pos.mannequin_red.clone();
+    this.mannequinOriginalPositions.blue = pos.mannequin_blue.clone();
+    this.mannequinOriginalPositions.green = pos.mannequin_green.clone();
+    console.log('Opponents spawned at far end of map');
   }
 
   /**
@@ -457,7 +450,207 @@ export default class MovementVisualizer {
     make(this.testMannequinRed, 'mannequin_red');
     make(this.testMannequinBlue, 'mannequin_blue');
     make(this.testMannequinGreen, 'mannequin_green');
+    // Bots shoot an AK-class weapon; applyDamage only needs type + baseDamage.
+    this._botWeaponConfig = { type: WeaponType.AK47, baseDamage: 20 };
+    this.roundActive = true;
+    this.roundEndTimer = 0;
     console.log(`Bots initialized: ${this.bots.length} roaming`);
+  }
+
+  /**
+   * Round flow: while active, end the round once every opponent is dead, then
+   * count down and respawn both sides for the next round.
+   */
+  _updateRound(dt, aliveCount) {
+    if (this.roundActive) {
+      if (aliveCount === 0) {
+        this.roundActive = false;
+        this.roundEndTimer = 3.0;
+        this._showBanner('ROUND WON — respawning…');
+      }
+    } else {
+      this.roundEndTimer -= dt;
+      if (this.roundEndTimer <= 0) this._startRound();
+    }
+  }
+
+  /** Start a fresh round: reset + reposition the player and respawn the enemy squad. */
+  _startRound() {
+    const THREE = this.THREE;
+    // Reset & reposition the player at their spawn.
+    if (this.damageSystem) this.damageSystem.resetPlayer('local');
+    if (this.spawnRed) {
+      this.pos.copy(this.spawnRed);
+      this.pos.y += 1.0;
+      this.vel.set(0, 0, 0);
+    }
+    if (this.weaponSystem) { this.weaponSystem.resetAll(); this._updateAmmoHUD(); }
+
+    this._spawnBotSquad();
+    this.roundActive = true;
+    this._showBanner('');
+    console.log('New round started');
+  }
+
+  /**
+   * (Re)spawn the three opponents at the far end, armed, with fresh health,
+   * hitboxes, and Bot controllers. Removes any leftover soldier scenes first.
+   */
+  _spawnBotSquad() {
+    const positions = this._botSpawnPositions();
+    const slots = [
+      ['mannequin_red', 0xcc2200, 'testMannequinRed'],
+      ['mannequin_blue', 0x2244cc, 'testMannequinBlue'],
+      ['mannequin_green', 0x22cc44, 'testMannequinGreen'],
+    ];
+    for (const [id, color, prop] of slots) {
+      const old = this[prop];
+      if (old) {
+        if (old.scene && old.scene.parent) old.scene.parent.remove(old.scene);
+        if (old.helper && old.helper.parent) old.helper.parent.remove(old.helper);
+      }
+      const inst = this.playerModelManager.spawn(color, positions[id].clone());
+      this.scene.add(inst.scene);
+      if (inst.helper) this.scene.add(inst.helper);
+      if (this.tpRifleProto) this._armSoldier(inst);
+      this[prop] = inst;
+      if (this.damageSystem) this.damageSystem.resetPlayer(id);
+    }
+    this.hitboxSets = {
+      mannequin_red: createHitboxSet('mannequin_red'),
+      mannequin_blue: createHitboxSet('mannequin_blue'),
+      mannequin_green: createHitboxSet('mannequin_green'),
+    };
+    this._initBots();
+  }
+
+  /** Centered round banner; pass an empty string to hide it. */
+  _showBanner(text) {
+    if (!this._bannerEl) {
+      const el = document.createElement('div');
+      el.style.cssText = 'position:fixed;top:18%;left:0;right:0;text-align:center;' +
+        'pointer-events:none;z-index:60;font:700 34px system-ui,sans-serif;' +
+        'color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.8);letter-spacing:1px;';
+      this.container.appendChild(el);
+      this._bannerEl = el;
+    }
+    this._bannerEl.textContent = text || '';
+    this._bannerEl.style.display = text ? 'block' : 'none';
+  }
+
+  /** Line-of-sight test from a bot's eye to a target, blocked by arena geometry. */
+  _botCanSee(eye, target) {
+    if (!this.mapScene) return true;
+    const THREE = this.THREE;
+    if (!this._botRay) { this._botRay = new THREE.Raycaster(); this._botRayDir = new THREE.Vector3(); }
+    this._botRayDir.subVectors(target, eye);
+    const dist = this._botRayDir.length();
+    if (dist < 0.001) return true;
+    this._botRayDir.divideScalar(dist);
+    this._botRay.set(eye, this._botRayDir);
+    this._botRay.far = dist;
+    const hits = this._botRay.intersectObject(this.mapScene, true);
+    // Blocked if any wall is meaningfully closer than the player.
+    for (const h of hits) {
+      if (h.distance < dist - 0.3) return false;
+    }
+    return true;
+  }
+
+  /** A bot pulled the trigger: muzzle flash + tracer, then a distance-based hit roll. */
+  _botFire(bot, muzzle) {
+    const THREE = this.THREE;
+
+    const dist = muzzle.distanceTo(this.pos);
+    // Imperfect aim: per-bot skill, falling off with distance. Bots miss a lot
+    // (capped well below aimbot territory so firefights are survivable).
+    const hitChance = THREE.MathUtils.clamp((bot.aimSkill || 0.2) - dist * 0.005, 0.03, 0.28);
+    const isHit = Math.random() < hitChance;
+
+    // Tracer endpoint: dead-on for a hit, splayed wide for a miss so the volley
+    // visibly sprays around the player instead of looking laser-perfect.
+    const end = this._botTracerEnd || (this._botTracerEnd = new THREE.Vector3());
+    end.copy(this.pos);
+    if (isHit) {
+      end.x += (Math.random() - 0.5) * 0.15; // subtle jitter so hits aren't robotic
+      end.y += (Math.random() - 0.5) * 0.15;
+      end.z += (Math.random() - 0.5) * 0.15;
+    } else {
+      const spread = 0.5 + dist * 0.07; // miss cone widens with range
+      end.x += (Math.random() - 0.5) * 2 * spread;
+      end.y += (Math.random() - 0.5) * 2 * spread + 0.3;
+      end.z += (Math.random() - 0.5) * 2 * spread;
+    }
+    if (this.combatFeedback) {
+      this.combatFeedback.showEnemyMuzzleFlash(muzzle);
+      this.combatFeedback.spawnTracer(muzzle, end);
+    }
+    // Enemy gunshot, quieter and attenuated by distance.
+    if (this.sfx) this.sfx.gunshot(THREE.MathUtils.clamp(0.5 - dist * 0.008, 0.06, 0.5));
+
+    if (!isHit || !this.damageSystem) return; // missed shot — no damage
+
+    const zone = this._botPickZone();
+    const hit = {
+      targetId: 'local',
+      zone,
+      multiplier: ZONE_MULTIPLIERS[zone],
+      distance: dist,
+      hitPosition: { x: this.pos.x, y: this.pos.y, z: this.pos.z },
+      hitNormal: { x: 0, y: 1, z: 0 },
+      isHeadshot: zone === 'head',
+      armorProtected: zone !== 'leg_l' && zone !== 'leg_r',
+    };
+    const result = this.damageSystem.applyDamage(bot.id, hit, this._botWeaponConfig);
+    if (!result) return;
+
+    this._flashDamage();
+    if (result.killed) this._onPlayerKilled(bot);
+  }
+
+  /** Weighted body-zone selection for incoming bot fire (mostly torso). */
+  _botPickZone() {
+    const r = Math.random();
+    if (r < 0.05) return 'head';
+    if (r < 0.55) return 'chest';
+    if (r < 0.72) return 'stomach';
+    if (r < 0.86) return Math.random() < 0.5 ? 'arm_l' : 'arm_r';
+    return Math.random() < 0.5 ? 'leg_l' : 'leg_r';
+  }
+
+  /** Brief red screen vignette when the player takes damage. */
+  _flashDamage() {
+    if (!this._dmgFlashEl) {
+      const el = document.createElement('div');
+      el.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:50;' +
+        'box-shadow:inset 0 0 140px 40px rgba(200,0,0,0.0);transition:box-shadow 0.45s ease-out;';
+      this.container.appendChild(el);
+      this._dmgFlashEl = el;
+    }
+    const el = this._dmgFlashEl;
+    el.style.transition = 'none';
+    el.style.boxShadow = 'inset 0 0 140px 40px rgba(200,0,0,0.55)';
+    // next frame, fade it out
+    requestAnimationFrame(() => {
+      el.style.transition = 'box-shadow 0.45s ease-out';
+      el.style.boxShadow = 'inset 0 0 140px 40px rgba(200,0,0,0.0)';
+    });
+  }
+
+  /** Player died to a bot: reset health and respawn back at the player spawn. */
+  _onPlayerKilled(bot) {
+    console.log(`KILLED by ${bot.id}!`);
+    this.damageSystem.resetPlayer('local');
+    if (this.spawnRed) {
+      this.pos.copy(this.spawnRed);
+      this.pos.y += 1.0;
+      this.vel.set(0, 0, 0);
+    }
+    this._showBanner('YOU DIED');
+    clearTimeout(this._deathBannerT);
+    this._deathBannerT = setTimeout(() => {
+      if (this.roundActive) this._showBanner('');
+    }, 1500);
   }
 
   _respawnMannequins() {
@@ -623,10 +816,14 @@ export default class MovementVisualizer {
     this.playerHeightStanding = 1.8; // m
     this.playerHeightCrouching = 1.2; // m
 
+    // Audio: synthesized SFX, resumed on the click gesture below.
+    this.sfx = new SoundFX();
+
     // Request pointer lock
     document.addEventListener('click', () => {
       document.body.requestPointerLock = document.body.requestPointerLock || document.body.mozRequestPointerLock;
       document.body.requestPointerLock();
+      if (this.sfx) this.sfx.resume(); // unlock AudioContext on user gesture
     });
 
     // Mouse movement
@@ -666,11 +863,12 @@ export default class MovementVisualizer {
       }
       if (e.button === 2 && this.fpWeapon) {
         this.aiming = true;
+        this._updateCrosshairScale();
       }
     });
     document.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.fireHeld = false;
-      if (e.button === 2) this.aiming = false;
+      if (e.button === 2) { this.aiming = false; this._updateCrosshairScale(); }
     });
     // Prevent right-click context menu
     document.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -688,6 +886,15 @@ export default class MovementVisualizer {
 
     // Ammo HUD element
     this.ammoEl = document.getElementById('ammo');
+
+    // Crosshair: shrink to half size when aiming down sights for finer aim.
+    this.crosshairEl = document.getElementById('crosshair');
+    if (this.crosshairEl) this.crosshairEl.style.transition = 'transform 0.12s ease-out';
+  }
+
+  _updateCrosshairScale() {
+    if (!this.crosshairEl) return;
+    this.crosshairEl.style.transform = this.aiming ? 'scale(0.5)' : 'scale(1)';
   }
 
   _initInput() {
@@ -1257,23 +1464,17 @@ export default class MovementVisualizer {
 
     // Trigger FP weapon visual effect
     this.fpWeapon.fire();
+    if (this.sfx) this.sfx.gunshot(0.85);
 
-    // Get recoil angle from pattern system
-    const speed = Math.hypot(this.vel.x, this.vel.z) * 47.7; // Convert to HU/s
-    const accuracy = this.accuracyModel ? this.accuracyModel.accuracy : 1.0;
-    const shotAngle = getFinalShotAngle(
-      fireResult.weaponType,
-      fireResult.shotIndex,
-      accuracy,
-      this.input.crouch
-    );
-
-    // Apply viewpunch recoil to camera
-    this.camera_pitch += shotAngle.y * (Math.PI / 180);
-    this.camera_yaw += shotAngle.x * (Math.PI / 180);
-    // Track for exponential decay
-    this.punchAngle.x += shotAngle.y * (Math.PI / 180);
-    this.punchAngle.y += shotAngle.x * (Math.PI / 180);
+    // Recoil PATTERN drives viewpunch only (it kicks the view, which recovers via
+    // decay). The bullet itself goes where the crosshair points + inaccuracy
+    // spread — NOT the pattern. Applying the pattern to the bullet too made even
+    // the first shot fly ~0.6deg high, which clears a far-away head hitbox.
+    const patternDelta = getRecoilAngle(fireResult.weaponType, fireResult.shotIndex);
+    this.camera_pitch += patternDelta.y * (Math.PI / 180);
+    this.camera_yaw += patternDelta.x * (Math.PI / 180);
+    this.punchAngle.x += patternDelta.y * (Math.PI / 180);
+    this.punchAngle.y += patternDelta.x * (Math.PI / 180);
 
     // Construct hitscan ray from camera
     const rayOrigin = {
@@ -1285,13 +1486,16 @@ export default class MovementVisualizer {
     const camDir = new this.THREE.Vector3();
     this.camera.getWorldDirection(camDir);
 
-    // Apply shot angle offset to ray direction
+    // Inaccuracy spread only (zero when standing still with a settled crosshair,
+    // so a dead-on shot lands at any range).
+    const spread = this.accuracyModel
+      ? this.accuracyModel.getSpreadAngle(fireResult.weaponType, this.input.crouch)
+      : { x: 0, y: 0 };
     const pitchAxis = new this.THREE.Vector3(1, 0, 0);
     pitchAxis.applyQuaternion(this.camera.quaternion);
-    camDir.applyAxisAngle(pitchAxis, shotAngle.y * Math.PI / 180);
-
+    camDir.applyAxisAngle(pitchAxis, spread.y * Math.PI / 180);
     const yawAxis = new this.THREE.Vector3(0, 1, 0);
-    camDir.applyAxisAngle(yawAxis, shotAngle.x * Math.PI / 180);
+    camDir.applyAxisAngle(yawAxis, spread.x * Math.PI / 180);
 
     camDir.normalize();
     const rayDir = { x: camDir.x, y: camDir.y, z: camDir.z };
@@ -1372,8 +1576,10 @@ export default class MovementVisualizer {
             );
             if (propName) this[propName] = null;
           } else if (instance && propName) {
-            // No ragdoll system — just hide the mannequin
-            instance.scene.visible = false;
+            // No ragdoll system — remove the dead soldier from the scene so it
+            // doesn't linger (the Bot is synced to DEAD next frame via health).
+            if (instance.scene.parent) instance.scene.parent.remove(instance.scene);
+            if (instance.helper && instance.helper.parent) instance.helper.parent.remove(instance.helper);
             this[propName] = null;
           }
         }
@@ -1562,10 +1768,27 @@ export default class MovementVisualizer {
     const euler = new THREE.Euler(this.camera_pitch, this.camera_yaw, 0, 'YXZ');
     this.camera.quaternion.setFromEuler(euler);
 
-    // Update opponent bots (roam the navmesh + drive their own locomotion).
+    // Update opponent bots (roam, perceive the player, and engage).
     if (this.bots && this.bots.length) {
       const time = now / 1000;
-      for (const bot of this.bots) bot.update(delta, time);
+      const localHealth = this.damageSystem ? this.damageSystem.getHealth('local') : null;
+      const botCtx = {
+        playerPos: this.pos,
+        playerAlive: localHealth ? localHealth.alive : true,
+        canSee: (eye, target) => this._botCanSee(eye, target),
+        fire: (bot, muzzle) => this._botFire(bot, muzzle),
+      };
+      let aliveCount = 0;
+      for (const bot of this.bots) {
+        // Player kills route through the damage system; sync the bot so a dead
+        // soldier stops moving and firing (no more shots from mid-air).
+        if (bot.alive && this.damageSystem) {
+          const h = this.damageSystem.getHealth(bot.id);
+          if (h && !h.alive) bot.markDead();
+        }
+        if (bot.alive) { bot.update(delta, time, botCtx); aliveCount++; }
+      }
+      this._updateRound(delta, aliveCount);
     }
 
     // Update ragdoll visuals
@@ -1595,6 +1818,10 @@ export default class MovementVisualizer {
       }
 
       if (this.damageSystem) {
+        const localHealth = this.damageSystem.getHealth('local');
+        if (localHealth) {
+          statusText += `\nYOU: ${localHealth.hp.toFixed(0)} HP | ${localHealth.armor.toFixed(0)} armor`;
+        }
         const redHealth = this.damageSystem.getHealth('mannequin_red');
         const blueHealth = this.damageSystem.getHealth('mannequin_blue');
         if (redHealth) {

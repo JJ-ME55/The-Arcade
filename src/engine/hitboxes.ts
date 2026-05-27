@@ -281,8 +281,8 @@ export function createDefaultHitboxTemplate(): Hitbox[] {
       armorProtected: true, // Protected only if hasHelmet
       boneName: 'Head',
       center: { x: 0, y: 0, z: 0 },
-      offset: { x: 0, y: 0.12, z: 0 },
-      radius: 0.16,
+      offset: { x: 0, y: 0.13, z: 0 },
+      radius: 0.20,
     },
 
     // CHEST: Box, sized for the bulkier armored soldier torso (upper chest).

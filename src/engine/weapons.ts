@@ -206,7 +206,9 @@ export class WeaponSystem {
 
   // Can reload check
   canReload(): boolean {
-    if (this.state !== WeaponState.IDLE) return false;
+    // Allow reloading from IDLE or right after a shot (FIRING) — otherwise a
+    // reload tapped within fireRate of a shot is silently dropped.
+    if (this.state !== WeaponState.IDLE && this.state !== WeaponState.FIRING) return false;
     if (this.currentWeapon === WeaponType.KNIFE) return false;
 
     const config = this.getWeaponConfig();
