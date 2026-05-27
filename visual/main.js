@@ -1,5 +1,5 @@
 // Import engine modules
-import { WeaponSystem, WeaponType } from '../src/engine/weapons.js';
+import { WeaponSystem, WeaponType, weaponConfig } from '../src/engine/weapons.js';
 import { testHitscan, createHitboxSet, updateHitboxPositions } from '../src/engine/combat.js';
 import { ZONE_MULTIPLIERS } from '../src/engine/hitboxes.js';
 import { getRecoilAngle, AccuracyModel, getFinalShotAngle } from '../src/engine/recoil-patterns.js';
@@ -359,6 +359,9 @@ export default class MovementVisualizer {
       // Initialize ammo HUD with weapon system
       this._updateAmmoHUD();
 
+      // Start the match (round 1 buy phase) now that all systems are ready.
+      this._initMatch();
+
       // Update status
       if (this.statusEl) {
         this.statusEl.textContent = 'Map loaded. Click to play.';
@@ -478,44 +481,233 @@ export default class MovementVisualizer {
     make(this.testMannequinGreen, 'mannequin_green');
     // Bots shoot an AK-class weapon; applyDamage only needs type + baseDamage.
     this._botWeaponConfig = { type: WeaponType.AK47, baseDamage: 20 };
-    this.roundActive = true;
-    this.roundEndTimer = 0;
-    console.log(`Bots initialized: ${this.bots.length} roaming`);
+    console.log(`Bots initialized: ${this.bots.length}`);
   }
 
-  /**
-   * Round flow: while active, end the round once every opponent is dead, then
-   * count down and respawn both sides for the next round.
-   */
-  _updateRound(dt, aliveCount) {
-    if (this.roundActive) {
-      if (aliveCount === 0) {
-        this.roundActive = false;
-        this.roundEndTimer = 3.0;
-        this._showBanner('ROUND WON — respawning…');
-      }
-    } else {
-      this.roundEndTimer -= dt;
-      if (this.roundEndTimer <= 0) this._startRound();
-    }
+  // ===== Match / round / economy (best-of-5, CS-style buy phase) =============
+
+  _buyableWeapons() {
+    return [WeaponType.AK47, WeaponType.M4A1, WeaponType.SMG, WeaponType.SHOTGUN, WeaponType.SNIPER];
   }
 
-  /** Start a fresh round: reset + reposition the player and respawn the enemy squad. */
-  _startRound() {
-    const THREE = this.THREE;
-    // Reset & reposition the player at their corner spawn.
+  _initMatch() {
+    this.match = {
+      phase: 'BUY', round: 1, maxRounds: 5, winsNeeded: 3,
+      winsRed: 0, winsBlue: 0, phaseTimer: 0, money: 2000,
+      lastBeepSec: -1, buySecond: null, over: false,
+      owned: new Set(), loadout: WeaponType.AK47, // round-1 free starter so you're armed
+    };
+    this._ensureMatchHUD();
+    this._startBuy();
+  }
+
+  /** Begin a round's buy phase: respawn both teams, freeze, open the buy menu. */
+  _startBuy() {
+    const m = this.match;
+    m.phase = 'BUY'; m.phaseTimer = 0; m.lastBeepSec = -1; m.owned = new Set();
     if (this.damageSystem) this.damageSystem.resetPlayer('local');
-    if (this.spawnRed) {
-      this.pos.copy(this._playerSpawnPos());
-      this.pos.y += 1.0;
-      this.vel.set(0, 0, 0);
-    }
-    if (this.weaponSystem) { this.weaponSystem.resetAll(); this._updateAmmoHUD(); }
-
+    this.pos.copy(this._playerSpawnPos()); this.pos.y += 1.0; this.vel.set(0, 0, 0);
+    if (this.weaponSystem) this.weaponSystem.resetAll();
     this._spawnBotSquad();
-    this.roundActive = true;
+    if (m.loadout) { this._switchWeapon(m.loadout); m.owned.add(m.loadout); } // carried gun is free
+    this._updateAmmoHUD();
     this._showBanner('');
-    console.log('New round started');
+    this._openBuyMenu();
+    this._updateMatchHUD();
+  }
+
+  /** Buy phase over — lock in loadout, go live, announce the round. */
+  _startLive() {
+    const m = this.match;
+    m.phase = 'LIVE'; m.phaseTimer = 0; m.buySecond = null;
+    this._closeBuyMenu();
+    if (this.sfx) this.sfx.voice(`round${m.round}`, `Round ${m.round}`);
+    this._updateMatchHUD();
+  }
+
+  /** End the current round. winner = 'red' (player) | 'blue' (enemy). */
+  _endRound(winner) {
+    const m = this.match;
+    if (m.phase !== 'LIVE') return;
+    m.phase = 'ROUND_END'; m.phaseTimer = 0;
+    if (winner === 'red') { m.winsRed++; this._awardMoney(3000); }
+    else { m.winsBlue++; this._awardMoney(1900); }
+    // Carry the current weapon into next round's loadout (free re-equip).
+    m.loadout = this.weaponSystem ? this.weaponSystem.currentWeapon : m.loadout;
+    const won = winner === 'red';
+    this._showBanner(won ? 'RED TEAM WINS' : 'BLUE TEAM WINS');
+    // Let the "Enemy down" call (from the killing shot) finish first, then a beat,
+    // then announce the round result — so they don't talk over each other.
+    clearTimeout(this._winVoiceT);
+    this._winVoiceT = setTimeout(() => {
+      if (this.sfx) this.sfx.voice(won ? 'red_win' : 'blue_win', won ? 'Red team wins' : 'Blue team wins');
+    }, 1400);
+    m.over = (m.winsRed >= m.winsNeeded || m.winsBlue >= m.winsNeeded || m.round >= m.maxRounds);
+    this._updateMatchHUD();
+  }
+
+  _endMatch() {
+    const m = this.match;
+    m.phase = 'MATCH_END';
+    const won = m.winsRed >= m.winsBlue;
+    if (this.sfx) this.sfx.voice(won ? 'match_won' : 'match_lost', won ? 'Match won' : 'Match lost');
+    this._showBanner(`${won ? 'MATCH WON' : 'MATCH LOST'}  ${m.winsRed}–${m.winsBlue}`);
+    this._updateMatchHUD();
+  }
+
+  _awardMoney(amt) {
+    if (!this.match) return;
+    this.match.money = Math.max(0, Math.min(16000, this.match.money + amt));
+    this._updateMatchHUD();
+    if (this.buyMenuOpen) this._renderBuyMenu();
+  }
+
+  /** Drive the match phase machine + bot AI. Called each render frame. */
+  _updateMatch(dt) {
+    if (!this.match || !this.bots) {
+      if (this.ragdollSystem) { /* still allow other systems */ }
+      return;
+    }
+    const m = this.match;
+    if (!this.matchActive) return; // don't run the round timer until the player clicks in
+    const BUY_TIME = 10, ROUND_END_TIME = 5;
+    m.phaseTimer += dt;
+
+    // Sync bot deaths (player kills route through the damage system).
+    let aliveCount = 0;
+    for (const bot of this.bots) {
+      if (bot.alive && this.damageSystem) {
+        const h = this.damageSystem.getHealth(bot.id);
+        if (h && !h.alive) bot.markDead();
+      }
+      if (bot.alive) aliveCount++;
+    }
+
+    if (m.phase === 'BUY') {
+      const remain = Math.max(0, Math.ceil(BUY_TIME - m.phaseTimer));
+      if (remain !== m.buySecond) { m.buySecond = remain; this._updateMatchHUD(); }
+      if (remain <= 5 && remain >= 1 && remain !== m.lastBeepSec) {
+        m.lastBeepSec = remain;
+        if (this.sfx) this.sfx.beep(remain === 1 ? 1320 : 880, 0.12, 0.5);
+      }
+      if (m.phaseTimer >= BUY_TIME) this._startLive();
+      return; // bots frozen during buy
+    }
+
+    if (m.phase === 'LIVE') {
+      const time = performance.now() / 1000;
+      const localHealth = this.damageSystem ? this.damageSystem.getHealth('local') : null;
+      const playerAlive = localHealth ? localHealth.alive : true;
+      const botCtx = {
+        playerPos: this.pos, playerAlive,
+        canSee: (eye, target) => this._botCanSee(eye, target),
+        fire: (bot, muzzle) => this._botFire(bot, muzzle),
+      };
+      for (const bot of this.bots) if (bot.alive) bot.update(dt, time, botCtx);
+
+      if (aliveCount === 0) this._endRound('red');
+      else if (!playerAlive) this._endRound('blue');
+      return;
+    }
+
+    if (m.phase === 'ROUND_END') {
+      if (m.phaseTimer >= ROUND_END_TIME) {
+        if (m.over) this._endMatch();
+        else { m.round++; this._startBuy(); }
+      }
+      return;
+    }
+    // MATCH_END: idle.
+  }
+
+  /** True when the player should be frozen (buy phase, round end, match end). */
+  _playerFrozen() {
+    return this.match && this.match.phase !== 'LIVE';
+  }
+
+  // ---- buy menu + match HUD --------------------------------------------------
+
+  _ensureMatchHUD() {
+    if (this._matchHudEl) return;
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;top:10px;right:14px;z-index:55;text-align:right;pointer-events:none;' +
+      'font:700 16px system-ui,sans-serif;color:#fff;text-shadow:0 1px 4px #000;line-height:1.4;';
+    this.container.appendChild(el);
+    this._matchHudEl = el;
+  }
+
+  _updateMatchHUD() {
+    if (!this._matchHudEl || !this.match) return;
+    const m = this.match;
+    let html = '';
+    if (m.phase === 'BUY' && m.buySecond != null) {
+      const c = m.buySecond <= 5 ? '#ff4444' : '#ffcc00';
+      html += `<div style="font-size:30px;color:${c};">BUY ${m.buySecond}</div>`;
+    }
+    html += `<div>ROUND ${m.round}/${m.maxRounds}</div>`;
+    html += `<div>YOU ${m.winsRed} &ndash; ${m.winsBlue} ENEMY</div>`;
+    html += `<div style="color:#7CFC00;">$${m.money}</div>`;
+    this._matchHudEl.innerHTML = html;
+  }
+
+  _ensureBuyMenu() {
+    if (this._buyMenuEl) return;
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:60;' +
+      'background:rgba(10,14,20,0.93);border:1px solid #2a3a4a;border-radius:8px;padding:18px 22px;' +
+      'min-width:340px;color:#fff;font:500 15px system-ui,sans-serif;';
+    this.container.appendChild(el);
+    this._buyMenuEl = el;
+  }
+
+  _openBuyMenu() {
+    this._ensureBuyMenu();
+    this._renderBuyMenu();
+    this._buyMenuEl.style.display = 'block';
+    this.buyMenuOpen = true;
+  }
+
+  _closeBuyMenu() {
+    if (this._buyMenuEl) this._buyMenuEl.style.display = 'none';
+    this.buyMenuOpen = false;
+  }
+
+  _renderBuyMenu() {
+    if (!this._buyMenuEl || !this.match) return;
+    const m = this.match;
+    const rows = this._buyableWeapons().map((t, i) => {
+      const c = weaponConfig(t);
+      const owned = m.owned.has(t);
+      const affordable = owned || m.money >= c.price;
+      const color = owned ? '#7CFC00' : (affordable ? '#fff' : '#666');
+      const tag = owned ? 'EQUIPPED' : `$${c.price}`;
+      return `<div data-wt="${t}" class="buyrow" style="display:flex;justify-content:space-between;` +
+        `gap:24px;padding:7px 8px;cursor:pointer;color:${color};border-radius:4px;">` +
+        `<span>${i + 1}. ${c.displayName}</span><span>${tag}</span></div>`;
+    }).join('');
+    this._buyMenuEl.innerHTML =
+      `<div style="font-size:18px;font-weight:700;margin-bottom:10px;">BUY MENU` +
+      `<span style="float:right;color:#7CFC00;">$${m.money}</span></div>` + rows +
+      `<div style="margin-top:12px;font-size:12px;color:#8899aa;">Press 1&ndash;${this._buyableWeapons().length} to buy &middot; B to close</div>`;
+    this._buyMenuEl.querySelectorAll('.buyrow').forEach((row) => {
+      row.onclick = () => this._buyWeapon(row.getAttribute('data-wt'));
+    });
+  }
+
+  _buyWeapon(type) {
+    const m = this.match;
+    if (!m || m.phase !== 'BUY' || !type) return;
+    const c = weaponConfig(type);
+    if (!c) return;
+    if (!m.owned.has(type)) {
+      if (m.money < c.price) return; // can't afford
+      m.money -= c.price;
+      m.owned.add(type);
+    }
+    this._switchWeapon(type);
+    m.loadout = type;
+    this._renderBuyMenu();
+    this._updateMatchHUD();
   }
 
   /**
@@ -725,20 +917,13 @@ export default class MovementVisualizer {
     });
   }
 
-  /** Player died to a bot: reset health and respawn back at the player spawn. */
+  /**
+   * Player died to a bot. Do NOT revive here — the match's LIVE phase detects the
+   * dead 'local' player and ends the round (blue wins); _startBuy resets health
+   * and respawns. Reviving here would prevent the round from ever ending.
+   */
   _onPlayerKilled(bot) {
     console.log(`KILLED by ${bot.id}!`);
-    this.damageSystem.resetPlayer('local');
-    if (this.spawnRed) {
-      this.pos.copy(this.spawnRed);
-      this.pos.y += 1.0;
-      this.vel.set(0, 0, 0);
-    }
-    this._showBanner('YOU DIED');
-    clearTimeout(this._deathBannerT);
-    this._deathBannerT = setTimeout(() => {
-      if (this.roundActive) this._showBanner('');
-    }, 1500);
   }
 
   _respawnMannequins() {
@@ -904,16 +1089,41 @@ export default class MovementVisualizer {
     this.playerHeightStanding = 1.8; // m
     this.playerHeightCrouching = 1.2; // m
 
-    // Audio: real samples when present (visual/sounds/), else synthesized fallback.
+    // Audio: real samples when present, else synthesized fallback. Candidate URLs
+    // (first that loads wins); files may live in sounds/guns/ or sounds/.
     this.sfx = new SoundFX();
+    const sc = (...names) => names.flatMap((n) =>
+      ['mp3', 'wav', 'ogg'].map((ext) => encodeURI(n + '.' + ext)));
     this.sfx.registerSamples({
-      rifle:    ['sounds/rifle.mp3', 'sounds/rifle.wav', 'sounds/rifle.ogg'],
-      bullpup:  ['sounds/bullpup.mp3', 'sounds/bullpup.wav', 'sounds/bullpup.ogg'],
-      smg:      ['sounds/smg.mp3', 'sounds/smg.wav', 'sounds/smg.ogg'],
-      shotgun:  ['sounds/shotgun.mp3', 'sounds/shotgun.wav', 'sounds/shotgun.ogg'],
-      sniper:   ['sounds/sniper.mp3', 'sounds/sniper.wav', 'sounds/sniper.ogg'],
-      pistol:   ['sounds/pistol.mp3', 'sounds/pistol.wav', 'sounds/pistol.ogg'],
-      revolver: ['sounds/revolver.mp3', 'sounds/revolver.wav', 'sounds/revolver.ogg'],
+      // Firing sounds (per weapon visual name)
+      rifle:    sc('sounds/guns/AK47 firing', 'sounds/rifle'),
+      bullpup:  sc('sounds/guns/M4a1 firing', 'sounds/bullpup'), // M4A1 burst
+      smg:      sc('sounds/guns/smg firing', 'sounds/smg'),
+      shotgun:  sc('sounds/guns/Shotgun Fire', 'sounds/shotgun'),
+      sniper:   sc('sounds/guns/sniper firing', 'sounds/sniper'),
+      pistol:   sc('sounds/guns/pistol firing', 'sounds/pistol'),
+      revolver: sc('sounds/guns/revolver firing', 'sounds/revolver'),
+      // Reload sounds (key = '<weapon>_reload'); optional, no synth fallback
+      rifle_reload:   sc('sounds/guns/AK47 reloading'),
+      bullpup_reload: sc('sounds/guns/M4a1 reloading'),
+      smg_reload:     sc('sounds/guns/smg reloading'),
+      shotgun_reload: sc('sounds/guns/shotgun reloading'),
+      sniper_reload:  sc('sounds/guns/sniper reloading'),
+      shotgun_pump:   sc('sounds/guns/Shotgun cocking'),
+    });
+    // Military voice-over clips. Candidate filenames (URL-encoded for spaces);
+    // the first that loads wins, else speech-synth fallback.
+    const vc = (...names) => names.flatMap((n) =>
+      ['mp3', 'wav', 'ogg'].map((ext) => encodeURI('sounds/voice/' + n + '.' + ext)));
+    this.sfx.registerVoice({
+      round1: vc('Round 1', 'round1'), round2: vc('Round 2', 'round2'),
+      round3: vc('Round 3', 'round3'), round4: vc('Round 4', 'round4'),
+      round5: vc('Round 5', 'round5'),
+      red_win: vc('Red team wins', 'red_win'),
+      blue_win: vc('Blue team wins', 'blue_win'),
+      enemy_down: vc('Enemy down', 'enemy_down'),
+      reloading: vc('reloading'),
+      match_won: vc('match_won'), match_lost: vc('match_lost'),
     });
 
     // Request pointer lock
@@ -921,6 +1131,7 @@ export default class MovementVisualizer {
       document.body.requestPointerLock = document.body.requestPointerLock || document.body.mozRequestPointerLock;
       document.body.requestPointerLock();
       if (this.sfx) this.sfx.resume(); // unlock AudioContext on user gesture
+      this.matchActive = true; // begin the round timer once the player is in
     });
 
     // Mouse movement
@@ -939,6 +1150,8 @@ export default class MovementVisualizer {
     // Full-auto firing: hold left mouse to keep shooting
     this.fireHeld = false;
     this.fireTimer = 0;
+    // Burst-fire state (M4A1): one 3-round burst per trigger, with a cooldown.
+    this.burstState = { shotsLeft: 0, shotTimer: 0, cooldown: 0 };
 
     // Weapon-specific movement speeds (CS:S values converted from HU/s to m/s)
     this.WEAPON_SPEED_MS = {
@@ -952,8 +1165,8 @@ export default class MovementVisualizer {
       if (!document.pointerLockElement) return;
       if (e.button === 0) {
         this.fireHeld = true;
-        // Fire immediately on first click
-        if (this.fpWeapon) {
+        // Fire immediately on first click (burst weapons are driven by _updateBurst).
+        if (this.fpWeapon && !this._isBurstWeapon()) {
           try { this._fireWeapon(); } catch (e) { console.error('_fireWeapon error:', e); }
         }
         this.fireTimer = 0;
@@ -1049,19 +1262,21 @@ export default class MovementVisualizer {
       if (e.code === 'Space' && !prev) this.input.jumpPressed = true;
 
       // Weapon switching (1=rifle toggle AK/M4, 2=pistol, 3=knife)
-      // Temporary number-key weapon switch for inspecting guns; the buy menu
-      // becomes the real selector once it's in. Pistol/revolver/knife (one-handed)
-      // are pulled from the playable set for now — code/models kept for later.
-      if (this.fpWeapon && this.weaponSystem) {
-        const quickKeys = {
-          Digit1: WeaponType.AK47, Digit2: WeaponType.M4A1, Digit3: WeaponType.SMG,
-          Digit4: WeaponType.SHOTGUN, Digit5: WeaponType.SNIPER,
-        };
-        if (quickKeys[e.code]) this._switchWeapon(quickKeys[e.code]);
+      // Buy menu: during the buy phase, number keys purchase from the list and
+      // B toggles the menu. (No free weapon switching during LIVE — you fight
+      // with what you bought.)
+      if (this.match && this.match.phase === 'BUY' && this.fpWeapon && this.weaponSystem) {
+        const idx = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4 }[e.code];
+        if (idx != null) {
+          const list = this._buyableWeapons();
+          if (idx < list.length) this._buyWeapon(list[idx]);
+        }
+        if (e.code === 'KeyB') { this.buyMenuOpen ? this._closeBuyMenu() : this._openBuyMenu(); }
       }
 
-      // Reload
-      if (e.code === 'KeyR' && this.weaponSystem) this._startReload();
+      // Reload (buffered — see _processReloadBuffer; fixes R being dropped when
+      // the weapon is mid-fire/draw so it sometimes "didn't reload").
+      if (e.code === 'KeyR') this._wantReload = true;
 
       // Ragdoll test trigger (T key)
       if (e.code === 'KeyT' && this.ragdollSystem && this.testMannequinRed) {
@@ -1171,6 +1386,7 @@ export default class MovementVisualizer {
     const currentTime = performance.now() / 1000;
     if (this.weaponSystem) {
       this.weaponSystem.update(dt, currentTime);
+      this._processReloadBuffer();
     }
 
     const speed = Math.hypot(vel.x, vel.z);
@@ -1215,6 +1431,12 @@ export default class MovementVisualizer {
     right.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.camera_yaw);
     right.y = 0;
     if (right.lengthSq() > 0) right.normalize();
+
+    // Freeze the player in place during buy / round-end / match-end phases.
+    if (this._playerFrozen()) {
+      this.input.forward = 0; this.input.right = 0; this.input.jumpHeld = false;
+      this.vel.x = 0; this.vel.z = 0;
+    }
 
     const wishDir = new THREE.Vector3();
     wishDir.addScaledVector(forward, this.input.forward);
@@ -1551,12 +1773,41 @@ export default class MovementVisualizer {
     }
   }
 
+  /**
+   * Honour a buffered reload request as soon as the weapon can take it. Pressing
+   * R sets _wantReload; if the weapon is mid-fire/draw we keep the request and
+   * retry each tick (so R never silently gets dropped). Cleared when there's
+   * nothing to reload (full mag / no reserve) or the player is frozen.
+   */
+  _processReloadBuffer() {
+    if (!this._wantReload) return;
+    if (this._playerFrozen()) { this._wantReload = false; return; }
+    const ammo = this.weaponSystem.getAmmo();
+    const cfg = this.weaponSystem.getWeaponConfig();
+    if (!cfg.hasAmmo || ammo.reserve <= 0 || ammo.magazine >= cfg.magazine) {
+      this._wantReload = false; // nothing to do
+      return;
+    }
+    if (this.weaponSystem.canReload()) {
+      this._wantReload = false;
+      this._startReload();
+    }
+    // else: weapon busy (firing/drawing/already reloading) — retry next tick.
+  }
+
   _startReload() {
     if (!this.weaponSystem) return;
 
     const success = this.weaponSystem.startReload();
     if (!success) return;
 
+    if (this.sfx) {
+      const wn = this.fpWeapon && this.fpWeapon.currentWeaponName;
+      this.sfx.voice('reloading', 'Reloading');           // "Reloading" callout
+      // Shotgun loads shell-by-shell; its clip has ~8 inserts — play only ~2.
+      const maxDur = (wn === 'shotgun') ? 1.4 : 2.0;
+      this.sfx.reloadSound(wn, 0.9, maxDur);
+    }
     this._updateAmmoHUD();
 
     // Start CS:S-style reload animation on FP weapon
@@ -1602,155 +1853,204 @@ export default class MovementVisualizer {
     this.ammoEl.innerHTML = `<div class="weapon-name">${weaponName}</div><span class="mag">${ammo.magazine}</span> <span class="reserve">/ ${ammo.reserve}</span>`;
   }
 
-  _fireWeapon() {
+  _isBurstWeapon() {
+    return this.weaponSystem && this.weaponSystem.currentWeapon === WeaponType.M4A1;
+  }
+
+  /** Full-auto weapons that use a continuous (looped) firing sound. */
+  _isAutoWeapon() {
+    if (!this.weaponSystem) return false;
+    const w = this.weaponSystem.currentWeapon;
+    return w === WeaponType.AK47 || w === WeaponType.SMG;
+  }
+
+  /**
+   * Burst fire (M4A1): each trigger fires a 3-round burst with one burst sound,
+   * then a short cooldown before the next burst. Holding the trigger fires
+   * repeated bursts. Rounds wait for the weapon to be ready (canFire), so timing
+   * self-corrects against the per-shot FIRING state.
+   */
+  _updateBurst(dt, wantFire) {
+    const b = this.burstState;
+    const BURST_COUNT = 3, BURST_INTERVAL = 0.09, BURST_COOLDOWN = 0.35;
+    if (b.cooldown > 0) b.cooldown -= dt;
+
+    if (b.shotsLeft > 0) {
+      b.shotTimer += dt;
+      if (b.shotTimer >= BURST_INTERVAL && this.weaponSystem.canFire()) {
+        try { this._fireWeapon(false); } catch (e) { console.error('_fireWeapon error:', e); }
+        b.shotsLeft--;
+        b.shotTimer = 0;
+        if (b.shotsLeft === 0) b.cooldown = BURST_COOLDOWN;
+      }
+      return;
+    }
+
+    // Start a new burst on trigger when off cooldown and able to fire.
+    if (wantFire && b.cooldown <= 0 && !this._playerFrozen() && this.weaponSystem.canFire()) {
+      b.shotsLeft = BURST_COUNT;
+      b.shotTimer = BURST_INTERVAL; // fire the first round immediately next frame
+      if (this.sfx) this.sfx.shoot(this.fpWeapon.currentWeaponName, 0.85); // one burst sound
+    }
+  }
+
+  _fireWeapon(playSound = true) {
     if (!this.fpWeapon || !this.weaponSystem) return;
+    if (this._playerFrozen()) return; // no shooting during buy / round end
 
     const currentTime = performance.now() / 1000;
 
     // Use WeaponSystem instead of manual ammo tracking
     const fireResult = this.weaponSystem.fire(currentTime);
-    if (!fireResult) return;
+    if (!fireResult) {
+      // Tried to fire an empty mag — buffer a reload (CS-style auto-reload on empty).
+      const ammo = this.weaponSystem.getAmmo();
+      const cfg = this.weaponSystem.getWeaponConfig();
+      if (cfg.hasAmmo && ammo.magazine === 0 && ammo.reserve > 0) this._wantReload = true;
+      return;
+    }
 
     // Trigger FP weapon visual effect
     this.fpWeapon.fire();
-    if (this.sfx) this.sfx.shoot(this.fpWeapon.currentWeaponName, 0.85);
 
-    // Recoil PATTERN drives viewpunch only (it kicks the view, which recovers via
-    // decay). The bullet itself goes where the crosshair points + inaccuracy
-    // spread — NOT the pattern. Applying the pattern to the bullet too made even
-    // the first shot fly ~0.6deg high, which clears a far-away head hitbox.
-    const patternDelta = getRecoilAngle(fireResult.weaponType, fireResult.shotIndex);
-    this.camera_pitch += patternDelta.y * (Math.PI / 180);
-    this.camera_yaw += patternDelta.x * (Math.PI / 180);
-    this.punchAngle.x += patternDelta.y * (Math.PI / 180);
-    this.punchAngle.y += patternDelta.x * (Math.PI / 180);
+    const THREE = this.THREE;
+    const isShotgun = this.weaponSystem.currentWeapon === WeaponType.SHOTGUN;
 
-    // Construct hitscan ray from camera
-    const rayOrigin = {
-      x: this.camera.position.x,
-      y: this.camera.position.y,
-      z: this.camera.position.z
-    };
+    // Sound. Auto weapons with a real firing sample use a looping fire sound
+    // gated by the trigger (see the fire loop in _loop), so they suppress the
+    // per-shot sound here. Everything else plays one shot per round.
+    const wn = this.fpWeapon.currentWeaponName;
+    const autoLooped = this._isAutoWeapon() && this.sfx && this.sfx.hasSample(wn);
+    if (playSound && this.sfx && !autoLooped) {
+      this.sfx.shoot(wn, 0.9);
+      if (isShotgun) this._scheduleShotgunPump(); // cocking sound after the blast
+    }
 
-    const camDir = new this.THREE.Vector3();
+    // Recoil viewpunch. Shotgun = big single kick; others = spray pattern. The
+    // bullet itself follows the crosshair + inaccuracy spread, NOT this kick.
+    let kickPitch, kickYaw;
+    if (isShotgun) { kickPitch = 2.4; kickYaw = (Math.random() - 0.5) * 0.8; }
+    else { const pd = getRecoilAngle(fireResult.weaponType, fireResult.shotIndex); kickPitch = pd.y; kickYaw = pd.x; }
+    this.camera_pitch += kickPitch * (Math.PI / 180);
+    this.camera_yaw += kickYaw * (Math.PI / 180);
+    this.punchAngle.x += kickPitch * (Math.PI / 180);
+    this.punchAngle.y += kickYaw * (Math.PI / 180);
+
+    const rayOrigin = { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z };
+    const camDir = new THREE.Vector3();
     this.camera.getWorldDirection(camDir);
+    const pitchAxis = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+    const yawAxis = new THREE.Vector3(0, 1, 0);
 
-    // Inaccuracy spread only (zero when standing still with a settled crosshair,
-    // so a dead-on shot lands at any range). Scoped sniper is braced = pinpoint.
+    // Aim inaccuracy (zero when standing still / scoped sniper).
     const spread = (this.scoped || !this.accuracyModel)
       ? { x: 0, y: 0 }
       : this.accuracyModel.getSpreadAngle(fireResult.weaponType, this.input.crouch);
-    const pitchAxis = new this.THREE.Vector3(1, 0, 0);
-    pitchAxis.applyQuaternion(this.camera.quaternion);
     camDir.applyAxisAngle(pitchAxis, spread.y * Math.PI / 180);
-    const yawAxis = new this.THREE.Vector3(0, 1, 0);
     camDir.applyAxisAngle(yawAxis, spread.x * Math.PI / 180);
-
     camDir.normalize();
-    const rayDir = { x: camDir.x, y: camDir.y, z: camDir.z };
 
-    // Sync hitboxes to the bots' current positions THIS instant (they move in the
-    // render loop; the tick-based update can be a frame behind for a fast shot).
+    // Sync hitboxes NOW + build the live-target list (dead bots excluded so a
+    // fresh corpse can't shadow a live enemy behind it).
     this._refreshHitboxes();
-
-    // Test hitscan against all targets
     const targets = [];
     if (this.hitboxSets) {
       for (const [id, hbs] of Object.entries(this.hitboxSets)) {
-        targets.push({ id, hitboxes: hbs });
+        const h = this.damageSystem ? this.damageSystem.getHealth(id) : null;
+        if (!h || h.alive) targets.push({ id, hitboxes: hbs });
       }
     }
+    const weaponConfig = this.weaponSystem.getWeaponConfig();
 
+    if (isShotgun) {
+      // Fire a cone of pellets — lethal point-blank (all hit), weak at range
+      // (most miss). Each pellet is its own hitscan + damage.
+      const PELLETS = 8, CONE = 4.5; // degrees half-angle
+      for (let i = 0; i < PELLETS; i++) {
+        const d = camDir.clone();
+        const ang = Math.random() * Math.PI * 2;
+        const rad = Math.sqrt(Math.random()) * CONE; // uniform in disc
+        d.applyAxisAngle(pitchAxis, Math.sin(ang) * rad * Math.PI / 180);
+        d.applyAxisAngle(yawAxis, Math.cos(ang) * rad * Math.PI / 180);
+        d.normalize();
+        this._firePellet(rayOrigin, { x: d.x, y: d.y, z: d.z }, weaponConfig, targets, true, false);
+      }
+    } else {
+      this._firePellet(rayOrigin, { x: camDir.x, y: camDir.y, z: camDir.z }, weaponConfig,
+        targets, fireResult.shotIndex % 4 === 0, true);
+    }
+
+    this._updateAmmoHUD();
+  }
+
+  /** Schedule the shotgun cocking sound shortly after the blast. */
+  _scheduleShotgunPump() {
+    clearTimeout(this._pumpT);
+    this._pumpT = setTimeout(() => { if (this.sfx) this.sfx.playClip('shotgun_pump', 0.8); }, 320);
+  }
+
+  /**
+   * Fire a single ray (one bullet, or one shotgun pellet): hitscan vs live
+   * targets, apply damage + blood + economy + kill handling; optional tracer and
+   * environment-impact decal.
+   */
+  _firePellet(rayOrigin, rayDir, weaponConfig, targets, drawTracer, doEnvHit) {
+    const THREE = this.THREE;
     const hit = testHitscan(rayOrigin, rayDir, targets, 'local');
 
-    // Tracer (every 4th bullet)
-    if (this.combatFeedback && fireResult.shotIndex % 4 === 0) {
-      const endPos = hit
-        ? hit.hitPosition
-        : {
-            x: rayOrigin.x + rayDir.x * 100,
-            y: rayOrigin.y + rayDir.y * 100,
-            z: rayOrigin.z + rayDir.z * 100
-          };
+    if (drawTracer && this.combatFeedback) {
+      const endPos = hit ? hit.hitPosition
+        : { x: rayOrigin.x + rayDir.x * 100, y: rayOrigin.y + rayDir.y * 100, z: rayOrigin.z + rayDir.z * 100 };
       this.combatFeedback.spawnTracer(
-        new this.THREE.Vector3(rayOrigin.x, rayOrigin.y, rayOrigin.z),
-        new this.THREE.Vector3(endPos.x, endPos.y, endPos.z)
-      );
+        new THREE.Vector3(rayOrigin.x, rayOrigin.y, rayOrigin.z),
+        new THREE.Vector3(endPos.x, endPos.y, endPos.z));
     }
 
     if (hit) {
-      // Apply damage
-      const weaponConfig = this.weaponSystem.getWeaponConfig();
       const damageResult = this.damageSystem.applyDamage('local', hit, weaponConfig);
+      if (!damageResult) return;
 
-      if (damageResult) {
-        // Visual feedback: blood spray
-        const hitPos3 = new this.THREE.Vector3(hit.hitPosition.x, hit.hitPosition.y, hit.hitPosition.z);
-        const hitDir3 = new this.THREE.Vector3(rayDir.x, rayDir.y, rayDir.z);
-        this.combatFeedback.onPlayerHit(hitPos3, hitDir3, hit.isHeadshot);
+      this._awardMoney(damageResult.killed ? 300 : Math.round(damageResult.damageDealt * 2));
 
-        // Log damage for debug
-        console.log(`HIT ${hit.targetId} [${hit.zone}] ${damageResult.damageDealt} dmg (${damageResult.remainingHp} HP left)`);
+      // Blood every time a pellet lands on a live target.
+      this.combatFeedback.onPlayerHit(
+        new THREE.Vector3(hit.hitPosition.x, hit.hitPosition.y, hit.hitPosition.z),
+        new THREE.Vector3(rayDir.x, rayDir.y, rayDir.z), hit.isHeadshot);
 
-        // Track for debug HUD
-        this.debugDamageLog.push({
-          zone: hit.zone.toUpperCase(),
-          damage: damageResult.damageDealt,
-          remainingHp: damageResult.remainingHp,
-          targetId: hit.targetId.replace('mannequin_', '').toUpperCase(),
-          time: performance.now() / 1000,
-        });
-        if (this.debugDamageLog.length > 5) this.debugDamageLog.shift();
+      this.debugHitIndicator = {
+        zone: damageResult.isHeadshot ? 'HEAD' : hit.zone.toUpperCase(),
+        time: performance.now() / 1000,
+        isHeadshot: damageResult.isHeadshot, killed: damageResult.killed,
+      };
 
-        // Hit zone indicator
-        this.debugHitIndicator = {
-          zone: damageResult.isHeadshot ? 'HEAD' : hit.zone.toUpperCase(),
-          time: performance.now() / 1000,
-          isHeadshot: damageResult.isHeadshot,
-          killed: damageResult.killed,
-        };
-
-        // If killed, trigger ragdoll
-        if (damageResult.killed) {
-          console.log(`KILLED ${hit.targetId}!`);
-          const instanceMap = {
-            mannequin_red: 'testMannequinRed',
-            mannequin_blue: 'testMannequinBlue',
-            mannequin_green: 'testMannequinGreen',
-          };
-          const propName = instanceMap[hit.targetId];
-          const instance = propName ? this[propName] : null;
-          if (instance) {
-            // Clean collapse: keep the soldier mesh, topple it to the ground in
-            // its frozen pose (the Bot syncs to DEAD next frame and stops driving it).
-            this._startDeathCollapse(instance);
-            if (propName) this[propName] = null; // stop live targeting / hitbox updates
-          }
+      if (damageResult.killed) {
+        console.log(`KILLED ${hit.targetId}!`);
+        if (this.sfx) this.sfx.voice('enemy_down', 'Enemy down');
+        const propName = {
+          mannequin_red: 'testMannequinRed', mannequin_blue: 'testMannequinBlue',
+          mannequin_green: 'testMannequinGreen',
+        }[hit.targetId];
+        const instance = propName ? this[propName] : null;
+        if (instance) {
+          this._startDeathCollapse(instance);
+          if (propName) this[propName] = null;
         }
       }
-    } else {
-      // No player hit — test environment (wall/floor hit)
-      const raycaster = new this.THREE.Raycaster(
-        new this.THREE.Vector3(rayOrigin.x, rayOrigin.y, rayOrigin.z),
-        new this.THREE.Vector3(rayDir.x, rayDir.y, rayDir.z),
-        0.1,
-        200
-      );
-      // Raycast ONLY the environment (the map), not the whole scene — the scene
-      // contains combat-feedback Sprites which throw without raycaster.camera.
-      raycaster.camera = this.camera; // safety for any sprite encountered
+    } else if (doEnvHit) {
+      // Wall/floor impact decal + spark (single bullets only — pellets skip this).
+      const raycaster = new THREE.Raycaster(
+        new THREE.Vector3(rayOrigin.x, rayOrigin.y, rayOrigin.z),
+        new THREE.Vector3(rayDir.x, rayDir.y, rayDir.z), 0.1, 200);
+      raycaster.camera = this.camera;
       const worldHits = raycaster.intersectObject(this.mapScene || this.scene, true);
       if (worldHits.length > 0 && this.combatFeedback) {
         const wh = worldHits[0];
-        this.combatFeedback.onEnvironmentHit(wh.point, wh.face?.normal || new this.THREE.Vector3(0, 1, 0));
+        this.combatFeedback.onEnvironmentHit(wh.point, wh.face?.normal || new THREE.Vector3(0, 1, 0));
         if (wh.object?.isMesh) {
-          this.combatFeedback.addBulletDecal(wh.point, wh.face?.normal || new this.THREE.Vector3(0, 1, 0), wh.object);
+          this.combatFeedback.addBulletDecal(wh.point, wh.face?.normal || new THREE.Vector3(0, 1, 0), wh.object);
         }
       }
     }
-
-    // Update ammo HUD
-    this._updateAmmoHUD();
   }
 
   _updateDebugHUD(currentTime) {
@@ -1912,28 +2212,8 @@ export default class MovementVisualizer {
     const euler = new THREE.Euler(this.camera_pitch, this.camera_yaw, 0, 'YXZ');
     this.camera.quaternion.setFromEuler(euler);
 
-    // Update opponent bots (roam, perceive the player, and engage).
-    if (this.bots && this.bots.length) {
-      const time = now / 1000;
-      const localHealth = this.damageSystem ? this.damageSystem.getHealth('local') : null;
-      const botCtx = {
-        playerPos: this.pos,
-        playerAlive: localHealth ? localHealth.alive : true,
-        canSee: (eye, target) => this._botCanSee(eye, target),
-        fire: (bot, muzzle) => this._botFire(bot, muzzle),
-      };
-      let aliveCount = 0;
-      for (const bot of this.bots) {
-        // Player kills route through the damage system; sync the bot so a dead
-        // soldier stops moving and firing (no more shots from mid-air).
-        if (bot.alive && this.damageSystem) {
-          const h = this.damageSystem.getHealth(bot.id);
-          if (h && !h.alive) bot.markDead();
-        }
-        if (bot.alive) { bot.update(delta, time, botCtx); aliveCount++; }
-      }
-      this._updateRound(delta, aliveCount);
-    }
+    // Drive the match (round phases, bot AI, economy, win conditions).
+    this._updateMatch(delta);
 
     // Update ragdoll visuals
     if (this.ragdollSystem) {
@@ -1997,18 +2277,28 @@ export default class MovementVisualizer {
     // Pass 1: World scene (map + mannequins)
     this.renderer.render(this.scene, this.camera);
 
-    // Full-auto firing
-    if (this.fireHeld && this.fpWeapon && this.weaponSystem) {
-      this.fireTimer += delta;
-      const config = this.weaponSystem.getWeaponConfig();
-      const rate = config.fireRate;
-      while (this.fireTimer >= rate && this.weaponSystem.canFire()) {
-        try {
-          this._fireWeapon();
-        } catch (e) {
-          console.error('_fireWeapon error:', e);
+    // Firing: burst weapons (M4A1) vs full-auto.
+    if (this.fpWeapon && this.weaponSystem) {
+      if (this._isBurstWeapon()) {
+        this._updateBurst(delta, this.fireHeld);
+      } else if (this.fireHeld) {
+        this.fireTimer += delta;
+        const rate = this.weaponSystem.getWeaponConfig().fireRate;
+        while (this.fireTimer >= rate && this.weaponSystem.canFire()) {
+          try { this._fireWeapon(); } catch (e) { console.error('_fireWeapon error:', e); }
+          this.fireTimer -= rate;
         }
-        this.fireTimer -= rate;
+      }
+
+      // Continuous fire sound for auto weapons: play while actually firing
+      // (trigger held, has ammo, not reloading/frozen), stop the instant we don't.
+      if (this.sfx) {
+        const ammo = this.weaponSystem.getAmmo();
+        const firing = this.fireHeld && this._isAutoWeapon() &&
+          this.sfx.hasSample(this.fpWeapon.currentWeaponName) &&
+          ammo.magazine > 0 && this.weaponSystem.state !== 'RELOADING' && !this._playerFrozen();
+        if (firing) this.sfx.startFire(this.fpWeapon.currentWeaponName, 0.9);
+        else this.sfx.stopFire();
       }
     }
 

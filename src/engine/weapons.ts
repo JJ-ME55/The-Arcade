@@ -83,11 +83,11 @@ const WEAPON_CONFIGS: Record<WeaponType, WeaponConfig> = {
   },
   [WeaponType.SHOTGUN]: {
     type: WeaponType.SHOTGUN,
-    fireRate: 0.8,        // Pump action
-    baseDamage: 90,       // High close-range (single hitscan model)
-    magazine: 8,
+    fireRate: 0.85,       // Pump action — delay between shots while cocking
+    baseDamage: 26,       // PER PELLET (fires 8 pellets); lethal close, weak at range
+    magazine: 2,          // 2 shells before reload
     reserve: 32,
-    reloadTime: 3.0,
+    reloadTime: 1.6,      // ~2 shells
     drawTime: 0.7,
     movementSpeed: 210,
     hasAmmo: true,
@@ -164,6 +164,11 @@ export interface FireResult {
 export interface KnifeResult {
   isBackstab: boolean;
   damage: number;
+}
+
+// Look up a weapon's static config (price, displayName, category, stats).
+export function weaponConfig(type: WeaponType): WeaponConfig {
+  return WEAPON_CONFIGS[type];
 }
 
 // Weapon system class
@@ -258,13 +263,8 @@ export class WeaponSystem {
         break;
 
       case WeaponState.IDLE:
-        // Check for auto-reload when magazine empty
-        if (this.canReload()) {
-          const ammoState = this.ammo.get(this.currentWeapon)!;
-          if (ammoState.magazine === 0) {
-            this.startReload();
-          }
-        }
+        // No auto-reload here: reloads are driven by the player (R / empty-fire)
+        // through the game layer so the FP animation, sound, and HUD all fire.
         break;
     }
   }

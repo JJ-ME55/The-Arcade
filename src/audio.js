@@ -28,6 +28,18 @@ export class SoundFX {
     this._samplePaths = null;
     this._buffers = {};       // name -> decoded AudioBuffer
     this._samplesLoaded = false;
+    // Voice-over clips (round announcements, kill calls, win/lose). Same model as
+    // weapon samples: drop files in visual/sounds/voice/, else speech-synth fallback.
+    this._voicePaths = null;
+    this._voiceBuffers = {};
+    this._fireLoop = null;      // looping auto-fire source (gated by the trigger)
+    this._fireLoopName = null;
+  }
+
+  /** Register voice-clip name -> candidate file URLs (first that loads wins). */
+  registerVoice(map) {
+    this._voicePaths = map;
+    if (this.ctx) this._loadSamples();
   }
 
   /**
@@ -40,20 +52,35 @@ export class SoundFX {
   }
 
   async _loadSamples() {
-    if (this._samplesLoaded || !this._samplePaths || !this.ctx) return;
-    this._samplesLoaded = true;
-    for (const [name, urls] of Object.entries(this._samplePaths)) {
-      for (const url of urls) {
-        try {
-          const res = await fetch(url);
-          if (!res.ok) continue;
-          const arr = await res.arrayBuffer();
-          this._buffers[name] = await this.ctx.decodeAudioData(arr);
-          console.log(`[audio] loaded sample: ${name} (${url})`);
-          break;
-        } catch (e) { /* missing/unsupported — try next, else synth fallback */ }
+    if (!this.ctx) return;
+    const load = async (paths, dest, label) => {
+      if (!paths) return;
+      for (const [name, urls] of Object.entries(paths)) {
+        if (dest[name]) continue;
+        for (const url of urls) {
+          try {
+            const res = await fetch(url);
+            if (!res.ok) continue;
+            const arr = await res.arrayBuffer();
+            dest[name] = await this.ctx.decodeAudioData(arr);
+            console.log(`[audio] loaded ${label}: ${name} (${url})`);
+            break;
+          } catch (e) { /* missing/unsupported — try next, else synth fallback */ }
+        }
       }
-    }
+    };
+    if (!this._samplesLoaded) { this._samplesLoaded = true; await load(this._samplePaths, this._buffers, 'sample'); }
+    await load(this._voicePaths, this._voiceBuffers, 'voice');
+  }
+
+  /**
+   * Play a voice line: a loaded VO clip for `key` if present, else speak
+   * `fallbackText` via the synth (deep/military-ish).
+   */
+  voice(key, fallbackText) {
+    this._ensure();
+    if (this._voiceBuffers[key]) { this._playBuffer(this._voiceBuffers[key], 1.0); return; }
+    if (fallbackText) this.say(fallbackText);
   }
 
   _ensure() {
@@ -79,14 +106,22 @@ export class SoundFX {
   /** Resume the audio context (call from a user-gesture handler). */
   resume() { this._ensure(); }
 
-  _playBuffer(buffer, volume) {
+  _playBuffer(buffer, volume, duration) {
     const ctx = this.ctx;
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     const g = ctx.createGain();
     g.gain.value = Math.max(0.001, volume);
     src.connect(g); g.connect(this.master);
-    src.start(ctx.currentTime);
+    if (duration && duration < buffer.duration) {
+      // Play only the first `duration` seconds, with a tiny fade so it doesn't click.
+      const t = ctx.currentTime;
+      g.gain.setValueAtTime(Math.max(0.001, volume), t + duration - 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t + duration);
+      src.start(t, 0, duration);
+    } else {
+      src.start(ctx.currentTime);
+    }
   }
 
   /**
@@ -103,6 +138,48 @@ export class SoundFX {
 
   /** Backwards-compatible generic gunshot (rifle profile). */
   gunshot(volume = 1.0) { this.shoot('rifle', volume); }
+
+  /** Play a weapon's reload sound (sample '<weapon>_reload'), capped to `maxDur`. */
+  reloadSound(weaponName, volume = 0.9, maxDur = 2.0) {
+    if (!this._ensure()) return;
+    const buf = this._buffers[weaponName + '_reload'];
+    if (buf) this._playBuffer(buf, volume, maxDur);
+  }
+
+  /** Play an arbitrary loaded sample by key (e.g. 'shotgun_pump'). */
+  playClip(key, volume = 0.9) {
+    if (!this._ensure()) return;
+    const buf = this._buffers[key];
+    if (buf) this._playBuffer(buf, volume);
+  }
+
+  /** Is a firing sample loaded for this weapon? */
+  hasSample(weaponName) { return !!this._buffers[weaponName]; }
+
+  /**
+   * Start a looping firing sound for an auto weapon (call while the trigger is
+   * held + rounds are going out). Idempotent for the same weapon. The clip loops
+   * so it plays continuously and stops cleanly on stopFire().
+   */
+  startFire(weaponName, volume = 0.9) {
+    if (!this._ensure()) return;
+    if (this._fireLoop && this._fireLoopName === weaponName) return;
+    this.stopFire();
+    const buf = this._buffers[weaponName];
+    if (!buf) { this._fireLoopName = null; return; } // no sample — caller uses per-shot synth
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf; src.loop = true;
+    const g = this.ctx.createGain(); g.gain.value = Math.max(0.001, volume);
+    src.connect(g); g.connect(this.master);
+    src.start();
+    this._fireLoop = src; this._fireLoopName = weaponName;
+  }
+
+  /** Stop the looping firing sound (call when the trigger is released / empty). */
+  stopFire() {
+    if (this._fireLoop) { try { this._fireLoop.stop(); } catch (e) { /* already stopped */ } }
+    this._fireLoop = null; this._fireLoopName = null;
+  }
 
   _report(p, volume) {
     if (!this._ensure()) return;
@@ -135,6 +212,43 @@ export class SoundFX {
     og.gain.exponentialRampToValueAtTime(0.001, t + p.bodyDur);
     osc.connect(og); og.connect(this.master);
     osc.start(t); osc.stop(t + p.bodyDur + 0.02);
+  }
+
+  /** Short countdown beep (square-ish tone). */
+  beep(freq = 880, dur = 0.12, volume = 0.5) {
+    if (!this._ensure()) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.001, volume), t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g); g.connect(this.master);
+    osc.start(t); osc.stop(t + dur + 0.02);
+  }
+
+  /**
+   * Speak a phrase with a deep, military-ish voice via the Web Speech API.
+   * Picks a low-pitched male English voice when available. Swap for recorded
+   * VO later if desired.
+   */
+  say(text, { pitch = 0.5, rate = 0.95, volume = 1.0 } = {}) {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    try {
+      synth.cancel(); // don't queue announcements on top of each other
+      const u = new SpeechSynthesisUtterance(text);
+      u.pitch = pitch; u.rate = rate; u.volume = volume;
+      const voices = synth.getVoices();
+      // Prefer a deep/male English voice for the "commander" feel.
+      const pref = voices.find(v => /en/i.test(v.lang) && /(David|Daniel|Google UK English Male|male)/i.test(v.name))
+        || voices.find(v => /en/i.test(v.lang));
+      if (pref) u.voice = pref;
+      synth.speak(u);
+    } catch (e) { /* speech not available — silent */ }
   }
 
   /** Knife swing: short upward-sweeping filtered-noise whoosh (no body thump). */
