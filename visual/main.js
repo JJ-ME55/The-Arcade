@@ -497,6 +497,14 @@ export default class MovementVisualizer {
    * hitboxes, and Bot controllers. Removes any leftover soldier scenes first.
    */
   _spawnBotSquad() {
+    // Clear any dead bodies still toppling/lingering from the previous round.
+    if (this.dyingSoldiers) {
+      for (const d of this.dyingSoldiers) {
+        if (d.instance.scene.parent) d.instance.scene.parent.remove(d.instance.scene);
+        if (d.instance.helper && d.instance.helper.parent) d.instance.helper.parent.remove(d.instance.helper);
+      }
+      this.dyingSoldiers.length = 0;
+    }
     const positions = this._botSpawnPositions();
     const slots = [
       ['mannequin_red', 0xcc2200, 'testMannequinRed'],
@@ -536,6 +544,60 @@ export default class MovementVisualizer {
     }
     this._bannerEl.textContent = text || '';
     this._bannerEl.style.display = text ? 'block' : 'none';
+  }
+
+  /**
+   * Begin a "clean collapse" death: keep the soldier mesh in its current (frozen)
+   * pose and topple the whole model to the ground over ~0.5s, then linger + remove.
+   * No per-limb physics — reliable and always on-model.
+   */
+  _startDeathCollapse(instance) {
+    const THREE = this.THREE;
+    if (!this.dyingSoldiers) this.dyingSoldiers = [];
+    const scene = instance.scene;
+    scene.visible = true;
+    const startQuat = scene.quaternion.clone();
+    // Topple about a random world-horizontal axis so bodies fall varied directions.
+    const r = Math.random() * Math.PI * 2;
+    const axis = new THREE.Vector3(Math.cos(r), 0, Math.sin(r));
+    const endQuat = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI / 2).multiply(startQuat);
+    this.dyingSoldiers.push({
+      instance,
+      t: 0,
+      dur: 0.5,
+      startQuat,
+      endQuat,
+      startY: scene.position.y,
+      endY: scene.position.y + 0.2, // lift so the toppled body rests on the floor
+      linger: 6.0,
+      settled: false,
+    });
+  }
+
+  /** Advance death collapses each frame; remove bodies after they linger. */
+  _updateDeathCollapses(dt) {
+    if (!this.dyingSoldiers || !this.dyingSoldiers.length) return;
+    for (let i = this.dyingSoldiers.length - 1; i >= 0; i--) {
+      const d = this.dyingSoldiers[i];
+      d.t += dt;
+      if (d.t < d.dur) {
+        const k = d.t / d.dur;
+        const e = k * k; // accelerate into the ground like a topple
+        d.instance.scene.quaternion.copy(d.startQuat).slerp(d.endQuat, e);
+        d.instance.scene.position.y = d.startY + (d.endY - d.startY) * e;
+      } else if (!d.settled) {
+        d.instance.scene.quaternion.copy(d.endQuat);
+        d.instance.scene.position.y = d.endY;
+        d.settled = true;
+      }
+      d.linger -= dt;
+      if (d.linger <= 0) {
+        const s = d.instance.scene;
+        if (s.parent) s.parent.remove(s);
+        if (d.instance.helper && d.instance.helper.parent) d.instance.helper.parent.remove(d.instance.helper);
+        this.dyingSoldiers.splice(i, 1);
+      }
+    }
   }
 
   /** Line-of-sight test from a bot's eye to a target, blocked by arena geometry. */
@@ -1560,7 +1622,6 @@ export default class MovementVisualizer {
         // If killed, trigger ragdoll
         if (damageResult.killed) {
           console.log(`KILLED ${hit.targetId}!`);
-          // Trigger ragdoll on killed mannequin
           const instanceMap = {
             mannequin_red: 'testMannequinRed',
             mannequin_blue: 'testMannequinBlue',
@@ -1568,19 +1629,11 @@ export default class MovementVisualizer {
           };
           const propName = instanceMap[hit.targetId];
           const instance = propName ? this[propName] : null;
-          if (instance && this.ragdollSystem) {
-            this.ragdollSystem.spawnRagdoll(
-              instance,
-              new this.THREE.Vector3(rayDir.x * 5, 2, rayDir.z * 5),
-              this.scene
-            );
-            if (propName) this[propName] = null;
-          } else if (instance && propName) {
-            // No ragdoll system — remove the dead soldier from the scene so it
-            // doesn't linger (the Bot is synced to DEAD next frame via health).
-            if (instance.scene.parent) instance.scene.parent.remove(instance.scene);
-            if (instance.helper && instance.helper.parent) instance.helper.parent.remove(instance.helper);
-            this[propName] = null;
+          if (instance) {
+            // Clean collapse: keep the soldier mesh, topple it to the ground in
+            // its frozen pose (the Bot syncs to DEAD next frame and stops driving it).
+            this._startDeathCollapse(instance);
+            if (propName) this[propName] = null; // stop live targeting / hitbox updates
           }
         }
       }
@@ -1795,6 +1848,9 @@ export default class MovementVisualizer {
     if (this.ragdollSystem) {
       this.ragdollSystem.updateVisuals();
     }
+
+    // Advance death collapses (toppling dead soldiers)
+    this._updateDeathCollapses(delta);
 
     // Update status display
     if (this.statusEl) {

@@ -25,8 +25,10 @@ export class RagdollSystem {
     // Create physics world with gravity
     this.world = new RAPIER.World({ x: 0.0, y: -9.81, z: 0.0 });
 
-    // Create ground plane collider (halfSpace at y=1, normal pointing up)
-    const groundDesc = RAPIER.ColliderDesc.halfSpace({ x: 0, y: 1, z: 0 });
+    // Ground collider. Rapier's JS ColliderDesc has no halfSpace factory (it only
+    // exists in the raw WASM), so use a large thin cuboid whose TOP surface sits
+    // at y=0 — the arena floor level — for dead bodies to settle on.
+    const groundDesc = RAPIER.ColliderDesc.cuboid(200, 0.5, 200).setTranslation(0, -0.5, 0);
     this.world.createCollider(groundDesc);
     this.groundCreated = true;
 
@@ -70,14 +72,17 @@ export class RagdollSystem {
     const createBody = (name, pos, halfHeight, radius, linvel = velocity) => {
       const desc = RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(pos.x, pos.y, pos.z)
-        .setLinvel({ x: linvel.x, y: linvel.y, z: linvel.z })
+        .setLinvel(linvel.x, linvel.y, linvel.z)
         .setLinearDamping(0.5)    // Slow down over time
         .setAngularDamping(0.5);  // Reduce spinning
       const body = this.world.createRigidBody(desc);
 
       const collider = RAPIER.ColliderDesc.capsule(halfHeight, radius)
         .setRestitution(0.1)      // Low bounce
-        .setFriction(0.8);        // High friction (don't slide forever)
+        .setFriction(0.8)         // High friction (don't slide forever)
+        // Membership group 2, collide only with group 1 (the ground): ragdoll
+        // parts overlap at joints, so self-collision makes them jitter forever.
+        .setCollisionGroups(0x00020001);
       this.world.createCollider(collider, body);
 
       bodies[name] = body;
@@ -88,14 +93,15 @@ export class RagdollSystem {
     const createSphereBody = (name, pos, radius, linvel = velocity) => {
       const desc = RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(pos.x, pos.y, pos.z)
-        .setLinvel({ x: linvel.x, y: linvel.y, z: linvel.z })
+        .setLinvel(linvel.x, linvel.y, linvel.z)
         .setLinearDamping(0.5)
         .setAngularDamping(0.5);
       const body = this.world.createRigidBody(desc);
 
       const collider = RAPIER.ColliderDesc.ball(radius)
         .setRestitution(0.1)
-        .setFriction(0.8);
+        .setFriction(0.8)
+        .setCollisionGroups(0x00020001); // group 2, collide only with ground (no self-collision)
       this.world.createCollider(collider, body);
 
       bodies[name] = body;
