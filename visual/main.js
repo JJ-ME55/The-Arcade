@@ -1133,6 +1133,8 @@ export default class MovementVisualizer {
     // Update FP weapon visual
     const visualName = this._weaponTypeToVisualName(weaponType);
     if (this.fpWeapon && visualName) {
+      // Drop any in-progress reload so it doesn't keep dipping the new weapon.
+      this.fpWeapon.cancelReload();
       this.fpWeapon.switchWeapon(visualName);
     }
 
