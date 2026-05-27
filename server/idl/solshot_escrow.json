@@ -1,0 +1,1239 @@
+{
+  "address": "4kzrDpV9JxjE27AMg4PQXzGuge9MEYQEFznSPvkBtnH1",
+  "metadata": {
+    "name": "solshot_escrow",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "SolShot match escrow program — PDA-based wagering with 90/7/3 split"
+  },
+  "instructions": [
+    {
+      "name": "cancel_match",
+      "docs": [
+        "Cancel match — refund deposited players via remaining_accounts (OC-04, OC-05, OC-07, OC-09, OC-10, ESC-08).",
+        "Authority can only cancel AwaitingDeposits state.",
+        "Players can cancel AwaitingDeposits, or any state after timeout from activation.",
+        "Caller must pass deposited player accounts in player-index order via remaining_accounts."
+      ],
+      "discriminator": [
+        142,
+        136,
+        247,
+        45,
+        92,
+        112,
+        180,
+        83
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  116,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.match_id",
+                "account": "MatchEscrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "caller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "docs": [
+            "Config PDA — provides authority pubkey + pause guard (OC-04, OC-05)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_match",
+      "docs": [
+        "Create a new match escrow (OC-04, OC-06, OC-08, OC-12, ESC-03).",
+        "Called by the server authority when a room is created with a wager.",
+        "Seeds: [\"match\", match_id.as_bytes()]",
+        "Accepts 2-4 players via Vec<Pubkey>. Validates distinctness and authority exclusion."
+      ],
+      "discriminator": [
+        107,
+        2,
+        184,
+        145,
+        70,
+        142,
+        17,
+        165
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  116,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "match_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "docs": [
+            "Config PDA — provides pause guard + authority gate (OC-04, S004)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "match_id",
+          "type": "string"
+        },
+        {
+          "name": "wager_lamports",
+          "type": "u64"
+        },
+        {
+          "name": "players",
+          "type": {
+            "vec": "pubkey"
+          }
+        }
+      ]
+    },
+    {
+      "name": "deposit_wager",
+      "docs": [
+        "Deposit wager into escrow (OC-04, OC-07, OC-09, ESC-04, ESC-05).",
+        "Each player calls this once. Bitmap tracks per-player deposits.",
+        "Match transitions to Active when all players have deposited."
+      ],
+      "discriminator": [
+        234,
+        73,
+        235,
+        136,
+        168,
+        103,
+        239,
+        207
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  116,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.match_id",
+                "account": "MatchEscrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "player",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "docs": [
+            "Config PDA — provides pause guard (OC-04)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_config",
+      "docs": [
+        "One-time initialization of the global config PDA (OC-01).",
+        "Called by the deployer immediately after program deploy.",
+        "Enforces that authority, treasury, and ops are all distinct addresses."
+      ],
+      "discriminator": [
+        208,
+        127,
+        21,
+        1,
+        194,
+        190,
+        196,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "authority",
+          "type": "pubkey"
+        },
+        {
+          "name": "treasury",
+          "type": "pubkey"
+        },
+        {
+          "name": "ops",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "pause_program",
+      "docs": [
+        "Emergency pause — halts all economic instructions (OC-04).",
+        "Can be called even when already paused (idempotent)."
+      ],
+      "discriminator": [
+        91,
+        86,
+        253,
+        175,
+        66,
+        236,
+        172,
+        124
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "permissionless_reclaim",
+      "docs": [
+        "DCA-02: Permissionless reclaim — anyone can trigger refund after 2x timeout (ESC-09).",
+        "Separate from cancel_match (which requires authority or player).",
+        "The caller receives PDA rent lamports as economic incentive.",
+        "Caller must pass deposited player accounts in player-index order via remaining_accounts."
+      ],
+      "discriminator": [
+        106,
+        139,
+        210,
+        3,
+        39,
+        23,
+        153,
+        59
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  116,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.match_id",
+                "account": "MatchEscrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "caller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "settle_match",
+      "docs": [
+        "Settle match — distribute pot to winner, treasury, ops (OC-02, OC-03, OC-04, OC-07, OC-09, OC-10, OC-11, ESC-06, ESC-07).",
+        "Only callable by the server authority.",
+        "Pot = wager_lamports * num_deposited (N-player, not hardcoded * 2).",
+        "Winner, treasury, and ops are validated via Anchor constraints in the account struct."
+      ],
+      "discriminator": [
+        71,
+        124,
+        117,
+        96,
+        191,
+        217,
+        116,
+        24
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  116,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.match_id",
+                "account": "MatchEscrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "escrow",
+            "config"
+          ]
+        },
+        {
+          "name": "winner",
+          "docs": [
+            "Winner: must be one of the N registered players (OC-02, ESC-07 — resolves H008, H002, S001)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "treasury",
+          "docs": [
+            "Treasury: validated against config PDA (OC-03 — resolves H001, H003, S001, GAP-003, H048)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "ops",
+          "docs": [
+            "Ops: validated against config PDA (OC-03)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "config",
+          "docs": [
+            "Config PDA — provides validated treasury/ops/authority pubkeys + pause guard (OC-04)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "winner",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "start_with_depositors",
+      "docs": [
+        "Start match with only the players who have deposited (ESC-11).",
+        "Authority calls this when deposit timeout fires and some (but not all) players deposited.",
+        "Reduces max_players to num_deposited (min 2), compacts players array, activates the match.",
+        "Non-depositors are effectively kicked — their slots become invalid."
+      ],
+      "discriminator": [
+        111,
+        103,
+        17,
+        116,
+        142,
+        163,
+        63,
+        72
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  116,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.match_id",
+                "account": "MatchEscrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "escrow",
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "docs": [
+            "Config PDA — provides authority validation + pause guard"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "unpause_program",
+      "docs": [
+        "Emergency unpause — resumes economic instructions (OC-04).",
+        "Can be called even when already unpaused (idempotent)."
+      ],
+      "discriminator": [
+        43,
+        162,
+        233,
+        92,
+        254,
+        62,
+        69,
+        58
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_config",
+      "docs": [
+        "Update config fields. All parameters are optional (pass None to keep current value).",
+        "Requires current authority as signer (has_one enforced in account struct).",
+        "Re-validates distinctness after all updates (SOS: H003 — prevents settlement DoS).",
+        "Zero-address guard on authority (SOS: B1 — prevents accidental governance burn).",
+        "NOTE: v1.2 — separate multisig for update_config vs pause_program"
+      ],
+      "discriminator": [
+        29,
+        158,
+        252,
+        191,
+        10,
+        83,
+        219,
+        99
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_authority",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "new_treasury",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "new_ops",
+          "type": {
+            "option": "pubkey"
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GlobalConfig",
+      "discriminator": [
+        149,
+        8,
+        156,
+        202,
+        160,
+        252,
+        176,
+        217
+      ]
+    },
+    {
+      "name": "MatchEscrow",
+      "discriminator": [
+        41,
+        253,
+        245,
+        149,
+        7,
+        243,
+        203,
+        139
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "ConfigUpdated",
+      "discriminator": [
+        40,
+        241,
+        230,
+        122,
+        11,
+        19,
+        198,
+        194
+      ]
+    },
+    {
+      "name": "MatchActive",
+      "discriminator": [
+        47,
+        250,
+        190,
+        20,
+        188,
+        234,
+        223,
+        201
+      ]
+    },
+    {
+      "name": "MatchCancelled",
+      "discriminator": [
+        99,
+        86,
+        22,
+        122,
+        82,
+        247,
+        60,
+        113
+      ]
+    },
+    {
+      "name": "MatchCreated",
+      "discriminator": [
+        151,
+        176,
+        11,
+        24,
+        34,
+        225,
+        227,
+        16
+      ]
+    },
+    {
+      "name": "MatchSettled",
+      "discriminator": [
+        243,
+        201,
+        134,
+        151,
+        193,
+        131,
+        223,
+        150
+      ]
+    },
+    {
+      "name": "WagerDeposited",
+      "discriminator": [
+        31,
+        48,
+        70,
+        183,
+        103,
+        182,
+        95,
+        75
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "MatchIdTooLong",
+      "msg": "Match ID must be 32 characters or fewer"
+    },
+    {
+      "code": 6001,
+      "name": "ZeroWager",
+      "msg": "Wager must be greater than zero"
+    },
+    {
+      "code": 6002,
+      "name": "SamePlayer",
+      "msg": "Players must be different wallets"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidState",
+      "msg": "Match is not in the correct state for this operation"
+    },
+    {
+      "code": 6004,
+      "name": "NotAPlayer",
+      "msg": "Signer is not a player in this match"
+    },
+    {
+      "code": 6005,
+      "name": "AlreadyDeposited",
+      "msg": "Player has already deposited"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidWinner",
+      "msg": "Winner must be a registered player"
+    },
+    {
+      "code": 6007,
+      "name": "Unauthorized",
+      "msg": "Not authorized for this operation"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidPlayer",
+      "msg": "Player account does not match escrow record"
+    },
+    {
+      "code": 6009,
+      "name": "AuthorityAsPlayer",
+      "msg": "Authority cannot participate as a player"
+    },
+    {
+      "code": 6010,
+      "name": "WagerTooSmall",
+      "msg": "Wager below minimum threshold"
+    },
+    {
+      "code": 6011,
+      "name": "WagerTooLarge",
+      "msg": "Wager above maximum threshold"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidTreasury",
+      "msg": "Treasury account does not match config"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidOps",
+      "msg": "Ops account does not match config"
+    },
+    {
+      "code": 6014,
+      "name": "DuplicateFeeAccount",
+      "msg": "Treasury and ops accounts must be different"
+    },
+    {
+      "code": 6015,
+      "name": "ProgramPaused",
+      "msg": "Program is paused"
+    },
+    {
+      "code": 6016,
+      "name": "ArithmeticOverflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidConfig",
+      "msg": "Invalid config parameters"
+    },
+    {
+      "code": 6018,
+      "name": "SettlementExpired",
+      "msg": "Settlement deadline has passed"
+    },
+    {
+      "code": 6019,
+      "name": "TooEarlyToReclaim",
+      "msg": "Cannot reclaim before 2x timeout has elapsed"
+    },
+    {
+      "code": 6020,
+      "name": "TooFewPlayers",
+      "msg": "Match requires at least 2 players"
+    },
+    {
+      "code": 6021,
+      "name": "TooManyPlayers",
+      "msg": "Match supports at most 4 players"
+    },
+    {
+      "code": 6022,
+      "name": "MatchAlreadyStarted",
+      "msg": "Match has already started"
+    }
+  ],
+  "types": [
+    {
+      "name": "ConfigUpdated",
+      "docs": [
+        "B1-mini: Audit trail for config changes"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "ops",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GlobalConfig",
+      "docs": [
+        "Global configuration PDA (singleton, seeds = [b\"config\"]) (OC-01)",
+        "Stores validated treasury/ops/authority pubkeys and emergency pause flag.",
+        "Initialized once by deployer. Updated by authority via update_config."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "Settlement/cancel authority — the server hot wallet pubkey"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "docs": [
+              "Treasury fee destination (7% of pot)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "ops",
+            "docs": [
+              "Ops fee destination (3% of pot)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "is_paused",
+            "docs": [
+              "Emergency pause flag — all economic instructions check this"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump seed"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MatchActive",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "match_id",
+            "type": "string"
+          },
+          {
+            "name": "total_pot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MatchCancelled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "match_id",
+            "type": "string"
+          },
+          {
+            "name": "players",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "deposits_mask",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MatchCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "match_id",
+            "type": "string"
+          },
+          {
+            "name": "players",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "max_players",
+            "type": "u8"
+          },
+          {
+            "name": "wager_lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MatchEscrow",
+      "docs": [
+        "Per-match escrow account — supports 2-4 players (v1.4 N-player upgrade)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "match_id",
+            "docs": [
+              "Unique match identifier (max 32 chars, e.g. room ID)"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "Server authority that created/settles this match"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "players",
+            "docs": [
+              "Player wallets — fixed [Pubkey; 4], zero-padded for < 4 players"
+            ],
+            "type": {
+              "array": [
+                "pubkey",
+                4
+              ]
+            }
+          },
+          {
+            "name": "max_players",
+            "docs": [
+              "Number of active players (2-4). Slots players[max_players..4] are Pubkey::default()"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "wager_lamports",
+            "docs": [
+              "Wager per player in lamports"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "deposits_mask",
+            "docs": [
+              "Bitmap: bit N set = player N has deposited"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "state",
+            "docs": [
+              "Current match state"
+            ],
+            "type": {
+              "defined": {
+                "name": "MatchState"
+              }
+            }
+          },
+          {
+            "name": "created_at",
+            "docs": [
+              "Unix timestamp of creation (fallback timeout reference)"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "activated_at",
+            "docs": [
+              "Unix timestamp when match became Active (settlement + timeout reference)",
+              "Set to 0 at creation; updated when all players deposit."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump seed"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MatchSettled",
+      "docs": [
+        "OC-11: includes treasury_account and ops_account pubkeys for on-chain monitoring"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "match_id",
+            "type": "string"
+          },
+          {
+            "name": "winner",
+            "type": "pubkey"
+          },
+          {
+            "name": "winner_amount",
+            "type": "u64"
+          },
+          {
+            "name": "treasury_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury_amount",
+            "type": "u64"
+          },
+          {
+            "name": "ops_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "ops_amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MatchState",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "AwaitingDeposits"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Settled"
+          },
+          {
+            "name": "Cancelled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WagerDeposited",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "match_id",
+            "type": "string"
+          },
+          {
+            "name": "player",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}
