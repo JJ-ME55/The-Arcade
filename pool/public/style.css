@@ -1,4 +1,29 @@
 html, body {
     margin: 0;
+    padding: 0;
+    height: 100%;
+    height: 100dvh;
     background-color: black;
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
+body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#gameArea {
+    position: relative;
+    line-height: 0;
+}
+
+#screen {
+    display: block;
 }

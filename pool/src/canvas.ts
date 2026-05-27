@@ -10,7 +10,6 @@ class Canvas2D_Singleton {
     private _canvas : HTMLCanvasElement;
     private _context : CanvasRenderingContext2D;
     private _scale: Vector2;
-    private _offset: Vector2;
 
     //------Properties------//
     
@@ -23,11 +22,12 @@ class Canvas2D_Singleton {
     }
 
     public get offsetX() {
-        return this._offset.x;
+        // getBoundingClientRect is viewport-relative; works regardless of offsetParent / flex layout / scroll.
+        return this._canvas.getBoundingClientRect().left + window.scrollX;
     }
 
     public get offsetY() {
-        return this._offset.y;
+        return this._canvas.getBoundingClientRect().top + window.scrollY;
     }
 
     //------Constructor------//
@@ -42,41 +42,48 @@ class Canvas2D_Singleton {
     //------Public Methods------//
 
     public resizeCanvas(): void {
-        
+
         const originalCanvasWidth = GameConfig.gameSize.x;
         const originalCanvasHeight = GameConfig.gameSize.y;
         const widthToHeight: number = originalCanvasWidth / originalCanvasHeight;
 
-        let newHeight: number = window.innerHeight;
-        let newWidth: number = window.innerWidth;
-       
-        const newWidthToHeight: number = newWidth / newHeight;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const viewportRatio = viewportWidth / viewportHeight;
 
-        if (newWidthToHeight > widthToHeight) {
-            newWidth = newHeight * widthToHeight;
+        let cssWidth: number;
+        let cssHeight: number;
+        if (viewportRatio > widthToHeight) {
+            cssHeight = viewportHeight;
+            cssWidth = cssHeight * widthToHeight;
         } else {
-            newHeight = newWidth / widthToHeight;
+            cssWidth = viewportWidth;
+            cssHeight = cssWidth / widthToHeight;
         }
-        
-        this._canvasContainer.style.width = newWidth + 'px';
-        this._canvasContainer.style.height = newHeight + 'px';
-        this._canvasContainer.style.marginTop = (window.innerHeight - newHeight) / 2 + 'px';
-        this._canvasContainer.style.marginLeft = (window.innerWidth - newWidth) / 2 + 'px';
-        this._canvasContainer.style.marginBottom = (window.innerHeight - newHeight) / 2 + 'px';
-        this._canvasContainer.style.marginRight = (window.innerWidth - newWidth) / 2 + 'px';
-        this._scale = new Vector2(newWidth / originalCanvasWidth, newHeight / originalCanvasHeight);
 
-        this._canvas.width = newWidth;
-        this._canvas.height = newHeight;
-        
-        if (this._canvas.offsetParent) {
-            this._offset = new Vector2(this._canvas.offsetLeft, this._canvas.offsetTop);
-        }
+        // Bitmap is dpr-scaled so retina screens render crisp; CSS pixels stay 1:1 with input coords.
+        const dpr = window.devicePixelRatio || 1;
+        this._canvas.width = Math.round(cssWidth * dpr);
+        this._canvas.height = Math.round(cssHeight * dpr);
+        this._canvas.style.width = cssWidth + 'px';
+        this._canvas.style.height = cssHeight + 'px';
+
+        this._canvasContainer.style.width = cssWidth + 'px';
+        this._canvasContainer.style.height = cssHeight + 'px';
+
+        // Base transform absorbs dpr — subsequent ops draw in CSS-pixel space.
+        this._context.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        // scale converts game-space units to CSS pixels (used by both draws and input math).
+        this._scale = new Vector2(cssWidth / originalCanvasWidth, cssHeight / originalCanvasHeight);
     }
 
 
     public clear() : void {
+        this._context.save();
+        this._context.setTransform(1, 0, 0, 1, 0, 0);
         this._context.clearRect(0, 0, this._canvas.width, this._canvas.height);
+        this._context.restore();
     }
 
     public drawImage(

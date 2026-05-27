@@ -8,6 +8,9 @@ class Mouse_Singleton {
 
     private _buttonStates: ButtonState[] = [];
     private _position: Vector2;
+    // Touch/pen only: the first finger down "owns" aim; later fingers can press to shoot but don't move the cursor.
+    private _aimPointerId: number | null = null;
+    private _activePointerIds: Set<number> = new Set();
 
     //------Properties------//
 
@@ -25,26 +28,77 @@ class Mouse_Singleton {
 
         this._position = Vector2.zero;
 
-        document.addEventListener('mousemove', (event) => this.handleMouseMove(event));
-        document.addEventListener('mousedown', (event) => this.handleMouseDown(event));
-        document.addEventListener('mouseup', (event) => this.handleMouseUp(event));
+        // Pointer Events unify mouse + touch + pen. touch-action:none on body suppresses browser gestures.
+        document.addEventListener('pointermove', (event) => this.handlePointerMove(event));
+        document.addEventListener('pointerdown', (event) => this.handlePointerDown(event));
+        document.addEventListener('pointerup', (event) => this.handlePointerUp(event));
+        document.addEventListener('pointercancel', (event) => this.handlePointerUp(event));
     }
 
     //------Private Methods------//
 
-    private handleMouseMove(event: MouseEvent): void {
-        const mouseX: number = (event.pageX - Canvas2D.offsetX) / Canvas2D.scaleX;
-        const mouseY: number = (event.pageY - Canvas2D.offsetY) / Canvas2D.scaleY;
-        this._position = new Vector2(mouseX, mouseY);
+    private updatePositionFromEvent(event: PointerEvent): void {
+        const x: number = (event.pageX - Canvas2D.offsetX) / Canvas2D.scaleX;
+        const y: number = (event.pageY - Canvas2D.offsetY) / Canvas2D.scaleY;
+        this._position = new Vector2(x, y);
     }
 
-    private handleMouseDown(event: MouseEvent) {
-        this._buttonStates[event.button].down = true;
-        this._buttonStates[event.button].pressed = true;
+    private resolveButton(event: PointerEvent): number {
+        // Touch/pen always report 0; mouse reports 0/1/2 for left/middle/right; pointercancel may report -1.
+        const b = event.button;
+        return b >= 0 && b <= 2 ? b : 0;
     }
 
-    private handleMouseUp(event: MouseEvent) {
-        this._buttonStates[event.button].down = false;
+    private handlePointerMove(event: PointerEvent): void {
+        if (event.pointerType === 'mouse') {
+            this.updatePositionFromEvent(event);
+            return;
+        }
+        // Touch/pen: only the aim-owning pointer moves the cursor (rejects stray multi-touch jitter).
+        if (this._aimPointerId !== null && event.pointerId === this._aimPointerId) {
+            this.updatePositionFromEvent(event);
+        }
+    }
+
+    private handlePointerDown(event: PointerEvent): void {
+        const button = this.resolveButton(event);
+
+        if (event.pointerType === 'mouse') {
+            this.updatePositionFromEvent(event);
+        } else {
+            // First touch claims aim; later touches register a press (for shoot) without hijacking aim.
+            if (this._aimPointerId === null) {
+                this._aimPointerId = event.pointerId;
+                this.updatePositionFromEvent(event);
+            }
+            this._activePointerIds.add(event.pointerId);
+        }
+
+        this._buttonStates[button].down = true;
+        this._buttonStates[button].pressed = true;
+    }
+
+    private handlePointerUp(event: PointerEvent): void {
+        const button = this.resolveButton(event);
+
+        if (event.pointerType !== 'mouse') {
+            this._activePointerIds.delete(event.pointerId);
+            if (event.pointerId === this._aimPointerId) {
+                this._aimPointerId = null;
+                // Promote any remaining touch to the new aim owner so dragging survives lifting the aim finger.
+                const next = this._activePointerIds.values().next();
+                if (!next.done) {
+                    this._aimPointerId = next.value;
+                }
+            }
+            // Only release the button when no fingers remain.
+            if (this._activePointerIds.size === 0) {
+                this._buttonStates[button].down = false;
+            }
+            return;
+        }
+
+        this._buttonStates[button].down = false;
     }
 
     //------Public Methods------//
@@ -58,7 +112,7 @@ class Mouse_Singleton {
     public isDown(button: number): boolean {
         return this._buttonStates[button].down;
     }
-    
+
     public isPressed(button: number): boolean {
         return this._buttonStates[button].pressed;
     }
