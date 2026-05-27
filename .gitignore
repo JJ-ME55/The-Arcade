@@ -1,0 +1,70 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+# misc
+.DS_Store
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Anchor / Solana
+target/
+test-ledger/
+*-keypair.json
+nul
+_archive/junk/nul
+
+# Keypair files — never commit raw secret keys
+solshot-dev.json
+solshot-server.json
+
+# Large media — store externally (Google Drive, S3, etc.)
+Markiting videos/
+Marketing/
+Handoffs/
+BATTLE/
+Other Games/
+Ad images/
+
+# Solana Vibes Kit audit artifact dirs — these stay TRACKED (.audit/, .bok/,
+# .bulwark/, .docs/) because they're the audit evidence judges read. Their
+# per-run history archives are NOT tracked — they piled up at every audit
+# run and cluttered the root with hundreds of stale files.
+.audit-history/
+.bulwark-history/
+.bok-history/
+.anchor/
+
+# Local agent / planning state — never tracked. .planning/ + .claude/ were
+# previously committed by accident; they're untracked now and shouldn't
+# come back.
+.agents/
+.claude/
+.planning/
+.design-canvas.state.json
+.mcp.json
+
+# Old design exploration prototypes (not the live build)
+/src/
+/styles/
+/mobile/
+
+# Misc local artefacts
+SolShot_Redesign.html
+converted-repo.txt
