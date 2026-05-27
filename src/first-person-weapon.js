@@ -40,7 +40,7 @@ export class FirstPersonWeapon {
     // Weapon-specific offsets (tuned for Hand.R bone attachment)
     // Weapons built along X-axis in Blender, need -90deg Y rotation to point forward (-Z)
     this.weaponOffsets = {
-      rifle:  { pos: [0.02, 0.00, 0.29], rot: [-0.60, -1.87, -0.50], scale: 1.210 },
+      rifle:  { pos: [0.02, 0.00, 0.29], rot: [-0.60, -1.97, -0.50], scale: 1.611 },
       pistol: { pos: [0, 0, -0.08], rot: [0, -Math.PI/2, 0], scale: 1 },
       knife:  { pos: [0, 0, -0.05], rot: [Math.PI/2, -Math.PI/2, 0], scale: 1 },
     };
@@ -158,6 +158,26 @@ export class FirstPersonWeapon {
     this.fpArmsModel.position.set(0.16, -0.04, 0.00);
     this.fpArmsModel.rotation.set(-0.20, 3.50, -0.30);
     this.fpArmsModel.scale.setScalar(0.830);
+    // Baked per-piece fit (hinged arm pieces, tuned in-engine via the G/IJKL/arrow
+    // tune tools). Each is a child of fpArmsModel; values are local transforms.
+    const FP_PIECE_FIT = {
+      FP_upper_R: { pos: [0.05, 0.04, -0.38], rot: [0.00, 0.00, 0.00], scale: 1.000 },
+      FP_fore_R:  { pos: [-0.13, -0.15, 0.12], rot: [0.00, 0.00, 0.00], scale: 1.000 },
+      FP_hand_R:  { pos: [0.11, 0.10, 0.19], rot: [0.00, 0.00, 0.00], scale: 1.000 },
+      FP_upper_L: { pos: [0.23, 0.05, -0.08], rot: [6.30, 0.00, 0.00], scale: 1.000 },
+      FP_fore_L:  { pos: [-0.03, -0.11, 0.20], rot: [0.00, -0.10, 0.00], scale: 1.000 },
+      FP_hand_L:  { pos: [-0.11, 0.12, 0.10], rot: [-1.30, -0.30, -5.30], scale: 1.089 },
+    };
+    for (const [pieceName, fit] of Object.entries(FP_PIECE_FIT)) {
+      const piece = this.fpArmsModel.getObjectByName(pieceName);
+      if (piece) {
+        piece.position.set(...fit.pos);
+        piece.rotation.set(...fit.rot);
+        piece.scale.setScalar(fit.scale);
+      } else {
+        console.warn(`FP piece not found for baked fit: ${pieceName}`);
+      }
+    }
     this.weaponCamera.add(this.weaponGroup);
     this.weaponScene.add(this.weaponCamera);
 
