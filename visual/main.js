@@ -4,6 +4,7 @@ import { testHitscan, createHitboxSet, updateHitboxPositions } from '../src/engi
 import { getRecoilAngle, AccuracyModel, getFinalShotAngle } from '../src/engine/recoil-patterns.js';
 import { DamageSystem } from '../src/engine/damage.js';
 import CombatFeedback from '../src/combat-feedback.js';
+import { ArenaNavMesh } from '../src/navmesh.js';
 
 export default class MovementVisualizer {
   constructor(opts = {}) {
@@ -188,6 +189,17 @@ export default class MovementVisualizer {
           obj.visible = false;
         }
       });
+
+      // Bake navigation mesh for bot AI (walkable surface from arena geometry).
+      this.navMesh = new ArenaNavMesh();
+      const navOk = await this.navMesh.build(gltf.scene, this.THREE);
+      if (navOk) {
+        this.navDebugMesh = this.navMesh.buildDebugMesh(this.THREE);
+        if (this.navDebugMesh) {
+          this.navDebugMesh.visible = false; // toggle with N
+          this.scene.add(this.navDebugMesh);
+        }
+      }
 
       // Extract spawn points
       this._extractSpawnPoints(gltf.scene);
@@ -748,6 +760,12 @@ export default class MovementVisualizer {
           else t = false;
           if (t) console.log(`FP[${name}] pos=[${wg.position.x.toFixed(2)},${wg.position.y.toFixed(2)},${wg.position.z.toFixed(2)}] rot=[${wg.rotation.x.toFixed(2)},${wg.rotation.y.toFixed(2)},${wg.rotation.z.toFixed(2)}] scale=${wg.scale.x.toFixed(3)}`);
         }
+      }
+
+      // Navmesh overlay toggle (N key)
+      if (e.code === 'KeyN' && this.navDebugMesh) {
+        this.navDebugMesh.visible = !this.navDebugMesh.visible;
+        console.log('Navmesh debug:', this.navDebugMesh.visible ? 'ON' : 'OFF');
       }
 
       // Hitbox wireframe overlay toggle (H key)
