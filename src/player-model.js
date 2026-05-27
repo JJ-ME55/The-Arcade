@@ -89,13 +89,21 @@ export class PlayerModel {
         // Disable frustum culling (mannequin might be partially off-screen but skeleton visible)
         child.frustumCulled = false;
 
-        // Clone material and set team color. The soldier's PBR texture only tints
-        // subtly via .color, so add a low-intensity emissive accent so RED vs BLUE
-        // reads clearly at gameplay distance (RESEARCH "Team Color Approach").
+        // Team colour, but realistic (like the key art): keep the texture + normals
+        // so gear detail shows, and let scene lighting do the shading (PBR). The old
+        // flat 0.18 emissive lit the whole body uniformly, killing all shadow/
+        // highlight and making the soldier read as one solid block. Now: tint the
+        // base colour (deepened so it looks like dyed gear, not neon), matte fabric
+        // material, and only a whisper of emissive for distance readability.
         child.material = child.material.clone();
-        child.material.color.setHex(teamColor);
+        // Deep base colour (darker = highlights/shadows pop = less flat), shaded
+        // purely by scene lighting — no emissive glow flattening it.
+        child.material.color.copy(new THREE.Color(teamColor).multiplyScalar(0.55));
         child.material.emissive = new THREE.Color(teamColor);
-        child.material.emissiveIntensity = 0.18;
+        child.material.emissiveIntensity = 0.0;
+        if (child.material.metalness !== undefined) child.material.metalness = 0.15;
+        if (child.material.roughness !== undefined) child.material.roughness = 0.8;
+        child.material.needsUpdate = true;
       }
     });
 

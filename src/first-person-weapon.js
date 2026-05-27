@@ -138,6 +138,21 @@ export class FirstPersonWeapon {
     const armsGltf = await loader.loadAsync(armsUrl);
     this.fpArmsModel = armsGltf.scene;
 
+    // Tint the first-person arms to the player's team colour (red) so you see your
+    // team on your own arms, matching the third-person soldiers (deep colour, matte,
+    // shaded by light — no flat glow).
+    const TEAM = new THREE.Color(0xcc2200).multiplyScalar(0.55);
+    this.fpArmsModel.traverse((o) => {
+      if (o.isMesh && o.material) {
+        o.material = o.material.clone();
+        o.material.color.copy(TEAM);
+        if (o.material.emissive) o.material.emissiveIntensity = 0.0;
+        if (o.material.metalness !== undefined) o.material.metalness = 0.15;
+        if (o.material.roughness !== undefined) o.material.roughness = 0.8;
+        o.material.needsUpdate = true;
+      }
+    });
+
     // Find the right-hand bone for weapon attachment. GLTFLoader strips dots from
     // node names, so the bone is 'HandR' (not 'Hand.R') — accept both.
     this.handRBone = null;

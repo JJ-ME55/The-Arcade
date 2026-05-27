@@ -157,6 +157,19 @@ export class SoundFX {
   hasSample(weaponName) { return !!this._buffers[weaponName]; }
 
   /**
+   * Play ONE short shot (e.g. an enemy's individual round). If the firing sample
+   * is a continuous auto clip, truncate to ~one crack so bursts read as distinct
+   * shots instead of one long noise. Falls back to the synth profile.
+   */
+  oneShot(weaponName, volume = 0.6) {
+    if (!this._ensure()) return;
+    const buf = this._buffers[weaponName];
+    if (buf) { this._playBuffer(buf, volume, 0.18); return; }
+    const p = SHOOT_PROFILES[weaponName] || SHOOT_PROFILES.rifle;
+    this._report(p, volume);
+  }
+
+  /**
    * Start a looping firing sound for an auto weapon (call while the trigger is
    * held + rounds are going out). Idempotent for the same weapon. The clip loops
    * so it plays continuously and stops cleanly on stopFire().

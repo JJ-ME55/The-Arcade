@@ -119,24 +119,24 @@ export default class MovementVisualizer {
   _initLighting() {
     const THREE = this.THREE;
 
-    // Hemisphere light for base fill
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x888888, 0.6);
+    // Hemisphere light for base fill (reduced so surfaces aren't evenly lit).
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x6b6b6b, 0.4);
     this.scene.add(hemiLight);
 
-    // Main directional light from above-diagonal
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+    // Strong KEY light (sun) — high key-to-fill ratio gives a clear lit vs shadow
+    // side, so soldiers/geometry read with real form instead of looking flat.
+    const dirLight1 = new THREE.DirectionalLight(0xfff2e0, 1.25);
     dirLight1.position.set(50, 100, 50);
     dirLight1.castShadow = false;
     this.scene.add(dirLight1);
 
-    // Fill light from opposite side to eliminate dark corners
-    const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
+    // Soft fills (kept low so they lift dark corners without flattening form).
+    const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.18);
     dirLight2.position.set(-50, 80, -50);
     dirLight2.castShadow = false;
     this.scene.add(dirLight2);
 
-    // Additional fill light from another angle
-    const dirLight3 = new THREE.DirectionalLight(0xffffff, 0.3);
+    const dirLight3 = new THREE.DirectionalLight(0xffffff, 0.15);
     dirLight3.position.set(50, 60, -50);
     dirLight3.castShadow = false;
     this.scene.add(dirLight3);
@@ -359,8 +359,9 @@ export default class MovementVisualizer {
       // Initialize ammo HUD with weapon system
       this._updateAmmoHUD();
 
-      // Start the match (round 1 buy phase) now that all systems are ready.
-      this._initMatch();
+      // The match is started from the landing menu (startVsBots), not on load.
+      this._readyForMenu = true;
+      if (this.statusEl) this.statusEl.style.display = 'none';
 
       // Update status
       if (this.statusEl) {
@@ -447,15 +448,16 @@ export default class MovementVisualizer {
   _spawnTestMannequins() {
     const pos = this._botSpawnPositions();
 
-    this.testMannequinRed = this.playerModelManager.spawn(0xcc2200, pos.mannequin_red.clone());
+    const ENEMY_COLOR = 0x2244cc; // all opponents are the blue team
+    this.testMannequinRed = this.playerModelManager.spawn(ENEMY_COLOR, pos.mannequin_red.clone());
     this.scene.add(this.testMannequinRed.scene);
     if (this.testMannequinRed.helper) this.scene.add(this.testMannequinRed.helper);
 
-    this.testMannequinBlue = this.playerModelManager.spawn(0x2244cc, pos.mannequin_blue.clone());
+    this.testMannequinBlue = this.playerModelManager.spawn(ENEMY_COLOR, pos.mannequin_blue.clone());
     this.scene.add(this.testMannequinBlue.scene);
     if (this.testMannequinBlue.helper) this.scene.add(this.testMannequinBlue.helper);
 
-    this.testMannequinGreen = this.playerModelManager.spawn(0x22cc44, pos.mannequin_green.clone());
+    this.testMannequinGreen = this.playerModelManager.spawn(ENEMY_COLOR, pos.mannequin_green.clone());
     this.scene.add(this.testMannequinGreen.scene);
     if (this.testMannequinGreen.helper) this.scene.add(this.testMannequinGreen.helper);
 
@@ -488,6 +490,20 @@ export default class MovementVisualizer {
 
   _buyableWeapons() {
     return [WeaponType.AK47, WeaponType.M4A1, WeaponType.SMG, WeaponType.SHOTGUN, WeaponType.SNIPER];
+  }
+
+  /**
+   * Start a fresh "vs bots" match from the landing menu with N opponents (1-3).
+   * Called by the landing page's Play button (a user gesture, so pointer lock +
+   * audio unlock are allowed here).
+   */
+  startVsBots(n) {
+    this.botCount = Math.max(1, Math.min(3, n || 3));
+    if (this.sfx) this.sfx.resume();
+    this._initMatch();        // round 1, $2000, buy phase, respawn N bots
+    this.matchActive = true;  // begin the round timer
+    document.body.requestPointerLock = document.body.requestPointerLock || document.body.mozRequestPointerLock;
+    document.body.requestPointerLock();
   }
 
   _initMatch() {
@@ -724,29 +740,33 @@ export default class MovementVisualizer {
       this.dyingSoldiers.length = 0;
     }
     const positions = this._botSpawnPositions();
-    const slots = [
-      ['mannequin_red', 0xcc2200, 'testMannequinRed'],
-      ['mannequin_blue', 0x2244cc, 'testMannequinBlue'],
-      ['mannequin_green', 0x22cc44, 'testMannequinGreen'],
+    // All opponents are the BLUE team (red vs blue); the IDs are just per-bot slots.
+    const ENEMY_COLOR = 0x2244cc;
+    const allSlots = [
+      ['mannequin_red', 'testMannequinRed'],
+      ['mannequin_blue', 'testMannequinBlue'],
+      ['mannequin_green', 'testMannequinGreen'],
     ];
-    for (const [id, color, prop] of slots) {
+    const count = Math.max(1, Math.min(3, this.botCount || 3));
+    this.hitboxSets = {};
+    allSlots.forEach(([id, prop], i) => {
       const old = this[prop];
       if (old) {
         if (old.scene && old.scene.parent) old.scene.parent.remove(old.scene);
         if (old.helper && old.helper.parent) old.helper.parent.remove(old.helper);
       }
-      const inst = this.playerModelManager.spawn(color, positions[id].clone());
-      this.scene.add(inst.scene);
-      if (inst.helper) this.scene.add(inst.helper);
-      if (this.tpRifleProto) this._armSoldier(inst);
-      this[prop] = inst;
-      if (this.damageSystem) this.damageSystem.resetPlayer(id);
-    }
-    this.hitboxSets = {
-      mannequin_red: createHitboxSet('mannequin_red'),
-      mannequin_blue: createHitboxSet('mannequin_blue'),
-      mannequin_green: createHitboxSet('mannequin_green'),
-    };
+      if (i < count) {
+        const inst = this.playerModelManager.spawn(ENEMY_COLOR, positions[id].clone());
+        this.scene.add(inst.scene);
+        if (inst.helper) this.scene.add(inst.helper);
+        if (this.tpRifleProto) this._armSoldier(inst);
+        this[prop] = inst;
+        if (this.damageSystem) this.damageSystem.resetPlayer(id);
+        this.hitboxSets[id] = createHitboxSet(id); // only spawned bots are targets
+      } else {
+        this[prop] = null; // unused slot for smaller squads
+      }
+    });
     this._initBots();
   }
 
@@ -865,8 +885,9 @@ export default class MovementVisualizer {
       this.combatFeedback.showEnemyMuzzleFlash(muzzle);
       this.combatFeedback.spawnTracer(muzzle, end);
     }
-    // Enemy gunshot, quieter and attenuated by distance.
-    if (this.sfx) this.sfx.gunshot(THREE.MathUtils.clamp(0.5 - dist * 0.008, 0.06, 0.5));
+    // Enemy gunshot: ONE short shot per round (not the full auto clip), quieter
+    // and attenuated by distance, so their bursts read as distinct shots.
+    if (this.sfx) this.sfx.oneShot('rifle', THREE.MathUtils.clamp(0.5 - dist * 0.008, 0.06, 0.5));
 
     if (!isHit || !this.damageSystem) return; // missed shot — no damage
 
@@ -1098,7 +1119,7 @@ export default class MovementVisualizer {
       // Firing sounds (per weapon visual name)
       rifle:    sc('sounds/guns/AK47 firing', 'sounds/rifle'),
       bullpup:  sc('sounds/guns/M4a1 firing', 'sounds/bullpup'), // M4A1 burst
-      smg:      sc('sounds/guns/smg firing', 'sounds/smg'),
+      smg:      sc('sounds/guns/SMG firing', 'sounds/smg'),
       shotgun:  sc('sounds/guns/Shotgun Fire', 'sounds/shotgun'),
       sniper:   sc('sounds/guns/sniper firing', 'sounds/sniper'),
       pistol:   sc('sounds/guns/pistol firing', 'sounds/pistol'),
@@ -1106,7 +1127,7 @@ export default class MovementVisualizer {
       // Reload sounds (key = '<weapon>_reload'); optional, no synth fallback
       rifle_reload:   sc('sounds/guns/AK47 reloading'),
       bullpup_reload: sc('sounds/guns/M4a1 reloading'),
-      smg_reload:     sc('sounds/guns/smg reloading'),
+      smg_reload:     sc('sounds/guns/SMG Reloading'),
       shotgun_reload: sc('sounds/guns/shotgun reloading'),
       sniper_reload:  sc('sounds/guns/sniper reloading'),
       shotgun_pump:   sc('sounds/guns/Shotgun cocking'),
@@ -1126,12 +1147,13 @@ export default class MovementVisualizer {
       match_won: vc('match_won'), match_lost: vc('match_lost'),
     });
 
-    // Request pointer lock
+    // Re-acquire pointer lock on click, but ONLY once a match is running (started
+    // from the landing menu). Before that, clicks belong to the menu UI.
     document.addEventListener('click', () => {
+      if (this.sfx) this.sfx.resume(); // unlock AudioContext on user gesture
+      if (!this.matchActive) return;
       document.body.requestPointerLock = document.body.requestPointerLock || document.body.mozRequestPointerLock;
       document.body.requestPointerLock();
-      if (this.sfx) this.sfx.resume(); // unlock AudioContext on user gesture
-      this.matchActive = true; // begin the round timer once the player is in
     });
 
     // Mouse movement
@@ -1804,8 +1826,8 @@ export default class MovementVisualizer {
     if (this.sfx) {
       const wn = this.fpWeapon && this.fpWeapon.currentWeaponName;
       this.sfx.voice('reloading', 'Reloading');           // "Reloading" callout
-      // Shotgun loads shell-by-shell; its clip has ~8 inserts — play only ~2.
-      const maxDur = (wn === 'shotgun') ? 1.4 : 2.0;
+      // Per-weapon reload-clip length: shotgun ~2 shell inserts, sniper first 4s.
+      const maxDur = (wn === 'shotgun') ? 1.4 : (wn === 'sniper') ? 4.0 : 2.0;
       this.sfx.reloadSound(wn, 0.9, maxDur);
     }
     this._updateAmmoHUD();

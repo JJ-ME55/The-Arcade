@@ -3,9 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FPS Arena - aim_ag_texture2</title>
+  <title>SHOOTOUT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet" />
   <style>
-    body { margin: 0; overflow: hidden; }
+    body { margin: 0; overflow: hidden; background: #000; }
     #info { position: absolute; left: 8px; top: 8px; color: #fff; font-family: Arial, Helvetica, sans-serif; z-index: 10; background: rgba(0,0,0,0.25); padding: 6px; border-radius: 4px; }
     #status { position: absolute; left: 8px; top: 44px; color: #fff; font-family: monospace; z-index: 10; background: rgba(0,0,0,0.35); padding: 6px; border-radius: 4px; white-space: pre; }
     #crosshair { position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin-left: -10px; margin-top: -10px; z-index: 5; pointer-events: none; }
@@ -17,22 +20,91 @@
     #ammo .reserve { font-size: 24px; color: rgba(255,255,255,0.6); }
     #ammo .weapon-name { font-size: 14px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 2px; }
     #ammo .reloading { font-size: 20px; color: #ffaa44; }
+
+    /* ===== Landing page ===== */
+    #landing {
+      position: fixed; inset: 0; z-index: 1000;
+      background: url('Website art/home page background.png') center/cover no-repeat, #1a1714;
+      display: flex; flex-direction: column; align-items: center;
+      font-family: 'Oswald', system-ui, sans-serif;
+    }
+    /* subtle dark gradient so the title + menu stay legible over the art */
+    #landing::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 28%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.72) 100%);
+    }
+    #landing .stack { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; width: 100%; }
+    .game-title {
+      margin: 7vh 0 0; font-family: 'Black Ops One', system-ui, sans-serif;
+      font-size: clamp(54px, 13vw, 180px); line-height: 0.95; letter-spacing: 0.05em;
+      background: linear-gradient(95deg, #ff2e22 0%, #ff7a52 42%, #5f9bff 58%, #1f47d6 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      filter: drop-shadow(0 6px 14px rgba(0,0,0,0.8));
+    }
+    .tagline {
+      margin: 6px 0 0; color: rgba(255,255,255,0.82); letter-spacing: 0.5em;
+      font-size: clamp(11px, 1.6vw, 18px); font-weight: 600; text-transform: uppercase;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.9); padding-left: 0.5em;
+    }
+    .menu {
+      position: absolute; bottom: 8vh; left: 50%; transform: translateX(-50%);
+      z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 18px;
+    }
+    .bots-row { display: flex; align-items: center; gap: 14px; }
+    .bots-label { color: #cfd6dd; letter-spacing: 0.25em; font-weight: 600; font-size: 14px; }
+    .bot-count { display: flex; gap: 8px; }
+    .bot-count button {
+      width: 46px; height: 46px; font-family: 'Oswald'; font-size: 20px; font-weight: 700;
+      color: #cfd6dd; background: rgba(20,26,34,0.8); border: 2px solid #3a4654;
+      border-radius: 8px; cursor: pointer; transition: all 0.12s;
+    }
+    .bot-count button:hover { border-color: #5f9bff; color: #fff; }
+    .bot-count button.sel { background: #b81d1d; border-color: #ff5a4d; color: #fff; }
+    .btn {
+      font-family: 'Oswald'; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+      cursor: pointer; border-radius: 10px; transition: all 0.12s; border: 2px solid transparent;
+    }
+    .btn-primary {
+      font-size: clamp(22px, 3vw, 30px); padding: 16px 56px; color: #fff;
+      background: linear-gradient(180deg, #d62828 0%, #951414 100%); border-color: #ff5a4d;
+      box-shadow: 0 8px 24px rgba(180,20,20,0.45);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(220,40,40,0.6); }
+    .btn-primary:disabled { filter: grayscale(0.7) brightness(0.6); cursor: default; transform: none; box-shadow: none; }
+    .btn-secondary {
+      font-size: clamp(15px, 2vw, 19px); padding: 11px 40px; color: #cfd6dd;
+      background: rgba(20,26,34,0.85); border-color: #3a4654;
+    }
+    .btn-secondary:hover { border-color: #5f9bff; color: #fff; }
   </style>
 </head>
 <body>
-  <div id="info">WASD move • Space jump • Shift crouch • R reload • 1/2/3 weapons • Click to lock</div>
+  <!-- In-game HUD (hidden behind the landing page until a match starts) -->
+  <div id="info">WASD move • Space jump • Shift crouch • R reload • B buy • Click to lock</div>
   <div id="ammo"></div>
-  <div id="status">Loading arena map...</div>
+  <div id="status">Loading arena…</div>
   <div id="crosshair"></div>
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-      "@dimforge/rapier3d-compat": "https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"
-    }
-  }
-  </script>
+
+  <!-- Landing / main menu -->
+  <div id="landing">
+    <div class="stack">
+      <h1 class="game-title">SHOOTOUT</h1>
+      <p class="tagline">Red vs Blue · Winner takes the pot</p>
+    </div>
+    <div class="menu">
+      <div class="bots-row">
+        <span class="bots-label">ENEMIES</span>
+        <div class="bot-count">
+          <button data-n="1">1</button>
+          <button data-n="2">2</button>
+          <button data-n="3" class="sel">3</button>
+        </div>
+      </div>
+      <button id="play-bots" class="btn btn-primary" disabled>Loading…</button>
+      <button id="play-mp" class="btn btn-secondary">Multiplayer</button>
+    </div>
+  </div>
+
   <script type="module">
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -45,7 +117,41 @@
 
     const container = document.body;
     const viz = new MovementVisualizer({ container, THREE, GLTFLoader, Octree, Capsule, PlayerModel, FirstPersonWeapon, RagdollSystem });
-    // viz.start() is called after map loads
+
+    // --- landing menu wiring ---
+    const landing = document.getElementById('landing');
+    const playBtn = document.getElementById('play-bots');
+    const mpBtn = document.getElementById('play-mp');
+    let selectedBots = 3;
+
+    document.querySelectorAll('#landing .bot-count button').forEach((b) => {
+      b.addEventListener('click', () => {
+        selectedBots = parseInt(b.dataset.n, 10);
+        document.querySelectorAll('#landing .bot-count button')
+          .forEach((x) => x.classList.toggle('sel', x === b));
+      });
+    });
+
+    // Enable Play once the arena/models have finished loading.
+    const ready = setInterval(() => {
+      if (viz._readyForMenu) {
+        clearInterval(ready);
+        playBtn.disabled = false;
+        playBtn.textContent = 'Play vs Bots';
+      }
+    }, 100);
+
+    playBtn.addEventListener('click', () => {
+      if (!viz._readyForMenu) return;
+      landing.style.display = 'none';
+      viz.startVsBots(selectedBots);
+    });
+
+    mpBtn.addEventListener('click', () => {
+      const orig = mpBtn.textContent;
+      mpBtn.textContent = 'Multiplayer — coming soon';
+      setTimeout(() => { mpBtn.textContent = orig; }, 1800);
+    });
   </script>
 </body>
 </html>
