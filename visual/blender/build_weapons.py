@@ -12,7 +12,12 @@ from mathutils import Vector
 GUNS = [
     # (source glb, output glb, target longest-dim metres)
     ("visual/blender/anims/guns/Assault Rifle.glb", "visual/rifle.glb", 0.90),
+    ("visual/blender/anims/guns/Bullpup.glb",       "visual/bullpup.glb", 0.78),
+    ("visual/blender/anims/guns/Submachine Gun.glb", "visual/smg.glb", 0.55),
+    ("visual/blender/anims/guns/Sniper Rifle.glb",  "visual/sniper.glb", 1.15),
+    ("visual/blender/anims/guns/Shotgun.glb",       "visual/shotgun.glb", 0.95),
     ("visual/blender/anims/guns/Pistol.glb",        "visual/pistol.glb", 0.22),
+    ("visual/blender/anims/guns/Revolver.glb",      "visual/revolver.glb", 0.28),
     ("visual/blender/anims/guns/Bayonet.glb",       "visual/knife.glb", 0.30),
 ]
 

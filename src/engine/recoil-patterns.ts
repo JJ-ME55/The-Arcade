@@ -87,6 +87,11 @@ export function getRecoilAngle(weaponType: WeaponType, shotIndex: number): { x: 
       // Wrap around if beyond pattern length
       return M4A1_PATTERN[shotIndex % M4A1_PATTERN.length];
 
+    case WeaponType.SMG:
+      // SMG: lighter, faster climb — reuse the M4 pattern at reduced magnitude.
+      const smg = M4A1_PATTERN[shotIndex % M4A1_PATTERN.length];
+      return { x: smg.x * 0.7, y: smg.y * 0.65 };
+
     case WeaponType.PISTOL:
       // Pistol has no fixed pattern, small upward kick with minor random horizontal
       return {

@@ -39,10 +39,21 @@ export class FirstPersonWeapon {
 
     // Weapon-specific offsets (tuned for Hand.R bone attachment)
     // Weapons built along X-axis in Blender, need -90deg Y rotation to point forward (-Z)
+    // Long guns share the tuned rifle grip (held the same way; each GLB is built
+    // to its own real length so they read proportionally). Pistol-class share the
+    // pistol grip. Fine-tune any individual gun in-engine with the G/IJKL tools.
+    const rifleGrip = { pos: [0.02, 0.00, 0.29], rot: [-0.60, -1.97, -0.50], scale: 1.611 };
     this.weaponOffsets = {
-      rifle:  { pos: [0.02, 0.00, 0.29], rot: [-0.60, -1.97, -0.50], scale: 1.611 },
-      pistol: { pos: [0, 0, -0.08], rot: [0, -Math.PI/2, 0], scale: 1 },
-      knife:  { pos: [0, 0, -0.05], rot: [Math.PI/2, -Math.PI/2, 0], scale: 1 },
+      rifle:   { ...rifleGrip },
+      bullpup: { ...rifleGrip },
+      smg:     { ...rifleGrip },
+      sniper:  { pos: [-0.12, 0.00, 0.40], rot: [0.00, -1.97, 0.00], scale: 1.30 },   // tuned
+      shotgun: { pos: [-0.02, 0.00, 0.36], rot: [-0.60, -1.97, -0.50], scale: 1.611 }, // tuned
+      // One-handed: natural pistol/knife orientation (barrel forward), held in the
+      // right hand. Starting base — tune in-engine from here.
+      pistol:  { pos: [0, 0, -0.08], rot: [0, -Math.PI/2, 0], scale: 1 },
+      revolver:{ pos: [0, 0, -0.08], rot: [0, -Math.PI/2, 0], scale: 1 },
+      knife:   { pos: [0, 0, -0.05], rot: [Math.PI/2, -Math.PI/2, 0], scale: 1 },
     };
 
     // Reload animation state
@@ -158,9 +169,10 @@ export class FirstPersonWeapon {
     this.fpArmsModel.position.set(0.16, -0.04, 0.00);
     this.fpArmsModel.rotation.set(-0.20, 3.50, -0.30);
     this.fpArmsModel.scale.setScalar(0.830);
-    // Baked per-piece fit (hinged arm pieces, tuned in-engine via the G/IJKL/arrow
-    // tune tools). Each is a child of fpArmsModel; values are local transforms.
-    const FP_PIECE_FIT = {
+    // Two-handed arm fit (hinged arm pieces, tuned in-engine via the G/IJKL/arrow
+    // tools). Each is a child of fpArmsModel; values are local transforms. Used by
+    // long guns where both hands hold the weapon.
+    this.fpTwoHandFit = {
       FP_upper_R: { pos: [0.05, 0.04, -0.38], rot: [0.00, 0.00, 0.00], scale: 1.000 },
       FP_fore_R:  { pos: [-0.13, -0.15, 0.12], rot: [0.00, 0.00, 0.00], scale: 1.000 },
       FP_hand_R:  { pos: [0.11, 0.10, 0.19], rot: [0.00, 0.00, 0.00], scale: 1.000 },
@@ -168,16 +180,36 @@ export class FirstPersonWeapon {
       FP_fore_L:  { pos: [-0.03, -0.11, 0.20], rot: [0.00, -0.10, 0.00], scale: 1.000 },
       FP_hand_L:  { pos: [-0.11, 0.12, 0.10], rot: [-1.30, -0.30, -5.30], scale: 1.089 },
     };
-    for (const [pieceName, fit] of Object.entries(FP_PIECE_FIT)) {
-      const piece = this.fpArmsModel.getObjectByName(pieceName);
-      if (piece) {
-        piece.position.set(...fit.pos);
-        piece.rotation.set(...fit.rot);
-        piece.scale.setScalar(fit.scale);
-      } else {
-        console.warn(`FP piece not found for baked fit: ${pieceName}`);
-      }
-    }
+    // One-handed fit (pistol/revolver/knife): left arm hidden, right arm swung
+    // forward/extended from the two-hand rest. First attempt at the rotations —
+    // refine in-engine (G -> FP_upper_R / FP_fore_R) and report to bake.
+    this.fpOneHandRightArm = {
+      FP_upper_R: { pos: [0.05, 0.04, -0.38], rot: [0.00, 0.00, 0.00], scale: 1.000 },
+      FP_fore_R:  { pos: [-0.13, -0.15, 0.12], rot: [0.00, 0.00, 0.00], scale: 1.000 },
+      FP_hand_R:  { pos: [0.11, 0.10, 0.19], rot: [0.00, 0.00, 0.00], scale: 1.000 },
+    };
+    // Per-weapon arm overrides (full 6-piece fit). A weapon listed here uses its
+    // own arm pose; others fall back to the shared two-hand / one-hand fit. This
+    // lets each gun be tuned independently without disturbing the rest.
+    this.weaponArmFits = {
+      shotgun: {
+        FP_upper_R: { pos: [0.05, 0.04, -0.38], rot: [0.00, 0.00, 0.00], scale: 1.000 },
+        FP_fore_R:  { pos: [-0.13, -0.15, 0.12], rot: [0.00, 0.00, 0.00], scale: 1.000 },
+        FP_hand_R:  { pos: [0.09, 0.10, 0.19], rot: [0.00, 0.00, 0.00], scale: 1.000 },
+        FP_upper_L: { pos: [0.23, 0.05, -0.04], rot: [6.60, 0.00, 0.00], scale: 1.000 },
+        FP_fore_L:  { pos: [-0.03, -0.11, 0.20], rot: [0.00, -0.10, 0.10], scale: 1.000 },
+        FP_hand_L:  { pos: [-0.11, 0.12, 0.10], rot: [-1.30, -0.30, -5.30], scale: 1.089 },
+      },
+      sniper: {
+        FP_upper_R: { pos: [0.05, 0.04, -0.34], rot: [0.00, 0.00, 0.00], scale: 1.000 },
+        FP_fore_R:  { pos: [-0.15, -0.15, 0.00], rot: [0.00, 0.00, 0.00], scale: 1.000 },
+        FP_hand_R:  { pos: [0.11, 0.10, 0.19], rot: [0.00, 0.00, 0.00], scale: 1.000 },
+        FP_upper_L: { pos: [0.21, 0.05, -0.08], rot: [6.60, -0.10, 0.00], scale: 1.000 },
+        FP_fore_L:  { pos: [-0.03, -0.11, 0.20], rot: [0.00, -0.10, 0.00], scale: 1.000 },
+        FP_hand_L:  { pos: [-0.11, 0.12, 0.10], rot: [-1.30, -0.30, -5.30], scale: 1.089 },
+      },
+    };
+    this._applyPieceFit(this.fpTwoHandFit);
     this.weaponCamera.add(this.weaponGroup);
     this.weaponScene.add(this.weaponCamera);
 
@@ -265,10 +297,49 @@ export class FirstPersonWeapon {
     this.currentWeaponName = name;
     this.currentWeaponModel = weaponModel;
 
+    // Pose the arms for this weapon (one-handed weapons hide the left arm).
+    this._applyArmPose(name);
+
     // Position muzzle flash based on weapon
     this._updateMuzzleFlashPosition(name);
 
     console.log(`Switched to weapon: ${name}`);
+  }
+
+  /** Apply a {pieceName: {pos,rot,scale}} fit to the hinged arm pieces. */
+  _applyPieceFit(fit) {
+    if (!this.fpArmsModel) return;
+    for (const [pieceName, f] of Object.entries(fit)) {
+      const piece = this.fpArmsModel.getObjectByName(pieceName);
+      if (!piece) continue;
+      piece.position.set(...f.pos);
+      piece.rotation.set(...f.rot);
+      piece.scale.setScalar(f.scale != null ? f.scale : 1);
+    }
+  }
+
+  _setLeftArmVisible(visible) {
+    if (!this.fpArmsModel) return;
+    const v = !!visible; // strict boolean — three.js culls only on visible === false
+    for (const n of ['FP_upper_L', 'FP_fore_L', 'FP_hand_L']) {
+      const p = this.fpArmsModel.getObjectByName(n);
+      if (p) p.visible = v;
+    }
+  }
+
+  /**
+   * Pose the FP arms for the given weapon. Pistol/revolver/knife are one-handed:
+   * hide the left arm and use the right-arm-only pose. Everything else is the
+   * two-handed long-gun grip.
+   */
+  _applyArmPose(name) {
+    const oneHanded = (name === 'pistol' || name === 'revolver' || name === 'knife');
+    const override = this.weaponArmFits && this.weaponArmFits[name];
+    // Left arm shown for two-handed weapons (and any override that poses it).
+    // NB: must be a strict boolean — three.js only culls when visible === false.
+    const showLeft = !oneHanded || !!(override && override.FP_upper_L);
+    this._setLeftArmVisible(showLeft);
+    this._applyPieceFit(override || (oneHanded ? this.fpOneHandRightArm : this.fpTwoHandFit));
   }
 
   /**
@@ -399,7 +470,10 @@ export class FirstPersonWeapon {
    */
   startReload(isEmpty, onAmmoRefill, onComplete) {
     const weaponName = this.currentWeaponName;
-    const kfData = this.reloadKeyframes[weaponName];
+    // Long guns reuse the rifle reload motion; pistol-class reuse the pistol's.
+    const pistolLike = (weaponName === 'pistol' || weaponName === 'revolver');
+    const kfData = this.reloadKeyframes[weaponName]
+      || (pistolLike ? this.reloadKeyframes.pistol : this.reloadKeyframes.rifle);
     if (!kfData) return;
 
     const type = isEmpty ? 'empty' : 'tactical';

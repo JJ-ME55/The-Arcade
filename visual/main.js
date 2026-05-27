@@ -274,7 +274,11 @@ export default class MovementVisualizer {
         this.fpWeapon = new this.FirstPersonWeapon(this.THREE, this.renderer);
         await this.fpWeapon.load(
           'fp_arms.glb',
-          { rifle: 'rifle.glb', pistol: 'pistol.glb', knife: 'knife.glb' }
+          {
+            rifle: 'rifle.glb', bullpup: 'bullpup.glb', smg: 'smg.glb',
+            sniper: 'sniper.glb', shotgun: 'shotgun.glb',
+            pistol: 'pistol.glb', revolver: 'revolver.glb', knife: 'knife.glb',
+          }
         );
         this.fpWeapon.switchWeapon('rifle'); // Default weapon visual
         const weaponLoadTime = performance.now() - weaponStartTime;
@@ -878,8 +882,17 @@ export default class MovementVisualizer {
     this.playerHeightStanding = 1.8; // m
     this.playerHeightCrouching = 1.2; // m
 
-    // Audio: synthesized SFX, resumed on the click gesture below.
+    // Audio: real samples when present (visual/sounds/), else synthesized fallback.
     this.sfx = new SoundFX();
+    this.sfx.registerSamples({
+      rifle:    ['sounds/rifle.mp3', 'sounds/rifle.wav', 'sounds/rifle.ogg'],
+      bullpup:  ['sounds/bullpup.mp3', 'sounds/bullpup.wav', 'sounds/bullpup.ogg'],
+      smg:      ['sounds/smg.mp3', 'sounds/smg.wav', 'sounds/smg.ogg'],
+      shotgun:  ['sounds/shotgun.mp3', 'sounds/shotgun.wav', 'sounds/shotgun.ogg'],
+      sniper:   ['sounds/sniper.mp3', 'sounds/sniper.wav', 'sounds/sniper.ogg'],
+      pistol:   ['sounds/pistol.mp3', 'sounds/pistol.wav', 'sounds/pistol.ogg'],
+      revolver: ['sounds/revolver.mp3', 'sounds/revolver.wav', 'sounds/revolver.ogg'],
+    });
 
     // Request pointer lock
     document.addEventListener('click', () => {
@@ -926,19 +939,22 @@ export default class MovementVisualizer {
       if (e.button === 2 && this.fpWeapon) {
         this.aiming = true;
         this._updateCrosshairScale();
+        this._updateScope();
       }
     });
     document.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.fireHeld = false;
-      if (e.button === 2) { this.aiming = false; this._updateCrosshairScale(); }
+      if (e.button === 2) { this.aiming = false; this._updateCrosshairScale(); this._updateScope(); }
     });
     // Prevent right-click context menu
     document.addEventListener('contextmenu', (e) => e.preventDefault());
 
     // ADS state
     this.aiming = false;
-    this.adsFov = 45;          // Zoomed-in FOV
+    this.adsFov = 45;          // Zoomed-in FOV (normal ironsights)
     this.normalFov = 75;       // Normal FOV
+    this.scopeFov = 21;        // Sniper scope (~4x magnification of normalFov)
+    this.scoped = false;       // true while aiming the sniper (scope overlay active)
     this.currentFov = 75;
 
     // CS:S-style viewpunch recoil system
@@ -959,6 +975,48 @@ export default class MovementVisualizer {
     this.crosshairEl.style.transform = this.aiming ? 'scale(0.5)' : 'scale(1)';
   }
 
+  /**
+   * Sniper scope: while aiming the sniper, zoom 4x and overlay a scope view
+   * (black tube + reticle). The HUD stays; the FP weapon and normal crosshair
+   * hide so you're "looking through the scope".
+   */
+  _updateScope() {
+    const isSniper = this.weaponSystem &&
+      this.weaponSystem.currentWeapon === WeaponType.SNIPER;
+    this.scoped = !!(this.aiming && isSniper);
+    this._ensureScopeOverlay();
+    if (this.scopeEl) this.scopeEl.style.display = this.scoped ? 'block' : 'none';
+    if (this.crosshairEl) this.crosshairEl.style.visibility = this.scoped ? 'hidden' : 'visible';
+    if (this.fpWeapon && this.fpWeapon.weaponGroup) {
+      this.fpWeapon.weaponGroup.visible = !this.scoped; // hide the gun while scoped
+    }
+  }
+
+  /** Build the sniper scope overlay once (circular tube vignette + reticle). */
+  _ensureScopeOverlay() {
+    if (this.scopeEl) return;
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;inset:0;z-index:45;pointer-events:none;display:none;';
+    // Black scope tube: transparent circular lens centred, solid black outside.
+    const mask = document.createElement('div');
+    mask.style.cssText = 'position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,' +
+      ' rgba(0,0,0,0) 0 36vh, rgba(0,0,0,0.35) 36vh 37vh, #000 37.6vh);';
+    // Thin reticle ring at the lens edge.
+    const ring = document.createElement('div');
+    ring.style.cssText = 'position:absolute;left:50%;top:50%;width:72vh;height:72vh;' +
+      'transform:translate(-50%,-50%);border:2px solid rgba(0,0,0,0.85);border-radius:50%;';
+    // Crosshair lines (span the lens, thin, with a small centre gap via two halves).
+    const mk = (css) => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;background:rgba(0,0,0,0.85);' + css; return d; };
+    const vTop = mk('left:50%;top:calc(50% - 36vh);width:1.5px;height:calc(36vh - 14px);transform:translateX(-50%);');
+    const vBot = mk('left:50%;top:calc(50% + 14px);width:1.5px;height:calc(36vh - 14px);transform:translateX(-50%);');
+    const hLeft = mk('top:50%;left:calc(50% - 36vh);height:1.5px;width:calc(36vh - 14px);transform:translateY(-50%);');
+    const hRight = mk('top:50%;left:calc(50% + 14px);height:1.5px;width:calc(36vh - 14px);transform:translateY(-50%);');
+    const dot = mk('left:50%;top:50%;width:3px;height:3px;border-radius:50%;transform:translate(-50%,-50%);');
+    el.append(mask, ring, vTop, vBot, hLeft, hRight, dot);
+    this.container.appendChild(el);
+    this.scopeEl = el;
+  }
+
   _initInput() {
     this.input = { forward: 0, right: 0, jumpPressed: false, jumpHeld: false, crouch: false };
     const keys = {};
@@ -969,19 +1027,16 @@ export default class MovementVisualizer {
       if (e.code === 'Space' && !prev) this.input.jumpPressed = true;
 
       // Weapon switching (1=rifle toggle AK/M4, 2=pistol, 3=knife)
-      if (e.code === 'Digit1' && this.fpWeapon && this.weaponSystem) {
-        // Toggle between AK-47 and M4A1
-        if (this.weaponSystem.currentWeapon === WeaponType.AK47) {
-          this._switchWeapon(WeaponType.M4A1);
-        } else if (this.weaponSystem.currentWeapon === WeaponType.M4A1) {
-          this._switchWeapon(WeaponType.AK47);
-        } else {
-          // From pistol/knife, default to AK-47
-          this._switchWeapon(WeaponType.AK47);
-        }
+      // Temporary number-key weapon switch for inspecting guns; the buy menu
+      // becomes the real selector once it's in. Pistol/revolver/knife (one-handed)
+      // are pulled from the playable set for now — code/models kept for later.
+      if (this.fpWeapon && this.weaponSystem) {
+        const quickKeys = {
+          Digit1: WeaponType.AK47, Digit2: WeaponType.M4A1, Digit3: WeaponType.SMG,
+          Digit4: WeaponType.SHOTGUN, Digit5: WeaponType.SNIPER,
+        };
+        if (quickKeys[e.code]) this._switchWeapon(quickKeys[e.code]);
       }
-      if (e.code === 'Digit2' && this.fpWeapon && this.weaponSystem) this._switchWeapon(WeaponType.PISTOL);
-      if (e.code === 'Digit3' && this.fpWeapon && this.weaponSystem) this._switchWeapon(WeaponType.KNIFE);
 
       // Reload
       if (e.code === 'KeyR' && this.weaponSystem) this._startReload();
@@ -1027,7 +1082,7 @@ export default class MovementVisualizer {
       // [P] dump every FP transform at once so nothing gets dropped on bake.
       if (e.code === 'KeyP' && this.fpWeapon) {
         const f = (o) => o ? `pos[${o.position.x.toFixed(3)},${o.position.y.toFixed(3)},${o.position.z.toFixed(3)}] rot[${o.rotation.x.toFixed(2)},${o.rotation.y.toFixed(2)},${o.rotation.z.toFixed(2)}] scale${o.scale.x.toFixed(3)}` : 'none';
-        console.log('=== FP DUMP ===\n' + FP_TARGETS.map((n) => '  ' + n + ' ' + f(fpTargetObj(n))).join('\n'));
+        console.log(`=== FP DUMP [weapon: ${this.fpWeapon.currentWeaponName}] ===\n` + FP_TARGETS.map((n) => '  ' + n + ' ' + f(fpTargetObj(n))).join('\n'));
       }
       {
         const name = FP_TARGETS[this.fpTuneIdx || 0];
@@ -1049,7 +1104,7 @@ export default class MovementVisualizer {
           else if (e.code === 'Minus') wg.scale.multiplyScalar(0.9);
           else if (e.code === 'Equal') wg.scale.multiplyScalar(1.1);
           else t = false;
-          if (t) console.log(`FP[${name}] pos=[${wg.position.x.toFixed(2)},${wg.position.y.toFixed(2)},${wg.position.z.toFixed(2)}] rot=[${wg.rotation.x.toFixed(2)},${wg.rotation.y.toFixed(2)},${wg.rotation.z.toFixed(2)}] scale=${wg.scale.x.toFixed(3)}`);
+          if (t) console.log(`FP[${this.fpWeapon.currentWeaponName}/${name}] pos=[${wg.position.x.toFixed(2)},${wg.position.y.toFixed(2)},${wg.position.z.toFixed(2)}] rot=[${wg.rotation.x.toFixed(2)},${wg.rotation.y.toFixed(2)},${wg.rotation.z.toFixed(2)}] scale=${wg.scale.x.toFixed(3)}`);
         }
       }
 
@@ -1114,18 +1169,7 @@ export default class MovementVisualizer {
     }
 
     // Update hitbox positions from mannequin bone transforms
-    if (this.testMannequinRed && this.hitboxSets) {
-      const bonePositions = this._extractBoneWorldPositions(this.testMannequinRed);
-      updateHitboxPositions(this.hitboxSets.mannequin_red, bonePositions);
-    }
-    if (this.testMannequinBlue && this.hitboxSets) {
-      const bonePositions = this._extractBoneWorldPositions(this.testMannequinBlue);
-      updateHitboxPositions(this.hitboxSets.mannequin_blue, bonePositions);
-    }
-    if (this.testMannequinGreen && this.hitboxSets) {
-      const bonePositions = this._extractBoneWorldPositions(this.testMannequinGreen);
-      updateHitboxPositions(this.hitboxSets.mannequin_green, bonePositions);
-    }
+    this._refreshHitboxes();
 
     // Hitbox wireframe overlay (toggle with H)
     if (this.hitboxSets) {
@@ -1448,19 +1492,40 @@ export default class MovementVisualizer {
     }
 
     this._updateAmmoHUD();
+    this._updateScope(); // un-scope if we switched away from the sniper
+  }
+
+  /**
+   * Sync each live mannequin's hitboxes to its CURRENT bone world positions.
+   * Called every sim tick AND right before the player's hitscan, so a fast scoped
+   * shot at a moving target tests where the model actually is this instant (not a
+   * tick behind, which made far/zoomed headshots on moving bots slip through).
+   */
+  _refreshHitboxes() {
+    if (!this.hitboxSets) return;
+    const pairs = [
+      [this.testMannequinRed, 'mannequin_red'],
+      [this.testMannequinBlue, 'mannequin_blue'],
+      [this.testMannequinGreen, 'mannequin_green'],
+    ];
+    for (const [inst, id] of pairs) {
+      if (inst && this.hitboxSets[id]) {
+        updateHitboxPositions(this.hitboxSets[id], this._extractBoneWorldPositions(inst));
+      }
+    }
   }
 
   _weaponTypeToVisualName(weaponType) {
     switch (weaponType) {
-      case WeaponType.AK47:
-      case WeaponType.M4A1:
-        return 'rifle'; // Both rifles use same visual model for now
-      case WeaponType.PISTOL:
-        return 'pistol';
-      case WeaponType.KNIFE:
-        return 'knife';
-      default:
-        return 'rifle';
+      case WeaponType.AK47:    return 'rifle';
+      case WeaponType.M4A1:    return 'bullpup'; // distinct rifle model from the AK
+      case WeaponType.SMG:     return 'smg';
+      case WeaponType.SHOTGUN: return 'shotgun';
+      case WeaponType.SNIPER:  return 'sniper';
+      case WeaponType.PISTOL:  return 'pistol';
+      case WeaponType.REVOLVER:return 'revolver';
+      case WeaponType.KNIFE:   return 'knife';
+      default:                 return 'rifle';
     }
   }
 
@@ -1526,7 +1591,7 @@ export default class MovementVisualizer {
 
     // Trigger FP weapon visual effect
     this.fpWeapon.fire();
-    if (this.sfx) this.sfx.gunshot(0.85);
+    if (this.sfx) this.sfx.shoot(this.fpWeapon.currentWeaponName, 0.85);
 
     // Recoil PATTERN drives viewpunch only (it kicks the view, which recovers via
     // decay). The bullet itself goes where the crosshair points + inaccuracy
@@ -1549,10 +1614,10 @@ export default class MovementVisualizer {
     this.camera.getWorldDirection(camDir);
 
     // Inaccuracy spread only (zero when standing still with a settled crosshair,
-    // so a dead-on shot lands at any range).
-    const spread = this.accuracyModel
-      ? this.accuracyModel.getSpreadAngle(fireResult.weaponType, this.input.crouch)
-      : { x: 0, y: 0 };
+    // so a dead-on shot lands at any range). Scoped sniper is braced = pinpoint.
+    const spread = (this.scoped || !this.accuracyModel)
+      ? { x: 0, y: 0 }
+      : this.accuracyModel.getSpreadAngle(fireResult.weaponType, this.input.crouch);
     const pitchAxis = new this.THREE.Vector3(1, 0, 0);
     pitchAxis.applyQuaternion(this.camera.quaternion);
     camDir.applyAxisAngle(pitchAxis, spread.y * Math.PI / 180);
@@ -1561,6 +1626,10 @@ export default class MovementVisualizer {
 
     camDir.normalize();
     const rayDir = { x: camDir.x, y: camDir.y, z: camDir.z };
+
+    // Sync hitboxes to the bots' current positions THIS instant (they move in the
+    // render loop; the tick-based update can be a frame behind for a fast shot).
+    this._refreshHitboxes();
 
     // Test hitscan against all targets
     const targets = [];
@@ -1938,8 +2007,8 @@ export default class MovementVisualizer {
     if (Math.abs(this.punchAngle.x) < 0.0001) this.punchAngle.x = 0;
     if (Math.abs(this.punchAngle.y) < 0.0001) this.punchAngle.y = 0;
 
-    // ADS: smooth FOV transition
-    const targetFov = this.aiming ? this.adsFov : this.normalFov;
+    // ADS: smooth FOV transition (sniper scope zooms 4x via scopeFov)
+    const targetFov = this.scoped ? this.scopeFov : (this.aiming ? this.adsFov : this.normalFov);
     this.currentFov += (targetFov - this.currentFov) * Math.min(1, delta * 12);
     this.camera.fov = this.currentFov;
     this.camera.updateProjectionMatrix();

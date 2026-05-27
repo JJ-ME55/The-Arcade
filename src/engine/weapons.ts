@@ -4,7 +4,11 @@ type Vec3 = { x: number; y: number; z: number };
 export enum WeaponType {
   AK47 = 'AK47',
   M4A1 = 'M4A1',
+  SMG = 'SMG',
+  SHOTGUN = 'SHOTGUN',
+  SNIPER = 'SNIPER',
   PISTOL = 'PISTOL',
+  REVOLVER = 'REVOLVER',
   KNIFE = 'KNIFE',
 }
 
@@ -28,6 +32,9 @@ export interface WeaponConfig {
   drawTime: number;      // Draw animation time (seconds)
   movementSpeed: number; // Movement speed modifier (u/s)
   hasAmmo: boolean;      // Does this weapon use ammo?
+  price: number;         // Buy-menu cost ($)
+  displayName: string;   // Buy-menu label
+  category: 'rifle' | 'smg' | 'heavy' | 'sniper' | 'pistol' | 'knife';
 }
 
 // Weapon configurations (CS:S authentic from CONTEXT.md)
@@ -42,6 +49,9 @@ const WEAPON_CONFIGS: Record<WeaponType, WeaponConfig> = {
     drawTime: 0.7,
     movementSpeed: 215,
     hasAmmo: true,
+    price: 2500,
+    displayName: 'AK-47',
+    category: 'rifle',
   },
   [WeaponType.M4A1]: {
     type: WeaponType.M4A1,
@@ -53,6 +63,51 @@ const WEAPON_CONFIGS: Record<WeaponType, WeaponConfig> = {
     drawTime: 0.7,
     movementSpeed: 221,
     hasAmmo: true,
+    price: 3100,
+    displayName: 'M4A1',
+    category: 'rifle',
+  },
+  [WeaponType.SMG]: {
+    type: WeaponType.SMG,
+    fireRate: 0.07,       // ~860 RPM, high rate, lower damage
+    baseDamage: 26,
+    magazine: 30,
+    reserve: 120,
+    reloadTime: 2.2,
+    drawTime: 0.6,
+    movementSpeed: 235,
+    hasAmmo: true,
+    price: 1250,
+    displayName: 'SMG',
+    category: 'smg',
+  },
+  [WeaponType.SHOTGUN]: {
+    type: WeaponType.SHOTGUN,
+    fireRate: 0.8,        // Pump action
+    baseDamage: 90,       // High close-range (single hitscan model)
+    magazine: 8,
+    reserve: 32,
+    reloadTime: 3.0,
+    drawTime: 0.7,
+    movementSpeed: 210,
+    hasAmmo: true,
+    price: 1100,
+    displayName: 'Shotgun',
+    category: 'heavy',
+  },
+  [WeaponType.SNIPER]: {
+    type: WeaponType.SNIPER,
+    fireRate: 1.2,        // Bolt action
+    baseDamage: 115,      // One-shot body kill
+    magazine: 10,
+    reserve: 30,
+    reloadTime: 3.5,
+    drawTime: 0.9,
+    movementSpeed: 200,
+    hasAmmo: true,
+    price: 4750,
+    displayName: 'Sniper',
+    category: 'sniper',
   },
   [WeaponType.PISTOL]: {
     type: WeaponType.PISTOL,
@@ -64,6 +119,23 @@ const WEAPON_CONFIGS: Record<WeaponType, WeaponConfig> = {
     drawTime: 0.5,
     movementSpeed: 240,
     hasAmmo: true,
+    price: 0,             // Default sidearm (free)
+    displayName: 'Pistol',
+    category: 'pistol',
+  },
+  [WeaponType.REVOLVER]: {
+    type: WeaponType.REVOLVER,
+    fireRate: 0.4,        // Hard-hitting sidearm
+    baseDamage: 51,
+    magazine: 8,
+    reserve: 24,
+    reloadTime: 2.3,
+    drawTime: 0.6,
+    movementSpeed: 235,
+    hasAmmo: true,
+    price: 600,
+    displayName: 'Revolver',
+    category: 'pistol',
   },
   [WeaponType.KNIFE]: {
     type: WeaponType.KNIFE,
@@ -75,6 +147,9 @@ const WEAPON_CONFIGS: Record<WeaponType, WeaponConfig> = {
     drawTime: 0.25,
     movementSpeed: 250,
     hasAmmo: false,
+    price: 0,
+    displayName: 'Knife',
+    category: 'knife',
   },
 };
 
