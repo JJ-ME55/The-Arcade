@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build / dev caches
+dist/
+.vite/
+*.tsbuildinfo
+
+# Local tooling / config (not for the shared repo)
+.claude/
+.mcp.json
+
+# Blender backup files (keep the .blend sources, drop the auto-backups)
+*.blend1
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log

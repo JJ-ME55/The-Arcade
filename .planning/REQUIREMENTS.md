@@ -49,10 +49,10 @@
 
 ### Visual Quality (VISUAL)
 
-- [ ] **VISUAL-01**: Higher-fidelity weapon models (rifle, pistol, knife) with better proportions and detail
-- [ ] **VISUAL-02**: Improved first-person arms with better geometry and materials
-- [ ] **VISUAL-03**: Enhanced mannequin model with more defined proportions and cleaner geometry
-- [ ] **VISUAL-04**: Consistent art style across all player-visible models (cohesive low-poly aesthetic)
+- [ ] **VISUAL-01**: Realistic weapon models (rifle, pistol, knife) with accurate proportions and detail, commercially licensed
+- [ ] **VISUAL-02**: Realistic first-person arms with proper geometry and materials (gloves/sleeves), matching the soldier style
+- [ ] **VISUAL-03**: Realistic human soldier player/opponent model with clear RED/BLUE team identification, rigged to drive the existing procedural animations and Rapier ragdoll
+- [ ] **VISUAL-04**: Consistent realistic art style across all player-visible models; all assets commercially licensed (safe to ship in a real-money game)
 
 ### Rounds & Match Flow (MATCH)
 
