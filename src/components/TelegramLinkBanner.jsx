@@ -5,122 +5,116 @@ const DISMISS_KEY = 'arcade_tg_link_banner_dismissed';
 
 /**
  * TelegramLinkBanner — shown when useArcadeSessionMint returns
- * `tg_not_linked`. The user is signed in to Privy but hasn't linked
- * their Telegram — so the server can't issue a session JWT, and
- * scores from this play session won't land on the leaderboard.
- *
- * CTA opens @SolShotGG_bot with `/start link` for the existing link
- * flow. Banner is dismissable for the session.
- *
- * Rendered at the BOTTOM of the screen so it doesn't fight the game
- * canvas. Pointer-events: auto so dismiss + CTA work over the game.
+ * `tg_not_linked`. v2 brand restyled — paper card with ink border
+ * and brass top accent, IBM Plex Mono CTA.
  */
 export function TelegramLinkBanner() {
-    const [dismissed, setDismissed] = useState(() => {
-        try {
-            return sessionStorage.getItem(DISMISS_KEY) === '1';
-        } catch {
-            return false;
-        }
-    });
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return sessionStorage.getItem(DISMISS_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
 
-    if (dismissed) return null;
+  if (dismissed) return null;
 
-    const handleDismiss = () => {
-        setDismissed(true);
-        try {
-            sessionStorage.setItem(DISMISS_KEY, '1');
-        } catch {
-            /* sessionStorage unavailable — dismiss only for component lifetime */
-        }
-    };
+  const handleDismiss = () => {
+    setDismissed(true);
+    try {
+      sessionStorage.setItem(DISMISS_KEY, '1');
+    } catch {
+      /* sessionStorage unavailable — dismiss only for component lifetime */
+    }
+  };
 
-    return (
-        <div role="status" style={styles.root}>
-            <span style={styles.icon} aria-hidden>📲</span>
-            <span style={styles.message}>
-                <strong style={styles.title}>Free-play mode.</strong>{' '}
-                Link your Telegram to track scores on the leaderboard.
-            </span>
-            <a
-                href={SOLSHOT_BOT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={styles.cta}
-            >
-                Link Telegram ↗
-            </a>
-            <button
-                type="button"
-                onClick={handleDismiss}
-                aria-label="Dismiss"
-                style={styles.dismiss}
-            >
-                ×
-            </button>
+  return (
+    <div role="status" style={styles.root}>
+      <div style={styles.body}>
+        <div style={styles.title}>· FREE PLAY MODE ·</div>
+        <div style={styles.message}>
+          Link your Telegram to track scores on the leaderboard.
         </div>
-    );
+      </div>
+      <a
+        href={SOLSHOT_BOT_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={styles.cta}
+      >
+        ▸ Link Telegram
+      </a>
+      <button
+        type="button"
+        onClick={handleDismiss}
+        aria-label="Dismiss"
+        style={styles.dismiss}
+      >
+        ×
+      </button>
+    </div>
+  );
 }
 
 const styles = {
-    root: {
-        position: 'absolute',
-        left: 'max(env(safe-area-inset-left, 0px), 12px)',
-        right: 'max(env(safe-area-inset-right, 0px), 12px)',
-        bottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '10px 14px',
-        background: 'rgba(10, 6, 6, 0.92)',
-        border: '1px solid rgba(255, 210, 58, 0.45)',
-        borderRadius: 8,
-        color: '#F5E6CC',
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-        fontSize: 13,
-        lineHeight: 1.35,
-        boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)',
-        zIndex: 20,
-        pointerEvents: 'auto',
-        WebkitBackdropFilter: 'blur(4px)',
-        backdropFilter: 'blur(4px)',
-    },
-    icon: {
-        fontSize: 18,
-        flexShrink: 0,
-    },
-    message: {
-        flex: 1,
-        minWidth: 0,
-    },
-    title: {
-        color: '#FFD23A',
-        fontWeight: 700,
-    },
-    cta: {
-        display: 'inline-block',
-        padding: '6px 12px',
-        background: 'linear-gradient(180deg, #FFD23A 0%, #FF8A1F 100%)',
-        color: '#0A0606',
-        textDecoration: 'none',
-        borderRadius: 5,
-        fontWeight: 800,
-        fontSize: 12,
-        letterSpacing: 0.4,
-        whiteSpace: 'nowrap',
-        WebkitTapHighlightColor: 'transparent',
-    },
-    dismiss: {
-        background: 'transparent',
-        border: 'none',
-        color: '#F5E6CC',
-        fontSize: 22,
-        lineHeight: 1,
-        padding: '0 4px',
-        cursor: 'pointer',
-        opacity: 0.7,
-        WebkitTapHighlightColor: 'transparent',
-    },
+  root: {
+    position: 'absolute',
+    left: 'max(env(safe-area-inset-left, 0px), 12px)',
+    right: 'max(env(safe-area-inset-right, 0px), 12px)',
+    bottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: '10px 14px',
+    background: 'var(--paper)',
+    border: '1.5px solid var(--ink)',
+    borderTop: '3px solid var(--brass)',
+    color: 'var(--ink)',
+    fontFamily: '"DM Sans", Inter, system-ui, sans-serif',
+    zIndex: 20,
+    pointerEvents: 'auto',
+  },
+  body: {
+    flex: 1,
+    minWidth: 0,
+  },
+  title: {
+    fontFamily: '"IBM Plex Mono", ui-monospace, monospace',
+    fontSize: 9,
+    letterSpacing: '0.22em',
+    color: 'var(--brass-deep)',
+    textTransform: 'uppercase',
+    fontWeight: 700,
+    marginBottom: 3,
+  },
+  message: {
+    fontSize: 12.5,
+    color: 'var(--ink-70)',
+    lineHeight: 1.4,
+  },
+  cta: {
+    padding: '8px 14px',
+    background: 'var(--ink)',
+    color: 'var(--paper)',
+    textDecoration: 'none',
+    fontFamily: '"IBM Plex Mono", ui-monospace, monospace',
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.14em',
+    textTransform: 'uppercase',
+    whiteSpace: 'nowrap',
+    WebkitTapHighlightColor: 'transparent',
+  },
+  dismiss: {
+    background: 'transparent',
+    border: 'none',
+    color: 'var(--ink-45)',
+    fontSize: 20,
+    lineHeight: 1,
+    padding: '0 4px',
+    cursor: 'pointer',
+    WebkitTapHighlightColor: 'transparent',
+  },
 };
 
 export default TelegramLinkBanner;

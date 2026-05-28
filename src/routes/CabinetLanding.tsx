@@ -1,13 +1,16 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useArcadeAuth } from '@/wallet/useAuth';
+import { Logo } from '@/components/brand';
 
 /**
- * Pre-auth landing. Full-bleed dark page with the brand wordmark
- * and tagline; tap-to-sign-in via Privy. Placeholder visual until
- * Fish wires the real cabinet artwork.
+ * CabinetLanding — pre-auth `/` route.
  *
- * On successful Privy sign-in, redirects to /dashboard.
+ * v2 brand: paper-cream surface with the locked logo as the visual
+ * anchor. Sign-in opens Privy modal. On successful auth, redirects
+ * to /play.
+ *
+ * Replaces the old fire-gradient placeholder with the editorial brand.
  */
 export function CabinetLanding() {
   const auth = useArcadeAuth();
@@ -15,7 +18,7 @@ export function CabinetLanding() {
 
   useEffect(() => {
     if (auth.ready && auth.authenticated) {
-      navigate('/dashboard', { replace: true });
+      navigate('/play', { replace: true });
     }
   }, [auth.ready, auth.authenticated, navigate]);
 
@@ -23,80 +26,100 @@ export function CabinetLanding() {
     <main
       style={{
         minHeight: '100dvh',
+        background: 'var(--bg)',
+        color: 'var(--ink)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         padding: 'var(--space-8)',
         textAlign: 'center',
-        background:
-          'radial-gradient(ellipse at center, rgba(122, 15, 15, 0.4) 0%, var(--arcade-black) 70%)',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
-      <h1
+      {/* subtle radial glow behind the logo for depth */}
+      <div
+        aria-hidden
         style={{
-          fontSize: 'clamp(2.5rem, 8vw, 5rem)',
-          letterSpacing: '0.08em',
-          background: 'var(--fire-gradient)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          marginBottom: 'var(--space-6)',
+          position: 'absolute',
+          inset: 0,
+          background:
+            'radial-gradient(ellipse 60% 50% at 50% 40%, rgba(91,134,224,0.10) 0%, transparent 70%)',
+          pointerEvents: 'none',
         }}
-      >
-        THE ARCADE
-      </h1>
+      />
 
-      <p
-        style={{
-          fontFamily: 'var(--font-subhead)',
-          fontSize: 'clamp(1rem, 2.5vw, 1.5rem)',
-          letterSpacing: '0.2em',
-          color: 'var(--accent)',
-          marginBottom: 'var(--space-12)',
-          textTransform: 'uppercase',
-        }}
-      >
-        Play. Wager. Win. On Solana.
-      </p>
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <Logo variant="blue" height={92} />
 
-      <button
-        type="button"
-        onClick={auth.login}
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '1rem',
-          padding: 'var(--space-4) var(--space-8)',
-          background: 'var(--fire-gradient)',
-          color: 'var(--arcade-black)',
-          border: 'none',
-          borderRadius: 'var(--radius-md)',
-          boxShadow: '0 4px 0 var(--shadow-deep)',
-          letterSpacing: '0.1em',
-          transition: 'transform 100ms ease, box-shadow 100ms ease',
-        }}
-        onMouseDown={(e) => {
-          e.currentTarget.style.transform = 'translateY(2px)';
-          e.currentTarget.style.boxShadow = '0 2px 0 var(--shadow-deep)';
-        }}
-        onMouseUp={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = '0 4px 0 var(--shadow-deep)';
-        }}
-      >
-        Insert Coin
-      </button>
+        <p
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 12,
+            letterSpacing: '0.32em',
+            color: 'var(--brass-deep)',
+            textTransform: 'uppercase',
+            fontWeight: 700,
+            margin: '32px 0 8px',
+          }}
+        >
+          · Play · Wager · Win · On Solana ·
+        </p>
 
-      <p
-        style={{
-          marginTop: 'var(--space-12)',
-          fontSize: '0.75rem',
-          color: 'var(--paper-warm)',
-          opacity: 0.6,
-        }}
-      >
-        Scaffold v0 · placeholder cabinet · real artwork by Fish
-      </p>
+        <p
+          style={{
+            margin: '8px 0 var(--space-12)',
+            fontSize: 14,
+            color: 'var(--ink-70)',
+            maxWidth: 420,
+            lineHeight: 1.5,
+          }}
+        >
+          A games-first arcade on Solana rails. Cabinets, wagers, tickets, and prizes —
+          all on-chain, all paper-light.
+        </p>
+
+        <button
+          type="button"
+          onClick={auth.login}
+          style={{
+            padding: '14px 32px',
+            background: 'var(--ink)',
+            color: 'var(--paper)',
+            border: '1.5px solid var(--ink)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 12,
+            letterSpacing: '0.22em',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            transition: 'background-color 120ms ease, transform 100ms ease',
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = 'translateY(1px)';
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          ▸ Insert Coin
+        </button>
+
+        <p
+          style={{
+            marginTop: 36,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 9,
+            letterSpacing: '0.22em',
+            color: 'var(--ink-45)',
+            textTransform: 'uppercase',
+            fontWeight: 700,
+          }}
+        >
+          · The Arcade · Floor 1 · Now Open ·
+        </p>
+      </div>
     </main>
   );
 }

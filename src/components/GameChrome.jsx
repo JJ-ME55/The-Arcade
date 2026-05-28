@@ -2,26 +2,23 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 /**
- * GameChrome — overlay buttons rendered on top of any game scene.
+ * GameChrome — overlay buttons rendered on top of any game scene
+ * (basketball / keepie-uppies / free-kicks). v2 brand restyled —
+ * paper buttons with ink labels, no emoji.
  *
- *   ← Arcade   (top-left, navigates to /dashboard)
- *   🔊 / 🔇    (top-right, toggles mute via onMute callback)
+ *   ← Arcade   (top-left, navigates to /play — the dashboard)
+ *   Audio toggle (top-right, calls onMute callback)
  *
  * The mute callback is supplied by the parent because the audio
  * interface differs per engine (Phaser uses `game.sound.mute`,
- * Three.js doesn't have a built-in audio context, etc.). The chrome
- * just owns the toggle state + UI.
- *
- * Pass `initialMuted` if you want to seed the visual state to match
- * persisted user preference. We don't persist by default — fresh load,
- * sound on.
+ * Three.js doesn't have a built-in audio context).
  */
 export function GameChrome({ onMute, initialMuted = false }) {
   const navigate = useNavigate();
   const [muted, setMuted] = useState(initialMuted);
 
   const handleForfeit = () => {
-    navigate('/dashboard');
+    navigate('/play');
   };
 
   const handleMuteToggle = () => {
@@ -47,7 +44,7 @@ export function GameChrome({ onMute, initialMuted = false }) {
         aria-label={muted ? 'Unmute' : 'Mute'}
         aria-pressed={muted}
       >
-        {muted ? '🔇' : '🔊'}
+        {muted ? 'AUDIO · OFF' : 'AUDIO · ON'}
       </button>
     </>
   );
@@ -55,36 +52,31 @@ export function GameChrome({ onMute, initialMuted = false }) {
 
 const baseButton = {
   position: 'absolute',
-  top: 'max(env(safe-area-inset-top, 0px), 8px)',
+  top: 'max(env(safe-area-inset-top, 0px), 10px)',
   padding: '8px 12px',
-  borderRadius: 6,
-  background: 'rgba(0, 0, 0, 0.6)',
-  border: '1px solid rgba(255, 255, 255, 0.15)',
-  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-  fontSize: 13,
+  background: 'var(--paper)',
+  border: '1.5px solid var(--ink)',
+  color: 'var(--ink)',
+  fontFamily: '"IBM Plex Mono", ui-monospace, monospace',
+  fontSize: 10,
   fontWeight: 700,
-  letterSpacing: 0.5,
+  letterSpacing: '0.14em',
+  textTransform: 'uppercase',
   cursor: 'pointer',
   zIndex: 10,
   WebkitTapHighlightColor: 'transparent',
   userSelect: 'none',
+  lineHeight: 1,
 };
 
 const styles = {
   forfeit: {
     ...baseButton,
-    left: 'max(env(safe-area-inset-left, 0px), 8px)',
-    color: '#FFD23A',
-    borderColor: 'rgba(255, 210, 58, 0.45)',
+    left: 'max(env(safe-area-inset-left, 0px), 10px)',
   },
   mute: {
     ...baseButton,
-    right: 'max(env(safe-area-inset-right, 0px), 8px)',
-    color: '#ffffff',
-    fontSize: 16,
-    padding: '6px 10px',
-    minWidth: 36,
-    textAlign: 'center',
+    right: 'max(env(safe-area-inset-right, 0px), 10px)',
   },
 };
 

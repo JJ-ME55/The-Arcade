@@ -3,39 +3,26 @@ import { useEffect, useState } from 'react';
 const SOLSHOT_URL = import.meta.env.VITE_SOLSHOT_WEB_URL ?? 'https://solshot.gg';
 
 /**
- * Interstitial that mints a session JWT from the SolShot server's
- * `/api/arcade/session-handoff` endpoint, then full-page redirects
- * to solshot.gg with the token appended as `?arcade_token=...`.
+ * SolShotRedirect — `/play/solshot`. Interstitial that bounces out to
+ * solshot.gg. Eventually mints a session-handoff JWT so the SolShot
+ * client picks up the user's Privy identity without re-auth; for now
+ * just full-page redirects.
  *
- * The SolShot client reads the token from URL, validates it via the
- * server, provisions a Privy session, strips the query param.
- *
- * Token TTL: 10 min, single-use (same pattern as existing
- * `walletLinkTokens.js` in the SolShot server).
- *
- * Fish: replace the mock token mint with the real `mintSolShotSessionToken`
- * call from `@/api/client` once the server endpoint is live.
+ * v2 brand styling.
  */
 export function SolShotRedirect() {
-  const [status, setStatus] = useState<'minting' | 'redirecting' | 'error'>('minting');
+  const [status, setStatus] = useState<'redirecting' | 'error'>('redirecting');
 
   useEffect(() => {
     let cancelled = false;
-
-    async function go() {
-      try {
-        // TODO(fish): swap to real mintSolShotSessionToken once server
-        // endpoint is live. Until then, redirect without token — SolShot
-        // will show its own sign-in prompt.
-        if (cancelled) return;
+    try {
+      if (!cancelled) {
         setStatus('redirecting');
         window.location.href = SOLSHOT_URL;
-      } catch {
-        if (!cancelled) setStatus('error');
       }
+    } catch {
+      if (!cancelled) setStatus('error');
     }
-
-    void go();
     return () => {
       cancelled = true;
     };
@@ -45,6 +32,8 @@ export function SolShotRedirect() {
     <main
       style={{
         minHeight: '100dvh',
+        background: 'var(--bg)',
+        color: 'var(--ink)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -53,14 +42,38 @@ export function SolShotRedirect() {
         textAlign: 'center',
       }}
     >
-      <h1 style={{ color: 'var(--accent)', marginBottom: 'var(--space-4)' }}>SolShot</h1>
-      <p style={{ opacity: 0.8, marginBottom: 'var(--space-6)' }}>
+      <h1
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 48,
+          color: 'var(--ink)',
+          letterSpacing: '0.01em',
+          textTransform: 'uppercase',
+          marginBottom: 14,
+        }}
+      >
+        SolShot
+      </h1>
+      <p style={{ color: 'var(--ink-70)', marginBottom: 24, maxWidth: 360, lineHeight: 1.5 }}>
         {status === 'error'
           ? "Couldn't open SolShot — try again."
           : 'Opening SolShot — your callsign comes with you.'}
       </p>
-      <a href={SOLSHOT_URL} style={{ color: 'var(--accent-hot)' }}>
-        Continue manually →
+      <a
+        href={SOLSHOT_URL}
+        style={{
+          padding: '10px 22px',
+          background: 'var(--ink)',
+          color: 'var(--paper)',
+          textDecoration: 'none',
+          fontFamily: 'var(--font-mono)',
+          fontSize: 11,
+          letterSpacing: '0.18em',
+          fontWeight: 700,
+          textTransform: 'uppercase',
+        }}
+      >
+        Continue Manually →
       </a>
     </main>
   );
