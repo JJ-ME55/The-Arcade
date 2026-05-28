@@ -1,5 +1,7 @@
 // @ts-nocheck — JSX-heavy route composing the v2 dashboard sections.
+import { useState } from 'react';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { PORTAL_GAMES } from '@/data/games-fixtures';
 import { FeaturedCabinet } from '@/components/dashboard/FeaturedCabinet';
 import { TheFloor } from '@/components/dashboard/TheFloor';
 import { TopScores } from '@/components/dashboard/TopScores';
@@ -17,20 +19,26 @@ import { ComingUp } from '@/components/dashboard/ComingUp';
  *
  * Per handoff dashboard §1.
  *
+ * Cabinet rotation state is owned here so FeaturedCabinet + TopScores
+ * stay synced — Top Scores shows the live leaderboard for whichever
+ * game is currently in the hero.
+ *
  * Continue Playing section deferred — needs server endpoint
  * (recent games per user). Surface this in a follow-up when the
  * /api/arcade/continue-playing/:uid endpoint lands.
  */
 export function Dashboard() {
   const isMobile = useIsMobile();
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeGame = PORTAL_GAMES[activeIndex];
 
   if (isMobile) {
     return (
       <main style={styles.mobileRoot}>
-        <FeaturedCabinet />
+        <FeaturedCabinet activeIndex={activeIndex} setActiveIndex={setActiveIndex} />
         <div style={{ padding: '16px 14px 0' }}>
           <TheFloor />
-          <TopScores />
+          <TopScores activeGame={activeGame} />
           <PrizeCounterMini />
           <LiveWagers />
           <Browse />
@@ -48,12 +56,12 @@ export function Dashboard() {
         <WhosPlaying />
       </aside>
       <section style={styles.center}>
-        <FeaturedCabinet />
+        <FeaturedCabinet activeIndex={activeIndex} setActiveIndex={setActiveIndex} />
         <TheFloor />
         <ComingUp />
       </section>
       <aside style={styles.rightColumn}>
-        <TopScores />
+        <TopScores activeGame={activeGame} />
         <PrizeCounterMini />
         <LiveWagers />
       </aside>

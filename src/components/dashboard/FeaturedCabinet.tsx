@@ -1,5 +1,7 @@
-// @ts-nocheck — placeholder cabinet art until designer ships per-game heroes.
-import { useEffect, useState } from 'react';
+// @ts-nocheck — JSX-heavy; cabinet cycling state lives in the Dashboard
+// parent so the TopScores widget can sync its leaderboard to the
+// currently-featured game.
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PORTAL_GAMES } from '@/data/games-fixtures';
 
@@ -11,25 +13,32 @@ const CYCLE_MS = 4500;
  *
  * Left 58% of the card holds the editorial: genre label, Krona One
  * game name (82px), tagline, two CTAs (WAGER filled-blue + FREE PLAY
- * outline-paper). Right side reserved for game art (designer ships
- * per-game hero assets later — currently a neutral wash).
+ * outline-paper). Right side holds the studio hero illustration with
+ * an ink-to-transparent gradient so the editorial reads cleanly.
+ *
+ * State is lifted to Dashboard so TopScores can subscribe to the
+ * active cabinet and pull live leaderboard rows for that game.
  *
  * Top-right has a brass-dashed "CABINET 0X" stamp rotated -7°.
  * Bottom 5px blue accent rule.
  */
-export function FeaturedCabinet() {
-  const [index, setIndex] = useState(0);
+interface FeaturedCabinetProps {
+  activeIndex: number;
+  setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
+}
+
+export function FeaturedCabinet({ activeIndex, setActiveIndex }: FeaturedCabinetProps) {
   const navigate = useNavigate();
 
   useEffect(() => {
     const id = setInterval(() => {
-      setIndex((i) => (i + 1) % PORTAL_GAMES.length);
+      setActiveIndex((i) => (i + 1) % PORTAL_GAMES.length);
     }, CYCLE_MS);
     return () => clearInterval(id);
-  }, []);
+  }, [setActiveIndex]);
 
-  const featured = PORTAL_GAMES[index];
-  const cabinetNum = String(index + 1).padStart(2, '0');
+  const featured = PORTAL_GAMES[activeIndex];
+  const cabinetNum = String(activeIndex + 1).padStart(2, '0');
 
   return (
     <article
@@ -243,13 +252,13 @@ export function FeaturedCabinet() {
           <button
             key={i}
             type="button"
-            onClick={() => setIndex(i)}
+            onClick={() => setActiveIndex(i)}
             aria-label={`Show cabinet ${i + 1}`}
             style={{
               width: 7,
               height: 7,
               borderRadius: '50%',
-              background: i === index ? 'var(--brass-glint)' : 'rgba(251,252,254,0.3)',
+              background: i === activeIndex ? 'var(--brass-glint)' : 'rgba(251,252,254,0.3)',
               border: 'none',
               cursor: 'pointer',
               padding: 0,
