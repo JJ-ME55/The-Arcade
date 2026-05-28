@@ -20,11 +20,11 @@ export interface NavCategory {
 }
 
 export const NAV_CATEGORIES: NavCategory[] = [
-  { id: 'home',   label: 'Home',         count: 0, active: true, to: '/dashboard' },
-  { id: 'play',   label: 'Play',         count: 4,                to: '/dashboard' },
-  { id: 'prizes', label: 'Prizes',       count: 0, soon: true },
-  { id: 'wallet', label: 'Wallet',       count: 0, soon: true },
-  { id: 'board',  label: 'Leaderboard',  count: 0,                to: '/leaderboards' },
+  { id: 'home',   label: 'Home',         count: 0, active: true, to: '/play' },
+  { id: 'play',   label: 'Play',         count: 4,                to: '/play' },
+  { id: 'prizes', label: 'Prizes',       count: 0,                to: '/prizes' },
+  { id: 'wallet', label: 'Wallet',       count: 0,                to: '/wallet' },
+  { id: 'board',  label: 'Leaderboard',  count: 0,                to: '/leaderboard' },
 ];
 
 export interface FloorStat {

@@ -21,16 +21,17 @@ interface TabDef {
 }
 
 const TABS: TabDef[] = [
-  { id: 'home',   label: 'Home',   icon: '⌂', to: '/dashboard' },
-  { id: 'play',   label: 'Play',   icon: '▸', to: '/dashboard' },
+  { id: 'home',   label: 'Home',   icon: '⌂', to: '/play' },
+  { id: 'play',   label: 'Play',   icon: '▸', to: '/play' },
   { id: 'prize',  label: 'Prizes', icon: '◉', to: '/prizes' },
   { id: 'wallet', label: 'Wallet', icon: '◫', to: '/wallet' },
-  { id: 'board',  label: 'Board',  icon: '#', to: '/leaderboards' },
+  { id: 'board',  label: 'Board',  icon: '#', to: '/leaderboard' },
 ];
 
 function isActive(currentPath: string, tabPath: string): boolean {
-  if (tabPath === '/dashboard') {
-    return currentPath === '/dashboard' || currentPath === '/play';
+  if (tabPath === '/play') {
+    // /play covers the dashboard + the game-detail surface
+    return currentPath === '/play' || currentPath.startsWith('/play/');
   }
   return currentPath.startsWith(tabPath);
 }
