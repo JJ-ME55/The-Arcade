@@ -6,6 +6,8 @@ import { Wager } from '@/routes/Wager';
 import { Profile } from '@/routes/Profile';
 import { Me } from '@/routes/Me';
 import { About } from '@/routes/About';
+import { Prizes } from '@/routes/Prizes';
+import { Wallet } from '@/routes/Wallet';
 import { SolShotRedirect } from '@/routes/SolShotRedirect';
 import { RequireAuth } from '@/routes/RequireAuth';
 import { AppShell } from '@/components/chrome/AppShell';
@@ -34,6 +36,8 @@ export function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/leaderboards" element={<Leaderboards />} />
           <Route path="/leaderboards/:game" element={<Leaderboards />} />
+          <Route path="/prizes" element={<Prizes />} />
+          <Route path="/wallet" element={<Wallet />} />
           <Route path="/profile/:callsign" element={<Profile />} />
           <Route path="/me" element={<Me />} />
           <Route path="/wager" element={<Wager />} />
