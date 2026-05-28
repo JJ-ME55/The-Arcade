@@ -34,9 +34,8 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     stake: '0.01+',
     yield: 50,
     hi: '142,089',
-    heroSrc: '/assets/games/hero/solshot.jpg',
-    // square image, tank+fire centered slightly low
-    heroFocus: 'center 60%',
+    heroSrc: '/assets/games/hero/solshot.webp',
+    heroFocus: 'center',
   },
   {
     slug: 'basketball',
@@ -48,9 +47,8 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     stake: '0.01+',
     yield: 30,
     hi: '38',
-    heroSrc: '/assets/games/hero/basketball.jpg',
-    // portrait — bias to lower half (player + court action)
-    heroFocus: 'center 70%',
+    heroSrc: '/assets/games/hero/basketball.webp',
+    heroFocus: 'center',
   },
   {
     slug: 'free-kicks',
@@ -62,9 +60,8 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     stake: '0.01+',
     yield: 25,
     hi: '11',
-    heroSrc: '/assets/games/hero/free-kicks.jpg',
-    // portrait — wall + ball is mid-image
-    heroFocus: 'center 60%',
+    heroSrc: '/assets/games/hero/free-kicks.webp',
+    heroFocus: 'center',
   },
   {
     slug: 'keepie-uppies',
@@ -76,9 +73,8 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     stake: '0.01+',
     yield: 20,
     hi: '208',
-    heroSrc: '/assets/games/hero/keepie-uppies.jpg',
-    // portrait — player + ball mid-image
-    heroFocus: 'center 60%',
+    heroSrc: '/assets/games/hero/keepie-uppies.webp',
+    heroFocus: 'center',
   },
 ];
 
