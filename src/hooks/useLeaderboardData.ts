@@ -48,10 +48,12 @@ function estimatePrize(rank: number): string {
 }
 
 export interface UseLeaderboardOptions {
-  /** API slug, or null to use placeholder. */
-  api?: 'basketball' | 'keepieuppies' | 'freekicks';
-  /** Time window — server is all-time-only for now. Other windows fall
-   *  back to all-time data with a flag the UI can surface. */
+  /** API slug, or null to use placeholder.
+   *  `overall` hits the cross-game aggregator endpoint. */
+  api?: 'basketball' | 'keepieuppies' | 'freekicks' | 'overall';
+  /** Time window. `24h` / `7d` send a `?since=<iso>` param; the server
+   *  filters to users whose all-time best was achieved in that window
+   *  (semantic note documented in standaloneLeaderboard.js). */
   window?: '24h' | '7d' | 'all';
   /** Current user's name (for `you` flag highlight). */
   myName?: string | null;
@@ -67,12 +69,21 @@ export interface UseLeaderboardResult {
   placeholder: boolean;
 }
 
+const WINDOW_MS = {
+  '24h': 24 * 60 * 60 * 1000,
+  '7d': 7 * 24 * 60 * 60 * 1000,
+  all: 0,
+} as const;
+
 /**
  * useLeaderboardData — fetches real top-N from the SolShot server's
- * /api/games/<slug>/leaderboard endpoint, maps to the v2 StandingRow
- * shape. Caller falls back to LEADERBOARD_STANDINGS placeholder when
- * `placeholder` returns true (no api slug, or window != 'all', or
- * fetch failed).
+ * leaderboard endpoints:
+ *   - api = 'overall'        → /api/games/leaderboard
+ *   - api = per-game slug    → /api/games/<slug>/leaderboard
+ *
+ * `window` of 24h/7d adds `?since=<iso>`. Maps the server response to
+ * the v2 StandingRow shape. Caller falls back to placeholder when
+ * `placeholder` is true (no api slug, fetch failed, or empty result).
  */
 export function useLeaderboardData({
   api,
@@ -84,7 +95,7 @@ export function useLeaderboardData({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canFetch = Boolean(api && API_BASE && timeWindow === 'all');
+  const canFetch = Boolean(api && API_BASE);
 
   useEffect(() => {
     if (!canFetch) {
@@ -96,7 +107,18 @@ export function useLeaderboardData({
     setLoading(true);
     setError(null);
 
-    fetch(`${API_BASE}/api/games/${api}/leaderboard?limit=${limit}`)
+    const path =
+      api === 'overall'
+        ? '/api/games/leaderboard'
+        : `/api/games/${api}/leaderboard`;
+
+    const windowMs = WINDOW_MS[timeWindow] ?? 0;
+    const sinceParam =
+      windowMs > 0
+        ? `&since=${encodeURIComponent(new Date(Date.now() - windowMs).toISOString())}`
+        : '';
+
+    fetch(`${API_BASE}${path}?limit=${limit}${sinceParam}`)
       .then((r) => r.json() as Promise<ServerResponse>)
       .then((data) => {
         if (cancelled) return;

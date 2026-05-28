@@ -433,11 +433,14 @@ function PodiumSlot({ rank, row, size, winner }: any) {
    ============================================================ */
 function Standings({ rows, placeholder, cabinetLabel, window: timeWindow }: any) {
   const isMobile = useIsMobile();
+  const windowLabel =
+    timeWindow === '24h' ? '24h' : timeWindow === '7d' ? '7d' : 'all-time';
   const sub = placeholder
-    ? timeWindow !== 'all'
-      ? `${rows.length} ranked · ${timeWindow.toUpperCase()} window — placeholder data`
-      : `${rows.length} ranked · ${cabinetLabel || 'Overall'} — placeholder data`
-    : `${rows.length} ranked · ${cabinetLabel} · all-time`;
+    ? `${rows.length} ranked · ${cabinetLabel || 'Overall'} — placeholder data`
+    : `${rows.length} ranked · ${cabinetLabel} · ${windowLabel}`;
+  // Overall ranks players by total plays across all cabinets; the value in
+  // `score` is a play-count, so re-label the column to match.
+  const scoreColumnLabel = cabinetLabel === 'Overall' && !placeholder ? 'Plays' : 'Score';
   return (
     <Section title="Standings" sub={sub}>
       <div
@@ -463,7 +466,7 @@ function Standings({ rows, placeholder, cabinetLabel, window: timeWindow }: any)
         >
           <span>#</span>
           <span>Player</span>
-          <span style={{ textAlign: 'right' }}>Score</span>
+          <span style={{ textAlign: 'right' }}>{scoreColumnLabel}</span>
           {!isMobile && <span style={{ textAlign: 'right' }}>Prize</span>}
           <span style={{ textAlign: 'right' }}>Δ</span>
         </div>

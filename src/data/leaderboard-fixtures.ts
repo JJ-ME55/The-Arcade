@@ -67,15 +67,17 @@ export const PRIZE_TIERS: PrizeTier[] = [
 export interface CabinetTab {
   id: string;
   label: string;
-  /** API slug for /api/games/<api>/leaderboard. Empty = not yet wired
-   *  (overall = no aggregator endpoint yet; solshot = lives on the
-   *  separate SolShot server, not this arcade hub). */
-  api?: 'basketball' | 'keepieuppies' | 'freekicks';
+  /** API slug for the leaderboard hook. `overall` hits the cross-game
+   *  aggregator endpoint (`/api/games/leaderboard`). Per-game slugs map
+   *  to `/api/games/<slug>/leaderboard`. Tabs without an `api` value
+   *  fall back to placeholder data — currently `solshot`, which uses
+   *  gold/prestige instead of a single score and lives at solshot.gg. */
+  api?: 'basketball' | 'keepieuppies' | 'freekicks' | 'overall';
   to?: string;
 }
 
 export const CABINET_TABS: CabinetTab[] = [
-  { id: 'overall',       label: 'Overall' },
+  { id: 'overall',       label: 'Overall',       api: 'overall' },
   { id: 'solshot',       label: 'SolShot' },
   { id: 'basketball',    label: 'Basketball',    api: 'basketball' },
   { id: 'free-kicks',    label: 'Free Kicks',    api: 'freekicks' },
