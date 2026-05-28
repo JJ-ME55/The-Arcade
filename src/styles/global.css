@@ -15,9 +15,9 @@ body,
 
 body {
   background: var(--bg);
-  color: var(--fg);
+  color: var(--ink);
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -25,12 +25,12 @@ body {
 }
 
 a {
-  color: var(--accent);
+  color: var(--blue);
   text-decoration: none;
 }
 
 a:hover {
-  color: var(--accent-hot);
+  color: var(--cobalt);
 }
 
 button {
@@ -38,6 +38,9 @@ button {
   cursor: pointer;
 }
 
+/* Headlines use Krona One per handoff §Type Stack. Components set
+   specific sizes inline / via CSS modules — this is just the
+   family default. line-height 1 + uppercase happens per-element. */
 h1,
 h2,
 h3,

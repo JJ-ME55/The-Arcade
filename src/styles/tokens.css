@@ -1,47 +1,52 @@
 /* The Arcade — brand tokens.
-   Palette per THE_ARCADE_v1_DESIGN.md §Visual Identity.
-   Fire gradient (yellow → orange → red, top-to-bottom) is the
-   defining mark; Solana colours stay tightly scoped to "this is
-   on Solana" cues. */
+   v2 locked brand per design handoff 2026-05-28.
+   Cream-paper editorial register · navy ink · cobalt accent · brass for money.
+
+   Brass is reserved for money, tickets, ceremonial seals, identity rings,
+   corner brackets, and shelf tacks. Never use brass for body text, large
+   numerals (other than ticket counts), nav active states, headlines,
+   or backgrounds. */
 
 :root {
-  /* Core palette */
-  --arcade-black: #0a0606;
-  --arcade-yellow: #ffd23a;
-  --arcade-orange: #ff8a1f;
-  --arcade-red: #e62e2e;
-  --arcade-deep-red: #7a0f0f;
-  --solana-purple: #9945ff;
-  --solana-teal: #14f195;
-  --paper-warm: #f5e6cc;
+  /* Ink scale — primary text, borders */
+  --ink:           #15203A;
+  --ink-deep:      #0E1A2E;
+  --ink-rich:      #1F2E55;
+  --ink-70:        rgba(21, 32, 58, 0.72);
+  --ink-45:        rgba(21, 32, 58, 0.45);
 
-  /* Semantic */
-  --bg: var(--arcade-black);
-  --fg: var(--paper-warm);
-  --accent: var(--arcade-yellow);
-  --accent-hot: var(--arcade-orange);
-  --accent-live: var(--arcade-red);
-  --shadow-deep: var(--arcade-deep-red);
+  /* Paper / surface */
+  --paper:         #FBFCFE;
+  --cream:         #F4F1EA;
+  --bg:            #EFF2F7;
 
-  /* Fire gradient (display headings, CTAs) */
-  --fire-gradient: linear-gradient(180deg,
-    var(--arcade-yellow) 0%,
-    var(--arcade-orange) 50%,
-    var(--arcade-red) 100%);
+  /* Blue / accent */
+  --blue:          #3866C8;
+  --blue-bright:   #5B86E0;
+  --cobalt:        #2D4FAA;
 
-  /* Typography stack — sourcing TBD per §Visual Identity. Stub stack
-     so scaffold renders cleanly; Fish swaps in real pixel face when
-     brand assets land. */
-  --font-display: 'Press Start 2P', 'VT323', 'Courier New', monospace;
-  --font-subhead: 'Anton', 'Bebas Neue', system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Brass (money, tickets, hardware only) */
+  --brass:         #C8A063;
+  --brass-deep:    #9B7A4A;
+  --brass-glint:   #E8C879;
 
-  /* Surface */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 16px;
+  /* Status */
+  --win:           #3F7D38;
+  --lose:          #C44A3A;
 
-  /* Spacing scale */
+  /* Lines */
+  --hair:          rgba(21, 32, 58, 0.22);
+
+  /* Semantic aliases (existing components migrate to these) */
+  --fg:            var(--ink);
+  --accent:        var(--blue);
+
+  /* Typography — Krona One display, DM Sans body, IBM Plex Mono */
+  --font-display:  'Krona One', 'Big Shoulders Display', sans-serif;
+  --font-body:     'DM Sans', Inter, system-ui, sans-serif;
+  --font-mono:     'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Pragmatic spacing (no formal scale per handoff §Spacing) */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -49,4 +54,26 @@
   --space-6: 24px;
   --space-8: 32px;
   --space-12: 48px;
+
+  /* No rounded corners on UI chrome per handoff. Kept here for any
+     incidental rounding (e.g. profile avatars are circles). */
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-circle: 50%;
+}
+
+/* Global animations from the design package */
+@keyframes portalTickerScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes arcadeBlinkPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.25; }
+}
+
+.blink {
+  animation: arcadeBlinkPulse 1s ease-in-out infinite;
 }
