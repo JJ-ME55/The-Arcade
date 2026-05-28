@@ -67,15 +67,19 @@ export const PRIZE_TIERS: PrizeTier[] = [
 export interface CabinetTab {
   id: string;
   label: string;
+  /** API slug for /api/games/<api>/leaderboard. Empty = not yet wired
+   *  (overall = no aggregator endpoint yet; solshot = lives on the
+   *  separate SolShot server, not this arcade hub). */
+  api?: 'basketball' | 'keepieuppies' | 'freekicks';
   to?: string;
 }
 
 export const CABINET_TABS: CabinetTab[] = [
-  { id: 'overall',     label: 'Overall' },
-  { id: 'solshot',     label: 'SolShot' },
-  { id: 'basketball',  label: 'Basketball' },
-  { id: 'free-kicks',  label: 'Free Kicks' },
-  { id: 'keepie-uppies', label: 'Keepie Uppies' },
+  { id: 'overall',       label: 'Overall' },
+  { id: 'solshot',       label: 'SolShot' },
+  { id: 'basketball',    label: 'Basketball',    api: 'basketball' },
+  { id: 'free-kicks',    label: 'Free Kicks',    api: 'freekicks' },
+  { id: 'keepie-uppies', label: 'Keepie Uppies', api: 'keepieuppies' },
 ];
 
 export interface TimeWindow {

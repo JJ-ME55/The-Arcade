@@ -2,6 +2,8 @@
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useArcadeAuth } from '@/wallet/useAuth';
+import { useLeaderboardData } from '@/hooks/useLeaderboardData';
 import { Section } from '@/components/brand';
 import {
   LEADERBOARD_STANDINGS,
@@ -34,12 +36,24 @@ export function Leaderboards() {
   const { game: gameParam } = useParams<{ game?: string }>();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const auth = useArcadeAuth();
 
   const [activeCabinet, setActiveCabinet] = useState(gameParam || 'overall');
-  const [activeWindow, setActiveWindow] = useState<'24h' | '7d' | 'all'>('24h');
+  const [activeWindow, setActiveWindow] = useState<'24h' | '7d' | 'all'>('all');
 
-  const rows = LEADERBOARD_STANDINGS;
+  // Real data when a specific cabinet is selected + window=all (server
+  // only supports all-time). Placeholder otherwise.
+  const activeCabinetDef = CABINET_TABS.find((c) => c.id === activeCabinet);
+  const live = useLeaderboardData({
+    api: activeCabinetDef?.api,
+    window: activeWindow,
+    myName: auth.callsign,
+    limit: 10,
+  });
+
+  const rows: StandingRow[] = live.rows ?? LEADERBOARD_STANDINGS;
   const top3 = useMemo(() => rows.slice(0, 3), [rows]);
+  const usingPlaceholder = live.placeholder;
 
   return (
     <main
@@ -61,7 +75,22 @@ export function Leaderboards() {
         }}
         onWindow={setActiveWindow}
       />
-      <Podium top3={top3} isMobile={isMobile} />
+      {live.loading && (
+        <div
+          style={{
+            padding: '20px 0',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            letterSpacing: '0.18em',
+            color: 'var(--ink-45)',
+            textTransform: 'uppercase',
+            fontWeight: 700,
+          }}
+        >
+          · Loading standings ·
+        </div>
+      )}
+      {!live.loading && rows.length >= 3 && <Podium top3={top3} isMobile={isMobile} />}
 
       <div
         style={{
@@ -72,7 +101,7 @@ export function Leaderboards() {
           rowGap: 28,
         }}
       >
-        <Standings rows={rows} />
+        <Standings rows={rows} placeholder={usingPlaceholder} cabinetLabel={activeCabinetDef?.label} window={activeWindow} />
         <Rail />
       </div>
     </main>
@@ -402,10 +431,15 @@ function PodiumSlot({ rank, row, size, winner }: any) {
 /* ============================================================
    STANDINGS
    ============================================================ */
-function Standings({ rows }: { rows: StandingRow[] }) {
+function Standings({ rows, placeholder, cabinetLabel, window: timeWindow }: any) {
   const isMobile = useIsMobile();
+  const sub = placeholder
+    ? timeWindow !== 'all'
+      ? `${rows.length} ranked · ${timeWindow.toUpperCase()} window — placeholder data`
+      : `${rows.length} ranked · ${cabinetLabel || 'Overall'} — placeholder data`
+    : `${rows.length} ranked · ${cabinetLabel} · all-time`;
   return (
-    <Section title="Standings" sub={`${rows.length} ranked · top 200 paid`}>
+    <Section title="Standings" sub={sub}>
       <div
         style={{
           background: 'var(--paper)',
