@@ -43,18 +43,32 @@ export function FeaturedCabinet() {
         borderBottom: '5px solid var(--blue)',
       }}
     >
-      {/* placeholder art wash — replaced by per-game hero asset later */}
-      <div
+      {/* studio hero art fills the cabinet */}
+      <img
+        src={featured.heroSrc}
+        alt={`${featured.name} hero`}
         style={{
           position: 'absolute',
           inset: 0,
-          background: `
-            radial-gradient(circle at 80% 50%, rgba(91,134,224,0.18) 0%, transparent 60%),
-            radial-gradient(circle at 70% 80%, rgba(200,160,99,0.10) 0%, transparent 50%),
-            linear-gradient(135deg, var(--ink-deep) 0%, var(--ink-rich) 100%)
-          `,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          objectPosition: featured.heroFocus || 'center',
+          display: 'block',
         }}
+      />
+
+      {/* left-to-right ink-to-transparent gradient so the editorial
+          content panel (left 58%) reads cleanly over the studio art */}
+      <div
         aria-hidden
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'linear-gradient(90deg, var(--ink) 0%, rgba(21,32,58,0.85) 35%, rgba(21,32,58,0.35) 65%, transparent 100%)',
+          pointerEvents: 'none',
+        }}
       />
 
       {/* CABINET stamp */}

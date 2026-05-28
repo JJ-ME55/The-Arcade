@@ -88,35 +88,31 @@ function CabinetTile({ game }: { game: ArcadeGame }) {
         )}
       </header>
 
-      {/* art area — 16:10, placeholder wash */}
+      {/* art area — 16:10 cabinet screen */}
       <div
         style={{
           position: 'relative',
           paddingTop: '62.5%',
-          background:
-            'linear-gradient(135deg, var(--ink-deep) 0%, var(--ink-rich) 100%)',
+          background: 'var(--ink-deep)',
           border: '2px solid var(--ink)',
+          overflow: 'hidden',
         }}
       >
-        {/* game-name watermark in art area until real art lands */}
-        <div
+        {/* studio hero art fills the screen area */}
+        <img
+          src={game.heroSrc}
+          alt={`${game.name} cabinet art`}
+          loading="lazy"
           style={{
             position: 'absolute',
             inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: 'var(--font-display)',
-            fontSize: 'clamp(1rem, 3vw, 1.5rem)',
-            color: 'rgba(251,252,254,0.18)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            textAlign: 'center',
-            padding: '0 12px',
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: game.heroFocus || 'center',
+            display: 'block',
           }}
-        >
-          {game.name}
-        </div>
+        />
 
         {/* live player count pill */}
         <div

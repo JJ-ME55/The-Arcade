@@ -112,25 +112,27 @@ function Marquee({ game, isMobile }: { game: ArcadeGame; isMobile: boolean }) {
         borderBottom: '4px solid var(--brass)',
       }}
     >
-      {/* placeholder hero art wash — replaced by per-game asset later */}
-      <div
+      {/* studio hero art fills the marquee */}
+      <img
+        src={game.heroSrc}
+        alt={`${game.name} marquee`}
         style={{
           position: 'absolute',
           inset: 0,
-          background: `
-            radial-gradient(circle at 80% 50%, rgba(91,134,224,0.22) 0%, transparent 60%),
-            radial-gradient(circle at 70% 80%, rgba(200,160,99,0.14) 0%, transparent 50%),
-            linear-gradient(135deg, var(--ink-deep) 0%, var(--ink-rich) 100%)
-          `,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          objectPosition: game.heroFocus || 'center',
+          display: 'block',
         }}
-        aria-hidden
       />
       <div
         style={{
           position: 'absolute',
           inset: 0,
           background:
-            'linear-gradient(90deg, var(--ink) 0%, rgba(21,32,58,0.78) 35%, rgba(21,32,58,0.15) 75%, transparent 100%)',
+            'linear-gradient(90deg, var(--ink) 0%, rgba(21,32,58,0.85) 35%, rgba(21,32,58,0.35) 70%, transparent 100%)',
+          pointerEvents: 'none',
         }}
         aria-hidden
       />

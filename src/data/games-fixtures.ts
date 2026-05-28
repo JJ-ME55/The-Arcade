@@ -17,6 +17,10 @@ export interface ArcadeGame {
   stake: string;
   yield: number;
   hi: string;
+  /** Hero illustration (studio-provided art). Vite serves from /public. */
+  heroSrc: string;
+  /** Where to bias the cropped focal area. Defaults to center. */
+  heroFocus?: string;
 }
 
 export const PORTAL_GAMES: ArcadeGame[] = [
@@ -30,6 +34,9 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     stake: '0.01+',
     yield: 50,
     hi: '142,089',
+    heroSrc: '/assets/games/hero/solshot.jpg',
+    // square image, tank+fire centered slightly low
+    heroFocus: 'center 60%',
   },
   {
     slug: 'basketball',
@@ -41,6 +48,9 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     stake: '0.01+',
     yield: 30,
     hi: '38',
+    heroSrc: '/assets/games/hero/basketball.jpg',
+    // portrait — bias to lower half (player + court action)
+    heroFocus: 'center 70%',
   },
   {
     slug: 'free-kicks',
@@ -52,6 +62,9 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     stake: '0.01+',
     yield: 25,
     hi: '11',
+    heroSrc: '/assets/games/hero/free-kicks.jpg',
+    // portrait — wall + ball is mid-image
+    heroFocus: 'center 60%',
   },
   {
     slug: 'keepie-uppies',
@@ -63,6 +76,9 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     stake: '0.01+',
     yield: 20,
     hi: '208',
+    heroSrc: '/assets/games/hero/keepie-uppies.jpg',
+    // portrait — player + ball mid-image
+    heroFocus: 'center 60%',
   },
 ];
 
