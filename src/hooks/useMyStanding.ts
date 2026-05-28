@@ -10,10 +10,23 @@ const API_BASE = import.meta.env.VITE_SOLSHOT_API_BASE;
  * verify cross-game, but the *payload* is identical and the standing
  * endpoint is public (rank is already visible on the leaderboard), so
  * decoding client-side without verification is fine.
+ *
+ * Storage-key history: basketball + keepie-uppies write to `arcade_session`,
+ * free-kicks (forked from a separate repo) writes to `arcadeSession`. We
+ * read both — whichever the most-recently-played game wrote.
  */
+const SESSION_KEYS = ['arcade_session', 'arcadeSession'] as const;
+
 function readTelegramUserIdFromSession(): number | null {
   try {
-    const token = sessionStorage.getItem('arcade_session');
+    let token: string | null = null;
+    for (const key of SESSION_KEYS) {
+      const candidate = sessionStorage.getItem(key);
+      if (candidate) {
+        token = candidate;
+        break;
+      }
+    }
     if (!token) return null;
     const parts = token.split('.');
     if (parts.length !== 3) return null;

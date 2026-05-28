@@ -43,6 +43,13 @@ export function BasketballHUD({ onPlayAgain }) {
                         <div style={styles.gameOverBest}>
                             Best so far: {state.bestScore}
                         </div>
+                        {state.arcadeSubmitError && (
+                            <div style={styles.submitWarning}>
+                                {state.arcadeSubmitError === 'session_expired'
+                                    ? '⚠ Score not saved — re-launch /basketball in @TheArcadeGG_Bot'
+                                    : '⚠ Score not saved — network error'}
+                            </div>
+                        )}
                         <div style={styles.playAgainBtn}>TAP TO PLAY AGAIN</div>
                     </div>
                 </div>
@@ -123,6 +130,16 @@ const styles = {
         fontSize: 13,
         opacity: 0.55,
         marginBottom: 18,
+    },
+    submitWarning: {
+        fontSize: 12,
+        color: '#ffb84d',
+        background: 'rgba(255, 184, 77, 0.10)',
+        border: '1px solid rgba(255, 184, 77, 0.35)',
+        borderRadius: 6,
+        padding: '8px 10px',
+        marginBottom: 14,
+        lineHeight: 1.4,
     },
     playAgainBtn: {
         background: '#ffcc00',

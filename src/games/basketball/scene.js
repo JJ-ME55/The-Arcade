@@ -746,11 +746,18 @@ export class BasketballScene extends Phaser.Scene {
                 }
             })
             .catch(err => {
-                // 401 means session expired (>24h since launch) — silent;
-                // user can re-tap /basketball in the bot to refresh.
-                if (!String(err.message || '').includes('401')) {
-                    console.warn('[arcade-leaderboard] submit failed:', err.message);
+                const msg = String(err.message || '');
+                const isExpired = msg.includes('401');
+                if (!isExpired) {
+                    console.warn('[arcade-leaderboard] submit failed:', msg);
                 }
+                // Surface failure into the React HUD so the user knows
+                // their score didn't land. Previously this was silent,
+                // which is how Elliot's 450-point free-kick run got lost
+                // (2026-05-28 incident → see SESSION_TTL bump on server).
+                this.bridge.updateState({
+                    arcadeSubmitError: isExpired ? 'session_expired' : 'network_error',
+                });
             });
     }
 

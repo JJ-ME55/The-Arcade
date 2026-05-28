@@ -38,7 +38,7 @@ function getArcadeSession() {
 
 async function submitToArcadeLeaderboard(score) {
   const session = getArcadeSession();
-  if (!session) return null;
+  if (!session) return { ok: false, reason: 'no_session' };
   try {
     const resp = await fetch(ARCADE_LEADERBOARD_ENDPOINT, {
       method: 'POST',
@@ -47,12 +47,16 @@ async function submitToArcadeLeaderboard(score) {
     });
     if (!resp.ok) {
       console.warn('[freekicks] leaderboard POST failed:', resp.status);
-      return null;
+      return {
+        ok: false,
+        reason: resp.status === 401 ? 'session_expired' : 'server_error',
+        status: resp.status,
+      };
     }
     return await resp.json();
   } catch (e) {
     console.warn('[freekicks] leaderboard POST error:', e?.message || e);
-    return null;
+    return { ok: false, reason: 'network_error' };
   }
 }
 
@@ -155,13 +159,29 @@ export function bootFreeKicks(container) {
     }
 
     const result = await submitToArcadeLeaderboard(score);
-    if (result?.ok && runOverInfoEl) {
+    if (!runOverInfoEl) return;
+    if (result?.ok) {
       const rankLine = result.newBest
         ? `🏆 NEW BEST · Rank #${result.rank} of ${result.totalPlayers}`
         : `Best: ${result.bestScore} pts · Rank #${result.rank} of ${result.totalPlayers}`;
       runOverInfoEl.textContent = rankLine;
       runOverInfoEl.style.display = 'block';
+    } else if (result?.reason === 'session_expired') {
+      // Surfaces what was previously a silent 401 — Elliot's 450-point
+      // run was the trigger for this fix (2026-05-28). Re-launching
+      // refreshes the JWT (now 30d, was 24h).
+      runOverInfoEl.textContent =
+        '⚠ Score not saved — re-launch /freekicks in @TheArcadeGG_Bot';
+      runOverInfoEl.style.display = 'block';
+    } else if (
+      result?.reason === 'network_error' ||
+      result?.reason === 'server_error'
+    ) {
+      runOverInfoEl.textContent = '⚠ Score not saved — network error';
+      runOverInfoEl.style.display = 'block';
     }
+    // result.reason === 'no_session' stays silent — direct web visitors
+    // played without intending to submit (no bot session minted).
   }
 
   const onReplay = () => {

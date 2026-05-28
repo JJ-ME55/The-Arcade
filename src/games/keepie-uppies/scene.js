@@ -228,10 +228,19 @@ class KeepieUppiesScene extends Phaser.Scene {
                 }
             })
             .catch(err => {
-                // 401 = expired session (>24h since launch); silent — user can
-                // re-tap /keepieuppies in the bot to refresh.
-                if (!String(err.message || '').includes('401')) {
-                    console.warn('[arcade-leaderboard] submit failed:', err.message);
+                const msg = String(err.message || '');
+                const isExpired = msg.includes('401');
+                if (!isExpired) {
+                    console.warn('[arcade-leaderboard] submit failed:', msg);
+                }
+                // Surface failure on the game-over overlay. Previously silent;
+                // that meant 401s (session expired) and network errors hid
+                // from the user, who then assumed their best score had landed.
+                if (this.overlayBest) {
+                    const warnLine = isExpired
+                        ? '⚠ Not saved — re-launch /keepieuppies in TG bot'
+                        : '⚠ Not saved — network error';
+                    this.overlayBest.setText(`${this.overlayBest.text}\n${warnLine}`);
                 }
             });
     }
