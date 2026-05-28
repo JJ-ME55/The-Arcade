@@ -1,26 +1,20 @@
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useArcadeAuth } from '@/wallet/useAuth';
 import { Logo } from '@/components/brand';
 
 /**
  * CabinetLanding — pre-auth `/` route.
  *
- * v2 brand: paper-cream surface with the locked logo as the visual
- * anchor. Sign-in opens Privy modal. On successful auth, redirects
- * to /play.
- *
- * Replaces the old fire-gradient placeholder with the editorial brand.
+ * Privy login is currently DISABLED — Insert Coin bypasses auth and
+ * navigates straight to /play. RequireAuth also lets everyone
+ * through. To re-enable Privy, revert this file + RequireAuth.tsx
+ * to the prior version that called auth.login() and gated routes.
  */
 export function CabinetLanding() {
-  const auth = useArcadeAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (auth.ready && auth.authenticated) {
-      navigate('/play', { replace: true });
-    }
-  }, [auth.ready, auth.authenticated, navigate]);
+  const handleEnter = () => {
+    navigate('/play');
+  };
 
   return (
     <main
@@ -82,7 +76,7 @@ export function CabinetLanding() {
 
         <button
           type="button"
-          onClick={auth.login}
+          onClick={handleEnter}
           style={{
             padding: '14px 32px',
             background: 'var(--ink)',
