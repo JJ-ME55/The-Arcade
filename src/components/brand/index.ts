@@ -14,3 +14,5 @@ export { HangTag } from './HangTag';
 export { Section } from './Section';
 export { SolanaPortal } from './SolanaPortal';
 export { TicketGlyph } from './TicketGlyph';
+export { PrizeIcon } from './PrizeIcon';
+export type { PrizeKind } from './PrizeIcon';
