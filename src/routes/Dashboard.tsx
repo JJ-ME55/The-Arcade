@@ -1,107 +1,95 @@
-import { Link } from 'react-router-dom';
-import { useArcadeAuth } from '@/wallet/useAuth';
+// @ts-nocheck — JSX-heavy route composing the v2 dashboard sections.
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { FeaturedCabinet } from '@/components/dashboard/FeaturedCabinet';
+import { TheFloor } from '@/components/dashboard/TheFloor';
+import { TopScores } from '@/components/dashboard/TopScores';
+import { LiveWagers } from '@/components/dashboard/LiveWagers';
+import { PrizeCounterMini } from '@/components/dashboard/PrizeCounterMini';
+import { Browse } from '@/components/dashboard/Browse';
+import { WhosPlaying } from '@/components/dashboard/WhosPlaying';
+import { ComingUp } from '@/components/dashboard/ComingUp';
 
-interface GameTile {
-  slug: string;
-  name: string;
-  tagline: string;
-  href: string;
-}
-
-const GAMES: GameTile[] = [
-  {
-    slug: 'keepie-uppies',
-    name: 'Keepie Uppies',
-    tagline: 'How long can you keep the ball up?',
-    href: '/play/keepie-uppies',
-  },
-  {
-    slug: 'basketball',
-    name: 'Basketball',
-    tagline: '30 seconds. Rapid fire. Drain it.',
-    href: '/play/basketball',
-  },
-  {
-    slug: 'free-kicks',
-    name: 'Free Kicks',
-    tagline: 'Bend it past the wall.',
-    href: '/play/free-kicks',
-  },
-  {
-    slug: 'solshot',
-    name: 'SolShot',
-    tagline: 'Artillery on Solana →',
-    href: '/play/solshot',
-  },
-];
-
+/**
+ * Dashboard — `/play`.
+ *
+ * Desktop 3-col grid:  180px (left rail) | 1fr (center) | 268px (right)
+ * Mobile single-col, sections stacked.
+ *
+ * Per handoff dashboard §1.
+ *
+ * Continue Playing section deferred — needs server endpoint
+ * (recent games per user). Surface this in a follow-up when the
+ * /api/arcade/continue-playing/:uid endpoint lands.
+ */
 export function Dashboard() {
-  const auth = useArcadeAuth();
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <main style={styles.mobileRoot}>
+        <FeaturedCabinet />
+        <div style={{ padding: '16px 14px 0' }}>
+          <TheFloor />
+          <TopScores />
+          <PrizeCounterMini />
+          <LiveWagers />
+          <Browse />
+          <WhosPlaying />
+          <ComingUp />
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main style={{ padding: 'var(--space-8)', maxWidth: 1200, margin: '0 auto' }}>
-      <header style={{ marginBottom: 'var(--space-8)' }}>
-        <h1
-          style={{
-            fontSize: 'clamp(1.5rem, 4vw, 2.5rem)',
-            background: 'var(--fire-gradient)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-          }}
-        >
-          {auth.callsign ? `Welcome back, ${auth.callsign}` : 'The Arcade'}
-        </h1>
-      </header>
-
-      <section
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: 'var(--space-6)',
-        }}
-      >
-        {GAMES.map((game) => (
-          <Link
-            key={game.slug}
-            to={game.href}
-            style={{
-              display: 'block',
-              padding: 'var(--space-6)',
-              background: 'rgba(245, 230, 204, 0.04)',
-              border: '2px solid var(--shadow-deep)',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--fg)',
-              textDecoration: 'none',
-              transition: 'border-color 150ms ease, transform 150ms ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--accent)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--shadow-deep)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            <h2
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: '1.25rem',
-                color: 'var(--accent)',
-                marginBottom: 'var(--space-2)',
-              }}
-            >
-              {game.name}
-            </h2>
-            <p style={{ margin: 0, opacity: 0.8 }}>{game.tagline}</p>
-          </Link>
-        ))}
+    <main style={styles.desktopRoot}>
+      <aside style={styles.leftRail}>
+        <Browse />
+        <WhosPlaying />
+      </aside>
+      <section style={styles.center}>
+        <FeaturedCabinet />
+        <TheFloor />
+        <ComingUp />
       </section>
-
-      <footer style={{ marginTop: 'var(--space-12)', opacity: 0.5, fontSize: '0.875rem' }}>
-        Scaffold placeholder · real dashboard art and leaderboard rail by Fish.
-      </footer>
+      <aside style={styles.rightColumn}>
+        <TopScores />
+        <PrizeCounterMini />
+        <LiveWagers />
+      </aside>
     </main>
   );
 }
+
+const styles = {
+  desktopRoot: {
+    display: 'grid',
+    gridTemplateColumns: '180px 1fr 268px',
+    columnGap: 32,
+    padding: '28px 36px 36px',
+    maxWidth: 1440,
+    margin: '0 auto',
+    width: '100%',
+  },
+  leftRail: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  center: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 28,
+    minWidth: 0,
+  },
+  rightColumn: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  mobileRoot: {
+    paddingBottom: 24,
+  },
+};
+
+export default Dashboard;
