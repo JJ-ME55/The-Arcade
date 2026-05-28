@@ -16,6 +16,9 @@ interface ServerRow {
 interface ServerResponse {
   ok: boolean;
   leaderboard?: ServerRow[];
+  /** Count of players in the (optionally windowed) cabinet — drives the
+   *  /leaderboard hero "Players" stat. */
+  totalPlayers?: number;
   error?: string;
 }
 
@@ -67,6 +70,9 @@ export interface UseLeaderboardResult {
   error: string | null;
   /** True when displaying placeholder data (not the real server feed). */
   placeholder: boolean;
+  /** Server-reported player count for the current cabinet/window. Null
+   *  while loading or when the request hasn't been issued yet. */
+  totalPlayers: number | null;
 }
 
 const WINDOW_MS = {
@@ -94,6 +100,7 @@ export function useLeaderboardData({
   const [rows, setRows] = useState<StandingRow[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [totalPlayers, setTotalPlayers] = useState<number | null>(null);
 
   const canFetch = Boolean(api && API_BASE);
 
@@ -101,6 +108,7 @@ export function useLeaderboardData({
     if (!canFetch) {
       setRows(null);
       setError(null);
+      setTotalPlayers(null);
       return;
     }
     let cancelled = false;
@@ -125,8 +133,10 @@ export function useLeaderboardData({
         if (!data?.ok || !Array.isArray(data.leaderboard)) {
           setError(data?.error || 'fetch_failed');
           setRows(null);
+          setTotalPlayers(null);
           return;
         }
+        setTotalPlayers(typeof data.totalPlayers === 'number' ? data.totalPlayers : null);
         const mapped: StandingRow[] = data.leaderboard.map((r, i) => {
           const name =
             r.displayName?.trim() ||
@@ -168,6 +178,7 @@ export function useLeaderboardData({
     loading,
     error,
     placeholder: !canFetch || rows === null,
+    totalPlayers,
   };
 }
 

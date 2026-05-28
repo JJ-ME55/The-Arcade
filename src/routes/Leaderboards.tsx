@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useArcadeAuth } from '@/wallet/useAuth';
 import { useLeaderboardData } from '@/hooks/useLeaderboardData';
+import { useMyStanding, type MyStanding } from '@/hooks/useMyStanding';
 import { Section } from '@/components/brand';
 import {
   LEADERBOARD_STANDINGS,
@@ -51,6 +52,8 @@ export function Leaderboards() {
     limit: 10,
   });
 
+  const myStandingResult = useMyStanding({ api: activeCabinetDef?.api });
+
   const rows: StandingRow[] = live.rows ?? LEADERBOARD_STANDINGS;
   const top3 = useMemo(() => rows.slice(0, 3), [rows]);
   const usingPlaceholder = live.placeholder;
@@ -64,7 +67,11 @@ export function Leaderboards() {
         width: '100%',
       }}
     >
-      <LeaderboardHero isMobile={isMobile} />
+      <LeaderboardHero
+        isMobile={isMobile}
+        totalPlayers={live.totalPlayers}
+        cabinetLabel={activeCabinetDef?.label}
+      />
       <Filters
         isMobile={isMobile}
         activeCabinet={activeCabinet}
@@ -102,7 +109,7 @@ export function Leaderboards() {
         }}
       >
         <Standings rows={rows} placeholder={usingPlaceholder} cabinetLabel={activeCabinetDef?.label} window={activeWindow} />
-        <Rail />
+        <Rail myStanding={myStandingResult.standing} cabinetLabel={activeCabinetDef?.label} />
       </div>
     </main>
   );
@@ -111,7 +118,23 @@ export function Leaderboards() {
 /* ============================================================
    HERO
    ============================================================ */
-function LeaderboardHero({ isMobile }: { isMobile: boolean }) {
+function LeaderboardHero({
+  isMobile,
+  totalPlayers,
+  cabinetLabel,
+}: {
+  isMobile: boolean;
+  totalPlayers: number | null;
+  cabinetLabel?: string;
+}) {
+  // `totalPlayers` is live data from the server. Prize Pot + Resets In
+  // stay placeholder for V1 — they need the economy ruled in (prize
+  // ledger) and a decision on whether all-time boards reset at all.
+  const playersValue =
+    typeof totalPlayers === 'number' ? totalPlayers.toLocaleString() : LEADERBOARD_HEADER_STATS.players;
+  const eyebrow = cabinetLabel
+    ? `Standings · The Floor · ${cabinetLabel}`
+    : 'Standings · The Floor';
   return (
     <div
       style={{
@@ -136,7 +159,7 @@ function LeaderboardHero({ isMobile }: { isMobile: boolean }) {
             marginBottom: 10,
           }}
         >
-          Standings · The Floor · 24h Window
+          {eyebrow}
         </div>
         <h1
           style={{
@@ -155,7 +178,7 @@ function LeaderboardHero({ isMobile }: { isMobile: boolean }) {
 
       {!isMobile && (
         <>
-          <HeaderStat label="Players" value={LEADERBOARD_HEADER_STATS.players} tone="var(--ink)" />
+          <HeaderStat label="Players" value={playersValue} tone="var(--ink)" />
           <HeaderStat label="Prize Pot" value={LEADERBOARD_HEADER_STATS.prizePot} tone="var(--win)" />
           <HeaderStat label="Resets In" value={LEADERBOARD_HEADER_STATS.resetsIn} tone="var(--brass-deep)" />
         </>
@@ -163,7 +186,7 @@ function LeaderboardHero({ isMobile }: { isMobile: boolean }) {
 
       {isMobile && (
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-          <HeaderStat label="Players" value={LEADERBOARD_HEADER_STATS.players} tone="var(--ink)" small />
+          <HeaderStat label="Players" value={playersValue} tone="var(--ink)" small />
           <HeaderStat label="Prize Pot" value={LEADERBOARD_HEADER_STATS.prizePot} tone="var(--win)" small />
           <HeaderStat label="Resets In" value={LEADERBOARD_HEADER_STATS.resetsIn} tone="var(--brass-deep)" small />
         </div>
@@ -604,17 +627,44 @@ function StandingsRow({ row, isLast, isMobile }: any) {
 /* ============================================================
    RAIL
    ============================================================ */
-function Rail() {
+function Rail({
+  myStanding,
+  cabinetLabel,
+}: {
+  myStanding: MyStanding | null;
+  cabinetLabel?: string;
+}) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-      <YouCard />
+      <YouCard myStanding={myStanding} cabinetLabel={cabinetLabel} />
       <FriendsBoard />
       <PrizeStructure />
     </div>
   );
 }
 
-function YouCard() {
+function YouCard({
+  myStanding,
+  cabinetLabel,
+}: {
+  myStanding: MyStanding | null;
+  cabinetLabel?: string;
+}) {
+  // Live data wins; placeholder is the V1 fallback for direct web visitors
+  // (no TG session JWT → no identity yet). Once Privy comes back the
+  // hook will pull identity from the auth context instead.
+  const isLive = myStanding !== null;
+  const rankDisplay = isLive
+    ? String(myStanding!.rank).padStart(2, '0')
+    : YOUR_STANDING.rank;
+  const scoreLabel = cabinetLabel === 'Overall' ? 'plays' : 'best';
+  const body = isLive
+    ? `${myStanding!.totalSubmissions.toLocaleString()} ${scoreLabel} on ${cabinetLabel || 'this cabinet'}.`
+    : YOUR_STANDING.body;
+  const bonus = isLive ? '' : YOUR_STANDING.bonus;
+  const trend = isLive
+    ? `${cabinetLabel?.toUpperCase() || 'STANDING'}`
+    : YOUR_STANDING.trend;
   return (
     <div
       style={{
@@ -642,7 +692,7 @@ function YouCard() {
             lineHeight: 1, letterSpacing: '0.01em',
           }}
         >
-          {YOUR_STANDING.rank}
+          {rankDisplay}
         </span>
         <span
           style={{
@@ -651,7 +701,7 @@ function YouCard() {
             color: 'var(--win)', letterSpacing: '0.06em',
           }}
         >
-          {YOUR_STANDING.trend}
+          {trend}
         </span>
       </div>
       <div
@@ -660,8 +710,13 @@ function YouCard() {
           lineHeight: 1.5, marginBottom: 12,
         }}
       >
-        {YOUR_STANDING.body}{' '}
-        <b style={{ color: 'var(--brass-deep)' }}>{YOUR_STANDING.bonus}</b>
+        {body}
+        {bonus && (
+          <>
+            {' '}
+            <b style={{ color: 'var(--brass-deep)' }}>{bonus}</b>
+          </>
+        )}
       </div>
       <button
         type="button"
@@ -674,7 +729,7 @@ function YouCard() {
           textTransform: 'uppercase', cursor: 'pointer',
         }}
       >
-        ▸ Defend Lead
+        {isLive ? '▸ Defend Lead' : '▸ Defend Lead'}
       </button>
     </div>
   );
