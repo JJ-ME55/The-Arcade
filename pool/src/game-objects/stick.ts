@@ -2,6 +2,7 @@ import { IStickConfig, IInputConfig } from './../game.config.type';
 import { Keyboard } from '../input/keyboard';
 import { Mouse } from '../input/mouse';
 import { PowerHud } from '../input/power-hud';
+import { SpinHud } from '../input/spin-hud';
 import { GameConfig } from '../game.config';
 import { Assets } from '../assets';
 import { Canvas2D } from '../canvas';
@@ -104,6 +105,8 @@ export class Stick {
         this._movable = false;
         PowerHud.reset();
         PowerHud.hide();
+        SpinHud.reset();
+        SpinHud.hide();
     }
 
     public show(position: Vector2): void {
@@ -113,6 +116,8 @@ export class Stick {
         this._visible = true;
         PowerHud.reset();
         PowerHud.show();
+        SpinHud.reset();
+        SpinHud.show();
     }
 
     public shoot(): void {
@@ -130,8 +135,10 @@ export class Stick {
         // constructed with default visible/movable=true (initMatch) without a show() call.
         if (this._visible && this._movable) {
             PowerHud.show();
+            SpinHud.show();
         } else {
             PowerHud.hide();
+            SpinHud.hide();
         }
     }
 

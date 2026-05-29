@@ -64,3 +64,62 @@ body {
     touch-action: manipulation;
     margin: 0;
 }
+
+/* Spin widget — cue-ball impact-point picker (designer spec §3.4 SPIN). */
+#spinHud {
+    position: fixed;
+    bottom: max(env(safe-area-inset-bottom, 0px), 12px);
+    left: max(env(safe-area-inset-left, 0px), 12px);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px;
+    background: rgba(20, 28, 13, 0.72);
+    border: 1px solid #2e3e20;
+    border-radius: 6px;
+    z-index: 10;
+    pointer-events: auto;
+    font-family: "Share Tech Mono", ui-monospace, Menlo, monospace;
+    color: #c8b87a;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#spinHud.is-visible {
+    display: flex;
+}
+
+#spinHudLabel {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+}
+
+/* The pad — circular cue ball stand-in. Dot is positioned by spinX/spinY. */
+#spinPad {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #e8dfb8 0%, #c8b87a 60%, #5a4e2a 100%);
+    border: 2px solid #3a2c14;
+    touch-action: none;
+    cursor: crosshair;
+}
+
+#spinDot {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #c8781a;
+    border: 1.5px solid #0e1209;
+    /* Default position is center; SpinHud_Singleton.updateDotPosition() updates
+       these via inline styles. transform: translate(-50%, -50%) means
+       left/top set the CENTER of the dot. */
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    transition: left 80ms ease-out, top 80ms ease-out;
+}

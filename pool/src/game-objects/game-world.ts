@@ -11,6 +11,7 @@ import { Assets } from '../assets';
 import { Canvas2D } from '../canvas';
 import { Ball } from './ball';
 import { Mouse } from '../input/mouse';
+import { SpinHud } from '../input/spin-hud';
 import { State } from './state';
 import { applySidespinToCushionBounce, applyTopBackSpinToBallCollision } from '../physics/spin';
 
@@ -475,11 +476,18 @@ export class GameWorld {
         this._turnState.isValid = this._referee.isValidTurn(this.currentPlayer, this._turnState);
     }
 
-    public shootCueBall(power: number, rotation: number): void {
+    public shootCueBall(power: number, rotation: number, spinX?: number, spinY?: number): void {
         if(power > 0) {
             this._stick.rotation = rotation;
             this._stick.shoot();
-            this._cueBall.shoot(power, rotation);
+            // Default the spin to whatever's set in the HUD when the caller doesn't
+            // provide explicit values (input path from handleInput). The AI path
+            // passes explicit zeros for now — see ai-trainer.ts. When the AI is
+            // taught to use spin, it'll pass its own values here.
+            const sx = spinX !== undefined ? spinX : SpinHud.spinX;
+            const sy = spinY !== undefined ? spinY : SpinHud.spinY;
+            this._cueBall.shoot(power, rotation, sx, sy);
+            SpinHud.reset();
             this._stick.movable = false;
             setTimeout(() => this._stick.hide(), GameConfig.timeoutToHideStickAfterShot);
         }
