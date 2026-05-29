@@ -12,6 +12,7 @@ import { Canvas2D } from '../canvas';
 import { Ball } from './ball';
 import { Mouse } from '../input/mouse';
 import { State } from './state';
+import { applySidespinToCushionBounce, applyTopBackSpinToBallCollision } from '../physics/spin';
 
 //------Configurations------//
 
@@ -114,21 +115,35 @@ export class GameWorld {
     private handleCollisionWithTopCushion(ball: Ball): void {
         ball.position = ball.position.addY(tableConfig.cushionWidth - ball.position.y + ballConfig.diameter / 2);
         ball.velocity = new Vector2(ball.velocity.x, -ball.velocity.y);
+        this.applyCushionSpin(ball, 'top');
     }
 
     private handleCollisionWithLeftCushion(ball: Ball): void {
         ball.position = ball.position.addX(tableConfig.cushionWidth - ball.position.x + ballConfig.diameter / 2);
         ball.velocity = new Vector2(-ball.velocity.x, ball.velocity.y);
+        this.applyCushionSpin(ball, 'left');
     }
 
     private handleCollisionWithRightCushion(ball: Ball): void {
         ball.position = ball.position.addX(gameSize.x - tableConfig.cushionWidth - ball.position.x - ballConfig.diameter / 2);
         ball.velocity = new Vector2(-ball.velocity.x, ball.velocity.y);
+        this.applyCushionSpin(ball, 'right');
     }
 
     private handleCollisionWithBottomCushion(ball: Ball): void {
         ball.position = ball.position.addY(gameSize.y - tableConfig.cushionWidth - ball.position.y - ballConfig.diameter / 2);
         ball.velocity = new Vector2(ball.velocity.x, -ball.velocity.y);
+        this.applyCushionSpin(ball, 'bottom');
+    }
+
+    /**
+     * Apply the sidespin response after a standard cushion reflect.
+     * Per pool/src/physics/spin.ts — pure helper handles the kick math.
+     */
+    private applyCushionSpin(ball: Ball, cushion: 'top'|'bottom'|'left'|'right'): void {
+        const result = applySidespinToCushionBounce(cushion, { x: ball.velocity.x, y: ball.velocity.y }, ball.spinX);
+        ball.velocity = new Vector2(result.velocity.x, result.velocity.y);
+        ball.spinX = result.spinAfter;
     }
 
     private resolveBallCollisionWithCushion(ball: Ball): void {
@@ -162,49 +177,77 @@ export class GameWorld {
         if(!first.visible || !second.visible){
             return false;
         }
-    
+
         // Find a normal vector
         const n: Vector2 = first.position.subtract(second.position);
-    
+
         // Find distance
         const dist: number = n.length;
-    
+
         if(dist > ballConfig.diameter){
             return false;
         }
-    
+
+        // Snapshot pre-collision velocities — needed for top/back spin
+        // follow-through calculation (forward direction = pre-collision
+        // velocity direction of the cue ball).
+        const firstPre = { x: first.velocity.x, y: first.velocity.y };
+        const secondPre = { x: second.velocity.x, y: second.velocity.y };
+
         // Find minimum translation distance
         const mtd = n.mult((ballConfig.diameter - dist) / dist);
-    
+
         // Push-pull balls apart
         first.position = first.position.add(mtd.mult(0.5));
         second.position = second.position.subtract(mtd.mult(0.5));
-    
+
         // Find unit normal vector
         const un = n.mult(1/n.length);
-    
+
         // Find unit tangent vector
         const ut = new Vector2(-un.y, un.x);
-    
+
         // Project velocities onto the unit normal and unit tangent vectors
         const v1n: number = un.dot(first.velocity);
         const v1t: number = ut.dot(first.velocity);
         const v2n: number = un.dot(second.velocity);
         const v2t: number = ut.dot(second.velocity);
-    
+
         // Convert the scalar normal and tangential velocities into vectors
         const v1nTag: Vector2 = un.mult(v2n);
         const v1tTag: Vector2 = ut.mult(v1t);
         const v2nTag: Vector2 = un.mult(v1n);
         const v2tTag: Vector2 = ut.mult(v2t);
-    
+
         // Update velocities
         first.velocity = v1nTag.add(v1tTag);
         second.velocity = v2nTag.add(v2tTag);
-    
+
         first.velocity = first.velocity.mult(1 - physicsConfig.collisionLoss);
         second.velocity = second.velocity.mult(1 - physicsConfig.collisionLoss);
-        
+
+        // Apply top/back-spin to whichever ball is the cue ball.
+        // Per pool's design, only the cue ball carries gameplay-relevant
+        // top/back spin — object balls' spin is ignored for simplicity.
+        if (first.color === Color.white && first.spinY !== 0) {
+            const r = applyTopBackSpinToBallCollision(
+                { x: first.velocity.x, y: first.velocity.y },
+                firstPre,
+                first.spinY
+            );
+            first.velocity = new Vector2(r.velocity.x, r.velocity.y);
+            first.spinY = r.spinAfter;
+        }
+        if (second.color === Color.white && second.spinY !== 0) {
+            const r = applyTopBackSpinToBallCollision(
+                { x: second.velocity.x, y: second.velocity.y },
+                secondPre,
+                second.spinY
+            );
+            second.velocity = new Vector2(r.velocity.x, r.velocity.y);
+            second.spinY = r.spinAfter;
+        }
+
         return true;
     }
 
