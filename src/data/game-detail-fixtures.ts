@@ -35,6 +35,11 @@ export const HOW_TO_PLAY: Record<ArcadeGame['slug'], HowToStep[]> = {
     { n: '02', title: 'Combo',    desc: 'Each 10 kups raises your payout tier.' },
     { n: '03', title: 'Cash out', desc: "Cash out anytime — or risk it for the 3.0× tier." },
   ],
+  pool: [
+    { n: '01', title: 'Aim',         desc: 'Drag the cue. Sink your colour (stripes or solids), then the 8-ball.' },
+    { n: '02', title: 'Ready & shoot', desc: 'Think as long as you want, then tap READY — 45 seconds to commit.' },
+    { n: '03', title: 'Async turns', desc: '12 hours to take your turn. Play across days. ELO climbs with every win.' },
+  ],
 };
 
 export interface PayoutRow {

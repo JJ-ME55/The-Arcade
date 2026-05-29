@@ -11,6 +11,7 @@ import { GameDetail } from '@/routes/games/GameDetail';
 import { KeepieUppies } from '@/routes/games/KeepieUppies';
 import { Basketball } from '@/routes/games/Basketball';
 import { FreeKicks } from '@/routes/games/FreeKicks';
+import { Pool } from '@/routes/games/Pool';
 
 export function App() {
   return (
@@ -27,6 +28,7 @@ export function App() {
         <Route path="/play/keepie-uppies/launch" element={<KeepieUppies />} />
         <Route path="/play/basketball/launch" element={<Basketball />} />
         <Route path="/play/free-kicks/launch" element={<FreeKicks />} />
+        <Route path="/play/pool/launch" element={<Pool />} />
         <Route path="/play/solshot" element={<SolShotRedirect />} />
 
         {/* Everything else wraps in the v2 brand chrome

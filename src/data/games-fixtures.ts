@@ -8,7 +8,7 @@
  */
 
 export interface ArcadeGame {
-  slug: 'solshot' | 'basketball' | 'free-kicks' | 'keepie-uppies';
+  slug: 'solshot' | 'basketball' | 'free-kicks' | 'keepie-uppies' | 'pool';
   name: string;
   tag: '' | 'FEATURED' | 'HOT' | 'NEW' | 'TOP';
   genre: string;
@@ -74,6 +74,24 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     yield: 20,
     hi: '208',
     heroSrc: '/assets/games/hero/keepie-uppies.webp',
+    heroFocus: 'center',
+  },
+  {
+    // 8-Ball Pool — backend on SolShot server is live (ELO, matchmaking,
+    // tournaments, marathon, Gold + TKT ledgers). The canvas itself lives
+    // on arcade/8-ball-pool branch (Webpack + TS standalone) — lift into
+    // src/games/pool/ pending. /play/pool routes resolve; /launch shows
+    // a backend-ready placeholder until the lift lands.
+    slug: 'pool',
+    name: '8-Ball Pool',
+    tag: 'NEW',
+    genre: 'Skill',
+    tagline: 'Skill-based 1v1. Async 12h turns.',
+    players: 0,
+    stake: '0.01+',
+    yield: 40,
+    hi: '—',
+    heroSrc: '/assets/games/hero/pool.webp',
     heroFocus: 'center',
   },
 ];
@@ -146,7 +164,6 @@ export interface ComingUpItem {
 export const COMING_UP: ComingUpItem[] = [
   { label: 'Tournaments',   when: 'Q3 2026' },
   { label: 'Trophy Case',   when: 'Q3 2026' },
-  { label: '8-Ball',        when: 'Q4 2026' },
   { label: 'Loadout',       when: 'Q4 2026' },
   { label: 'Prize Counter', when: 'V3' },
 ];
@@ -160,9 +177,9 @@ export interface BrowseCategory {
 }
 
 export const BROWSE_CATEGORIES: BrowseCategory[] = [
-  { id: 'all',     label: 'All',          count: 4 },
+  { id: 'all',     label: 'All',          count: 5 },
   { id: 'sports',  label: 'Sports',       count: 2 },
-  { id: 'skill',   label: 'Skill',        count: 1 },
+  { id: 'skill',   label: 'Skill',        count: 2 },
   { id: 'action',  label: 'Action',       count: 1 },
   { id: 'multi',   label: 'Multiplayer',  count: 0, soon: true },
   { id: 'tourny',  label: 'Tournaments',  count: 0, soon: true },
