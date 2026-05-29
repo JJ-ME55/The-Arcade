@@ -566,280 +566,25 @@ Pattern applied to all 3 standalone games (basketball, keepie-uppies, free-kicks
 
 ## 12. Open questions / unresolved decisions
 
-### 12.1 Quick reference
+### 12.1 Still open
 
-| # | Question | Status | Detail |
+| # | Question | Blocker for | Status |
 |---|---|---|---|
-| 1 | Custom domain — which TLD + name | **Open** | §12.2.1 |
-| 2 | Master / overall leaderboard — necessary at all? | **Open** | §12.2.2 |
-| 4 | Monorepo vs per-game repos | **Open** | §12.2.3 |
-| 5 | Δ rank delta column | **Deferred** | §12.2.4 |
-| 8 | Privy back-on timing | **Open** | §12.2.5 |
-| 10 | Hero art commission strategy | **Open** | §12.2.6 |
-
-### 12.2 Detailed analysis (per question)
-
-#### 12.2.1 — Custom domain
-
-**The question.** The brand name is locked ("The Arcade"). The remaining decision is which TLD + name to grab and what to pay.
-
-**Why it matters.** Doesn't block V1 (we're live on `the-arcade-eta.vercel.app`). Does block any wider marketing push — landing pages, social bios, link previews, paid acquisition all want a clean canonical URL. Also feeds the BotFather `setdomain` decision for silent Privy auth via `login_url` (currently `solshot.gg`).
-
-**Candidate domains.** Five flavours, three to seriously consider:
-
-| Candidate | Read | Likely cost | Risk |
-|---|---|---|---|
-| `thearcade.gg` | Gaming-native. `.gg` is the established TLD for esports + streaming + Twitch. **Strongest brand fit.** | $50–150/yr if available; could be 4–5 figures premium | Premium names often pre-owned; needs WHOIS |
-| `thearcade.com` | Boring but legitimate. The default TLD for civilian readers. | Probably owned. Acquisition cost likely $$$$. | Cost. May not be on the market. |
-| `arcade.xyz` | Short, modern, crypto-adjacent. | Mid; premium names trade for $1–2k one-off | `.xyz` carries some "rug TLD" association from past cycles |
-| `thearcade.io` | Tech-coded, common for crypto products. | $50+/yr, premium names higher | Generic startup feel; doesn't differentiate vs the 1000 other `.io` projects |
-| `playthearcade.com` | Verb-led, civilian-friendly. | $10–20/yr likely available | Reads slightly long. Better as marketing URL than canonical. |
-
-**Decision criteria.**
-1. **Survives a 5-second pitch.** "It's thearcade dot gg" — `.gg` flows; `.com` flows; `.xyz` requires explanation.
-2. **Survives 5 years.** `.gg` has staying power in gaming. `.xyz` has cycle risk.
-3. **Matches the brand register** — cream-paper editorial, not casino-flashy. `.com` and `.gg` yes. `.xyz` reads techy + crypto-adjacent.
-4. **Premium acquisition budget.** What is JJ willing to spend? A premium `.com` could be £5–50k. A `.gg` is likely £100–2000.
-
-**Recommended next step.** JJ runs WHOIS on the top 3: `thearcade.gg`, `thearcade.com`, `arcade.gg`. Reports availability + ask price. Then pick. If `.gg` is available at a reasonable price, lock it. If unavailable, fall back to `thearcade.io` or `playthearcade.com`. `.xyz` is the fallback-of-fallbacks.
-
-**Blocks.** Nothing in V1. Should resolve before a wider marketing push, and definitely before V3 economy ships — cashout vouchers reading "thearcade.gg" lands very differently than "the-arcade-eta.vercel.app."
-
----
-
-#### 12.2.2 — Master / overall leaderboard — necessary at all?
-
-**The question.** Each game has its own leaderboard (Basketball + Keepie Uppies + Free Kicks live; SolShot uses gold/prestige). A cross-game master / overall leaderboard is in-progress as a placeholder, but JJ's question is whether one is even **needed**. If we ship one, the most likely medium is **total Tickets earned**, provided we balance ticket-earning across games so no single cabinet dominates.
-
-**Why a master LB might be necessary.**
-- **Brand unity.** "The Arcade" needs a flagship board to feel like one place, not four silos.
-- **The ARCADE CHAMPION promise.** Arcades have always had a "high-score initials" celebrity. Without a top-of-arcade ranking, that culture has nowhere to land.
-- **V3 Ticket economy needs a participation lens.** If Tickets are the arcade-wide currency, the arcade-wide leaderboard ranks players in that currency. The two go together.
-
-**Why it might NOT be necessary.**
-- **Cross-game scoring is fundamentally apples-to-oranges.** Basketball "39" doesn't compare to keepie-uppies "208."
-- **"Most plays wins" rewards grinders not skill** — and that violates Rule 2 (rate-based ranking) if it's tied to emission.
-- **Per-game LBs already serve the in-cabinet competitive loop.** Most players care about being good at the game they like.
-- **A master LB computed weird ways feels manufactured.** Better to have NO master LB than a bad one.
-- **Cluttered UI.** Five tabs (Overall + 4 cabinets) on `/leaderboard` is already busy; the Overall tab being the most prominent forces a decision on what it shows.
-
-**If we ship one — what's the medium?**
-
-| Option | What it ranks | Bot resistance | Brand fit | Notes |
-|---|---|---|---|---|
-| A. Total plays | Most engaged players | **Low** — bots dominate | Poor | Current placeholder. Explicitly labelled as such. |
-| B. **Total Tickets earned** | Most rewarded players | **Medium** (depends on emission balance) | **High** — Tickets ARE the arcade-wide currency, so this is the natural read | JJ's hypothesis. Conditional on V3 ticketing + emission balance. |
-| C. Percentile rank sum (golf) | Best generalist across games | High — rate-based | Mid | Fish's v1 proposal. Cold-start noise + "100 for not playing" needs care. |
-| D. Best-game-only | Best specialist in their best cabinet | High | Mid | Penalises generalists; rewards depth. |
-| E. Compound (placement points + multi-game bonus) | Reward breadth and depth | High | Mid | Complex to explain to players. |
-
-**JJ's hypothesis (B) requires "balanced ticket-earning." What does that mean?**
-
-Per-game ticket emission has to be calibrated so a player who only plays basketball doesn't dominate over a player who only plays free-kicks just because basketball sessions are shorter, OR because basketball happens to be the most-played cabinet, OR because basketball's skill ceiling is lower.
-
-Three things need calibrating:
-
-1. **Tickets per minute of play, not per match.** A 3-min free-kicks run and a 10-min SolShot match should earn comparable Tickets-per-minute. Otherwise the meta becomes "play the shortest game on loop."
-2. **Anti-grinder cap.** Daily Ticket cap per player, OR diminishing returns curve above N plays per game. Otherwise the meta becomes "play 18 hours straight."
-3. **Leaderboard bonus uses rate-based metrics** (Rule 2). Skill bonus ranks on win rate / accuracy / placement, not "most wins."
-
-**Recommended next step.**
-
-1. **Don't ship a master LB in V1/V2.** The current Overall tab is plays-as-proxy and explicitly labelled. Acceptable.
-2. **At V3 economy launch, ship a Tickets-earned master LB** if the emission balance work is done. If not, ship per-game LBs only and skip master.
-3. **Decide whether to have a master LB at all** as part of V3 design — JJ's "query whether either necessary" framing means this is genuinely open. The answer might be "no — per-game champions only, with seasonal cross-cabinet 'Arcade Champion' events instead."
-
-**Sub-questions if we proceed.**
-- **Time-window.** Weekly champions reset? All-time only? Both views?
-- **Emission balance algorithm.** Same Tickets per minute? Same per match? Game-specific multipliers?
-- **Anti-grinder.** Daily cap per player? Diminishing returns curve?
-- **Display.** Top 100 globally? Top 10 by region? Friends Only?
-
----
-
-#### 12.2.3 — Monorepo vs per-game repos
-
-**The question.** SolShot had to be in its own repo because hackathon submission identity. Going forward, future games could be in a monorepo. **Is there a negative to widening?**
-
-**Current state.**
-- `JJ-ME55/SolShot` — server + SolShot client + Anchor programs + bots + Mongo + escrow + standalone leaderboard services. The platform backend.
-- `JJ-ME55/The-Arcade` — Arcade web hub (Vite + React + TS). Client only.
-- Game scenes for basketball + keepie-uppies + free-kicks are **lifted** into `The-Arcade/src/games/`.
-- Free-kicks originally lived in `JJ-ME55/solshot-free-kicks` (separate repo fork). Now duplicated into The-Arcade.
-- Each game has its own legacy Vercel project (deprecation pending).
-
-**Arguments FOR widening (monorepo).**
-- **One source of truth.** Clone one thing, see everything.
-- **Shared tooling.** Lint, format, CI, dependency upgrades all centralised.
-- **Cross-game refactors ship in one PR.** Brand chrome change touches all games at once.
-- **Faster onboarding.** Fish / next collaborator clones one repo, not five.
-- **Easier to enforce brand consistency.** Shared `@arcade/chrome` package, one place to update.
-
-**Arguments AGAINST widening (multi-repo, status quo).**
-- **Build time grows linearly with games.** Already at ~40s for The-Arcade alone. Monorepo with 7+ games could hit 5–10 min builds without Turborepo / Nx tooling.
-- **Coupled deploys.** One broken commit breaks all games' deploys. Mitigation: Vercel project per game with path-based triggers, but you've recreated multi-repo isolation with extra tooling.
-- **Repo size + dependency pollution.** Phaser-only games inherit Three.js because free-kicks uses it. Asset bundles get heavy.
-- **Permissions are coarse.** GitHub can't grant Fish write access to just `src/games/basketball/` — they get the whole repo.
-- **SDK / third-party indie devs (V4+) cannot reasonably fork a monorepo.** The Miniclip/Roblox pitch is "you bring a game, we handle the rest." That requires a thin SDK target — not "fork our 2GB monorepo."
-
-**Negatives JJ specifically asked about — explicit answers.**
-
-| Risk | Reality |
-|---|---|
-| **Build time** | Real. Without tooling (Turborepo, Nx), a 7-game monorepo hits 5–10 min builds. With tooling, ~2 min via incremental builds. Adds infra cost. |
-| **Deploy blast radius** | Real. A bug in basketball can fail the Arcade hub's Vercel deploy. Mitigation: per-game branches with isolated deploy targets — but that's what we have now. |
-| **Game-specific dependencies pollute the root** | Real-ish. Three.js + Phaser both live in `package.json` if both are deployed. With workspaces (npm/yarn/pnpm) you can scope this. Manageable. |
-| **Indie SDK story incompatibility** | Real and big. V4+ third-party studios need a thin integration target. A monorepo IS the wrong architecture for that. |
-| **Permissions** | Real but solvable via PR-gating and trusted collaborators. Fish has full repo access anyway. |
-
-**Three architectural options.**
-
-| Option | Shape | Trade-off |
-|---|---|---|
-| **A. Status quo (multi-repo)** | SolShot + The-Arcade + per-game repos. Games lift into The-Arcade hub. | Current state. Doubles up on game maintenance briefly during lift, but stable. Compatible with V4+ SDK. |
-| **B. Full monorepo** | One `the-arcade` repo holds platform + all games + backend. SolShot folds in. | Faster iteration. Higher tooling complexity. **Incompatible with SDK story** — third parties can't plug into a monorepo. |
-| **C. Hybrid — platform monorepo + game submodules** | The Arcade web hub is one repo. Each game is its own thin repo published as an npm package (`@arcade/basketball`). Hub imports them. | Best of both worlds in theory. Real-world overhead: every game change is a publish + bump + integration test cycle. |
-
-**Recommended next step.**
-
-Status quo (A) is the right answer **if the SDK story (V4+) matters**. The monorepo (B) is faster for the next 2–3 games but actively blocks the V4 SDK pitch — and the V4 SDK is the venture-scale unlock.
-
-The hybrid (C) is what big games studios actually do (Riot, Niantic) but requires CI infrastructure we don't have.
-
-**Decision criteria for JJ.**
-- **If V4 SDK is real:** stay multi-repo. Per-game repos are the right shape for "indie devs plug in."
-- **If V4 SDK is aspirational and we're optimising for next-12-months velocity:** monorepo + Turborepo, and accept the rebuild cost when V4 ships.
-- **The cost of being wrong.** If you go monorepo and V4 SDK lands, you split the monorepo back out — meaningful but tractable engineering work. If you stay multi-repo and V4 SDK never happens, you've paid an ongoing coordination tax but kept optionality.
-
-**My read: stay multi-repo. The cost of preserving SDK optionality is low; the cost of removing it is high.**
-
----
-
-#### 12.2.4 — Δ rank delta column (clarification)
-
-**What it means.** The Δ column on the leaderboard shows **how a player's rank has moved since the last snapshot**. Conventions:
-
-- `+2` = climbed 2 spots since the last snapshot
-- `-1` = dropped 1 spot
-- `—` = no change (or first appearance — see below)
-- `NEW` = wasn't in the previous snapshot, is in this one
-
-**How to compute it.** Server takes a snapshot of each leaderboard at a regular cadence (probably daily, midnight UTC). When rendering today's leaderboard, look up each player's rank in yesterday's snapshot and diff.
-
-**Storage shape.** Small. Per-game `LeaderboardSnapshot` collection, one document per game per day:
-
-```js
-{
-  game: 'basketball',
-  takenAt: ISODate('2026-05-29T00:00:00Z'),
-  ranks: [
-    { telegramUserId: 5684260927, rank: 1, bestScore: 39 },
-    { telegramUserId: 1054706416, rank: 2, bestScore: 33 },
-    // ...
-  ]
-}
-```
-
-**Why JJ asked "time slots?"** — because the cadence is a decision. Daily? Weekly? Hourly?
-
-- **Daily (recommended)** — most LBs in gaming use daily deltas. Feels right for "active competition."
-- **Hourly** — too noisy. Δ flips constantly. Bad UX.
-- **Weekly** — too slow. Δ rarely changes. Doesn't reward engagement.
-- **Match-by-match** — possible but expensive. Triggers on every score submit.
-
-**What "discovering how that works out" likely meant** — JJ's question about whether Δ even helps engagement. Some products use it well (Twitch leaderboards, sports rankings); some don't (Steam achievements). Cheap to ship, easy to remove.
-
-**Recommended next step.**
-
-1. Server: add `LeaderboardSnapshot` Mongo schema + a daily cron at 00:00 UTC.
-2. Server: on each `/leaderboard` request, fetch latest snapshot, diff against current standings, attach `delta` field to each row.
-3. Client: column already wired (currently shows `—`). Just consumes the field.
-4. **Effort estimate.** ~2–3 hours of server work. Not blocking V1.
-5. **Decide later** whether the column adds engagement or just visual noise. Easy to A/B by toggling visibility.
-
----
-
-#### 12.2.5 — Privy back-on timing
-
-**What the question means.** Currently Privy login is **disabled**:
-- `CabinetLanding` (the pre-auth `/` route): "Insert Coin" button skips auth and navigates straight to `/play`.
-- `RequireAuth` (the route guard): bare `<Outlet/>` pass-through; no auth check.
-
-This means:
-- **Bot users still have identity** — TG session JWT carried in the URL on game launch. Score submission works. Your Standing populates.
-- **Direct web visitors have NO identity** — no callsign, no wallet, no leaderboard write, no Your Standing, no Tickets balance, no avatar (V3).
-
-**The question.** When does the Privy login UX come back on?
-
-**Why it was turned off.** The v2 brand integration superseded the v1 cabinet-arcade brand. The Privy modal hadn't been re-styled to match the cream-paper editorial register, and the "Insert Coin" CTA's auth handoff felt clunky against the rest of the polish. Cleaner to bypass than ship a half-baked modal.
-
-**Why it needs to come back on.**
-- **V3 economy needs identity.** Tickets are per-user. Can't earn or spend without a stable account.
-- **Direct web visitors are a growing share.** Once the custom domain lands and any marketing push starts, the bot-vs-web split shifts.
-- **Wallet UI (`/wallet` route) shows `—` for SOL balance** because Privy is off.
-
-**Two UX models on the table.**
-
-| Model | Behaviour | Pros | Cons |
-|---|---|---|---|
-| **A. Gate at landing** (Fish's v1 model) | "Insert Coin" → Privy modal → callsign → `/play`. No play without auth. | Clean identity-first product. Every user has a wallet. | 30-second friction at the door. Worst possible first impression for civilians. |
-| **B. Lazy auth** (recommended) | Direct visitors play immediately (free-play). Prompt sign-in only when they want to **save a score, redeem Tickets, top up wallet, view standing**. | Civilians taste the product before signing in. Lowest friction. Matches the Bitrefill-style "your nan can use this" goal. | Some users never sign in. Leaderboard write is conditional. Account merge if they sign in later is a problem to handle. |
-
-**Recommended next step.**
-
-1. **Re-style the Privy modal** to match v2 cream-paper editorial (~2–4 hr work).
-2. **Implement lazy auth (Model B).** Direct visitors play immediately; auth prompt fires on first score submit / first wallet open / first prize click.
-3. **Re-enable `RequireAuth` for protected routes only** — `/wallet` and (V3) `/prizes` checkout / shop spend. `/play/*` stays open.
-4. **Account merge for late sign-in.** If a user plays 5 free-play games then signs in, they get a callsign but their 5 plays were never written to Mongo (no JWT). Acceptable for V1. Reconsider if civilian retention data shows a problem.
-
-**When?** Before V3 economy ships (Tickets need identity). Realistically: lazy-auth re-enabling can ship as a half-day V1.x task once a modal re-style lands.
-
----
-
-#### 12.2.6 — Hero art commission — in-house artist vs external commission
-
-**The question.** Three assets per game (tile 1280×800 + hero 2400×1050 + splash 1080×1920). 4 games × 3 = 12 assets immediately. Confirmed needed (§ Open Q10). **Sub-question: in-house artist vs external commission?**
-
-**The bigger context.** This isn't just about replacing the current cropped WebPs. The Avatar Layer (V3, §6.4) is **art-heavy** — base characters, layered items (hats, glasses, shoes, masks, outfits, crowns), seasonal drops, tournament-prize 1:1 items. The Avatar V3 doc flags it explicitly: *"asset creation is the hardest part of this. A small team cannot hand-produce Fortnite volume."*
-
-**Two models, plus a hybrid.**
-
-| Model | Cost shape | Iteration speed | Style consistency | Scales with V3? |
-|---|---|---|---|---|
-| **A. External commission, per-asset** | £500–2k per hero piece. ~£8–24k for the 12 V1 hero assets. Per-asset costs for V3 items. | Slow (1–3 weeks per round). Back-and-forth via Discord/email. | **Risk of style drift** between commissions if artists rotate. | Poorly. Fortnite-volume asset libraries via external commission is bankruptcy-shaped. |
-| **B. In-house artist (FTE)** | £40–60k/yr (UK indie market rate). Plus tooling, equipment, onboarding. | Fast (days, not weeks). Tight feedback loop. | **High** — one person, one style language. | **Required for V3 avatar layer.** Volume is the unlock. |
-| **C. Hybrid — strong external relationship with one consistent artist** | Retainer model. £2–4k/month for guaranteed throughput + first-refusal on new work. | Mid. Faster than ad-hoc commission, slower than FTE. | High if the relationship sticks. | Tractable for early V3, FTE conversion becomes natural as volume grows. |
-
-**Phasing options.**
-
-| Phase | Hero art needed | Avatar art needed | Recommended model |
-|---|---|---|---|
-| **V1 (now → V3 launch)** | 12 hero assets (4 games × 3 formats) + future-game heroes as they ship | Zero | **A or C** — external commission. Per-asset or retained. £8–24k total for V1 catalogue. |
-| **V3 (avatar layer launch)** | Continued hero assets for new games | Base characters + 50–200 launch items + ongoing drops | **B** (FTE) or **strong C** (multi-artist retainer) — volume requires it. |
-| **V4+ (SDK)** | Studios bring their own art | Items pipeline scales | FTE art director + per-asset commission pool. Studios responsible for game art; we handle avatar items. |
-
-**Recommended next step.**
-
-1. **For V1 hero art (the 12 immediate assets):** external commission. Brief one artist on the full Game Art Brief, pay per-asset or per-game, accept ~£8–15k cost. Set a clear style guide based on what's already proven (the v2 cream-paper editorial chrome around studio-loud art).
-2. **Decide V3 model later** (months out) but **start scouting an FTE candidate or retainer artist now** so the avatar pipeline isn't blocked at V3 kickoff. Avatar art is on the critical path for V3 per the Avatar Layer doc.
-3. **Lock the style guide before commissioning.** Without a reference document, every commission carries style drift risk. The v2 designer pack provides chrome direction; we need a parallel "studio-art-in-our-chrome" direction for game art specifically. The Game Art Brief is a start.
-
-**Sub-questions.**
-- **Style direction owner.** Who locks the art-direction document? Fish? JJ? An external art director on a one-off engagement?
-- **Pipeline.** How do new game heroes get briefed → reviewed → delivered → wired? Currently ad-hoc.
-- **Asset budget.** Already locked at ~270KB per game per the brief. Holds across game count growth.
-- **Avatar-style continuity.** When V3 launches, the avatar style needs to land in the same universe as the existing hero art OR be intentionally different. Decision needed before V3 starts.
-
----
-
-### 12.3 Settled (moved here from open)
+| 1 | **Custom domain** — `arcade.xyz` / `thearcade.gg` / alt | Brand consistency. The brand-name itself is locked ("The Arcade"); only the domain is unresolved. | WHOIS pending. Currently live on `the-arcade-eta.vercel.app` (Vercel auto-suffix). |
+| 2 | **Master / overall leaderboard — necessary at all?** Each game already has its own LB (live for Basketball + Keepie Uppies + Free Kicks; SolShot uses gold/prestige). A cross-game master LB is in-progress but it is open whether one is even *needed*. **If we ship a master LB, the most likely medium is total Tickets earned across games** — provided we balance the ticket-earning economy across cabinets so no single game dominates. Current Overall tab ranks by total plays as a placeholder until that decision lands. | `/leaderboard` Overall tab + Tier-1 cross-game leaderboard scoring | Open |
+| 4 | **Monorepo vs per-game repos.** SolShot had to be in its own repo because hackathon submission identity. Going forward we could widen — pull future games into a monorepo. Open question: is there a negative? | Future game additions, SDK architecture | Open — JJ flagged for discussion |
+| 5 | **Δ (rank delta) column on leaderboards** — "+2 / -1 since the last snapshot" indicator next to each row. Needs a daily snapshot job. Currently shown as `—` for every row. | Leaderboard polish | Deferred — cadence (daily/weekly) and engagement value both untested. |
+| 8 | **Privy back-on timing.** Privy login currently disabled (CabinetLanding bypasses auth, RequireAuth is a pass-through). Direct web visitors have no identity; bot users still work via TG session JWT. | Direct-web identity, Your Standing for direct-web users, V3 wallet linkage | Off intentionally per JJ; turn back on when the auth UX is right. |
+| 10 | **Hero art commission** — three assets per game (tile 1280×800 + hero 2400×1050 + splash 1080×1920). Spec proposed 2026-05-28. JJ confirmed needed. **Sub-question: in-house artist vs external commission?** | Studio-fresh game art replacing the current cropped WebPs | Open — JJ flagged for discussion |
+
+### 12.2 Settled (moved here from open)
 
 | # | Was | Now |
 |---|---|---|
 | 3 | Stack policy — Phaser-only or multi-stack? | **Locked: any stack, as long as it can be hosted.** Free Kicks (Vite + Three.js) shipping unbroken settled the precedent. Opening the stack opens up the larger indie game base. |
 | 6 | Tickets — on-chain SPL or off-chain ledger? | **Locked: pure off-chain.** Per [`ARCADE_AVATAR_LAYER_V3.md`](../../notes/ARCADE_AVATAR_LAYER_V3.md) + [`CIVILIAN_CASHOUT_STRATEGY.md`](../../../SolShot/Docs/internal/CIVILIAN_CASHOUT_STRATEGY.md). The one-way valve only works if Tickets cannot leak via a secondary market — an SPL token would create one by default. |
 | 7 | USDC in shop — yes/no? | **Likely NO (Bitrefill negates the need).** V1 cashout = Bitrefill deep-link. V3 cashout = in-app Tickets shop with gift-card vouchers via Tillo/Tango/Runa. USDC-as-prize was a hard regulatory gate; gift-card vouchers are already-licensed pathways. Revisit if a specific reason to emit USDC directly appears. |
-| 9 | Brand-name finalisation | **Locked: "The Arcade".** Domain is the remaining sub-question (see §12.2.1). |
+| 9 | Brand-name finalisation | **Locked: "The Arcade".** Domain is the remaining sub-question (see Q1). |
 
 ---
 
@@ -892,7 +637,8 @@ These were positions taken at one point and have been overridden. They are prese
 | 2026-05-29 | §6.6 Rule 4 qualified — the in-house cosmetic marketplace is an administered secondary market that satisfies the spirit (no leak we don't control) while extending the letter (cosmetics are tradable in our venue). Treasury modelling must include in-house resale as a variable. | main-claude |
 | 2026-05-29 | §12 Open questions split into 12.1 (still open) + 12.2 (settled). Settled: Q3 stack policy (multi-stack accepted), Q6 Tickets shape (pure off-chain), Q7 USDC-in-shop (Bitrefill negates), Q9 brand name (The Arcade locked, domain still open). Q2 expanded — master LB necessity is the real question, Tickets earned as the likely medium if ticket-earning is balanced cross-game. Q4 expanded — monorepo question framed as "is there a negative to widening?". Q5 explained — Δ column = rank movement vs last snapshot, needs daily snapshot job. Q8 explained — Privy currently off, question is when it comes back. Q10 — hero art commission, sub-question in-house vs commission. | main-claude (per JJ feedback) |
 | 2026-05-29 | Strengthened iteration policy — changelog updates are a hard commitment, same commit as the edit. | main-claude (per JJ feedback) |
-| 2026-05-29 | §12 restructured. Old `12.1 Still open` / `12.2 Settled` two-table format replaced with `12.1 Quick reference` + `12.2 Detailed analysis` (per-question deep dives for Q1, Q2, Q4, Q5, Q8, Q10) + `12.3 Settled`. Per-question subsections flesh out options, trade-offs, and recommended next steps. Q2 master-LB has the deepest treatment (Tickets-earned medium, balanced-emission requirements, anti-grinder rules). Q4 monorepo has the architectural three-option breakdown + SDK-compatibility recommendation. Q10 in-house-artist-vs-commission phased by V1 / V3 / V4. | main-claude (per JJ "flesh out") |
+| 2026-05-29 | §12 restructured to include per-question deep dives (Q1 / Q2 / Q4 / Q5 / Q8 / Q10) under §12.2 Detailed analysis. | main-claude |
+| 2026-05-29 | §12 deep-dive subsections reverted — they were conversation material, not doc material. §12 returns to the two-table format (§12.1 Still open + §12.2 Settled). The per-question analysis remains available in the chat transcript. | main-claude (per JJ "this was just for discussion in here") |
 
 ---
 
