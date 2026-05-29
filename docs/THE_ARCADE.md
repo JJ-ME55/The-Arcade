@@ -3,7 +3,13 @@
 > **Status:** Living document. Replaces no prior doc; consolidates the canonical positions scattered across them.
 > **Owner:** JJ.
 > **Last updated:** 2026-05-29.
-> **Iteration policy:** Edit in place when a position lands. Add a one-line entry to the **Changelog** at the bottom with the date + nature of the change. Do not delete superseded text — strike it through or move to the **Superseded** section. This document is the single reference; everything else points back to it.
+>
+> **Iteration policy — every material change goes in §15 Changelog. No exceptions.**
+>
+> - Edit in place when a position lands.
+> - Add a one-line entry to the **Changelog** at the bottom with the date + nature of the change. This is a **hard commitment** — if you edit and don't log, you've broken the doc's discoverability promise to the next reader.
+> - Do not delete superseded text — strike it through or move to **§14 Superseded**.
+> - This document is the single reference; everything else points back to it.
 
 ---
 
@@ -148,7 +154,14 @@ The original spec called for Phaser-only across the catalogue. Free Kicks (Vite 
 
 ## 6. Economy — The V3 Three-Tier Model
 
-> Authoritative source: [`SolShot/Docs/internal/V3_ARCADE_ECONOMY_NORTH_STAR.md`](../../SolShot/Docs/internal/V3_ARCADE_ECONOMY_NORTH_STAR.md). Summarised here. **The economy is LOCKED at principle level and NOT BUILT.** Do not build before V3 (after V1 mainnet ships and V2 4+ player support lands).
+> Authoritative sources:
+> - [`SolShot/Docs/internal/V3_ARCADE_ECONOMY_NORTH_STAR.md`](../../SolShot/Docs/internal/V3_ARCADE_ECONOMY_NORTH_STAR.md) — three-tier model + non-negotiable rules
+> - [`The-Arcade/notes/ARCADE_AVATAR_LAYER_V3.md`](../../notes/ARCADE_AVATAR_LAYER_V3.md) — avatar + item + in-house marketplace
+> - [`SolShot/Docs/internal/CIVILIAN_CASHOUT_STRATEGY.md`](../../SolShot/Docs/internal/CIVILIAN_CASHOUT_STRATEGY.md) — Bitrefill / MoonPay / V3 shop cashout stack
+>
+> **Status: ECONOMY ACCEPTED AND LOCKED** at principle level (28–29 May 2026). Implementation is V3 work and NOT BUILT. Do not build before V3 (after V1 mainnet ships and V2 4+ player support lands).
+>
+> **Stress-test caveat:** specific numbers below (1–3 Tickets per game, 100 Tickets per placement, 10–25% grinder/skill ratio, weekly emission caps, etc.) are **illustrative placeholders plucked to demonstrate rough ideas**. They need stress-testing against botting + gaming-the-system + adversarial modelling before any value gets baked in. The *shape* is locked; the *numbers* tune on live data + red-team work.
 
 The economic core is what makes the arcade worth plugging into. It decouples "on-chain economy" from "tradable speculative token."
 
@@ -177,7 +190,7 @@ The economic core is what makes the arcade worth plugging into. It decouples "on
 
 Two pools, doing two different jobs:
 
-**Participation floor — ~⅓ Ticket per game, regardless of result.**
+**Participation floor — 1–3 Tickets per game, regardless of result.**
 - Abundant, broadly distributed, effort-proportional.
 - The **retention mechanism** — every player, including the bad ones, is always progressing toward something.
 - Abundance also = safety: low value-per-Ticket means speculation never gets a foothold.
@@ -192,19 +205,86 @@ Two pools, doing two different jobs:
 
 ### 6.3 Shop tiering (retention + safety are the same wall)
 
-- **Low Ticket cost = pure sink, zero real-world value.** Avatars, skins, name colours, emotes, banners, "played 50 games" badges. **Soulbound / non-transferable** so there is no resale leak. Costs nothing to emit. The grinder lands here — meaningful identity/progression reward that is economically free and un-sellable.
+- **Low Ticket cost = pure sink, zero real-world value.** Avatars, skins, name colours, emotes, banners, "played 50 games" badges. **Mostly soulbound / non-transferable** so there is no resale leak. Costs nothing to emit. The grinder lands here — meaningful identity/progression reward that is economically free and un-sellable.
   - Calibration: the cheapest meaningful cosmetic must be reachable by a casual player in **days, not months**. The bad player should taste a reward early — just never a *valuable* one.
-- **High Ticket cost = real-value items** (USDC prizes, scarce NFTs, premium passes). Gated far enough up that a pure grinder cannot casually reach them — requires real skill (stacked leaderboard bonuses) or real money (buying Tickets). Value-out stays gated behind effort/spend that exceeds the value itself, which keeps the treasury solvent.
+- **High Ticket cost = real-value items** (gift-card vouchers via Tillo/Tango/Runa, premium passes, scarce cosmetics). Gated far enough up that a pure grinder cannot casually reach them — requires real skill (stacked leaderboard bonuses) or real money (buying Tickets). Value-out stays gated behind effort/spend that exceeds the value itself, which keeps the treasury solvent.
 
-### 6.4 The five non-negotiable rules
+Two structural extensions of the shop tiering are documented in §6.4 and §6.5 below: the **avatar + item layer** (which adds an in-house tradable cosmetic market on top of Tier 1) and the **civilian cashout stack** (which is how players actually convert in-arcade value back to real money). Read both before V3 implementation.
+
+### 6.4 Avatar & item layer (the in-house cosmetic market)
+
+> Authoritative source: [`The-Arcade/notes/ARCADE_AVATAR_LAYER_V3.md`](../../notes/ARCADE_AVATAR_LAYER_V3.md). Status: aligned 28 May 2026 (JJ + Fish). V3 work.
+
+The avatar is the player's persistent arcade-wide identity. Items are off-chain cosmetic assets that layer onto it. Together they form a **second high-margin revenue stream** alongside wagering and Ticket sales.
+
+**The model:**
+- Every player has a base character (human male / female / animal / etc.) plus layered items (hats, glasses, balaclavas, chains, shoes, crowns, outfits, masks).
+- **The avatar is a render, not an asset.** It is just whichever items are equipped, drawn together. It is not minted as one object.
+- Items are **off-chain database entries** owned by a player account. **Not NFTs. Not on-chain.**
+- Three flavours: standard (replenishable), limited editions (capped runs), one-of-a-kind tournament prizes (single-issue).
+- **All items are purely cosmetic.** Zero gameplay impact. (The 8 Ball cue rule — money never buys aim.)
+
+**Acquisition + sale:**
+- **Acquired** via shop purchase (Tickets or SOL), play earnings, tournament prizes, sign-up grants, or other-player resale.
+- **Sold** only via our **in-house marketplace.** Players list items for Tickets or SOL. **We take a fee on every trade.**
+- **No Tensor. No external marketplaces.** Items are not NFTs, so they cannot leave the arcade. Solana royalty enforcement is dead post-royalty-wars; in-house marketplace captures the full equivalent of marketplace fee + royalty.
+
+**Why no NFTs (the call that took the most thinking):**
+- Avatar-as-NFT → anyone assembling a similar loadout mints a near-identical NFT → scarcity evaporates.
+- Items-as-NFT → flooded marketplace of "human + crown" mints; royalties leak via Tensor; the truly 1:1 items (Jigsaw mask, tourney hats) are 1:1 *because we say so*, not because a blockchain says so.
+- **No on-chain minting at all** — chosen. Trades stay where the fees stay.
+
+**What we lose:** the on-chain "true ownership" narrative. **What we gain:** 100% of every trade fee, full control of supply and scarcity, no royalty leak, simpler legal surface, genuinely-1:1 prizes.
+
+**SOL : Ticket ratio across the shop = the de facto Ticket exchange rate.** Every shop item carries both a SOL price and a Ticket price; the ratio is set by us and must be applied consistently across the shop or we accidentally fragment into multiple inconsistent rates.
+
+**Tension with Rule 4 (acknowledged):** the North Star says real-value goods must be soulbound or modelled. The avatar layer deliberately introduces tradable cosmetics. This is not a contradiction *if* the marketplace is fully in-house and administered — the leak only exists where secondary trading happens somewhere we don't control. Treasury modelling at V3 implementation must account for the fact that some items will recirculate at SOL prices we don't set (i.e. resale is a variable, not a constant).
+
+### 6.5 Civilian cashout stack
+
+> Authoritative source: [`SolShot/Docs/internal/CIVILIAN_CASHOUT_STRATEGY.md`](../../SolShot/Docs/internal/CIVILIAN_CASHOUT_STRATEGY.md). Status: V1 path defined, V3 path locked.
+
+The **civilian onboarding gate**: until a casual user can convert winnings to real-world value without navigating crypto, the arcade is a product for people who already have wallets. Solving this is mass-market gating.
+
+**The V1 → V3 stack:**
+
+| Phase | Primary cashout | Secondary | Reasoning |
+|---|---|---|---|
+| **V1 (now)** | **Bitrefill deep-link** — pick a gift card (Amazon UK, Steam, Just Eat, Spotify, Argos, ~600 brands), pay in SOL via the `solana:` URI, code arrives by email in seconds | Manual wallet export to a CEX | ~20 min eng cost. Zero regulatory exposure. No KYC under ~$1000. ~60s end-to-end. ~2–5% affiliate commission to us on every redemption. |
+| **V1.x (weeks 2–8)** | Bitrefill + add MoonPay Sell (Privy native hook) for users who specifically want bank withdrawal | Manual wallet export | MoonPay = regulated entity carries the burden. KYC + 1–3 day settlement = fine for users who want fiat, not for casual £5 players. |
+| **V2 (5+ player)** | Same as V1.x | — | No new cashout work; focus on game-side scope. |
+| **V3 (arcade economy)** | **In-app Tickets shop** — Tillo / Tango / Runa gift-card APIs, full retail margin captured (no affiliate cut), branded UX, regulatory gate cleared | Bitrefill + MoonPay remain available | Margin capture + brand control. Requires UK Gambling Commission consultation, GDPR review, AML/KYC vendor verification. |
+
+**The V1 framing for civilians:**
+
+> "Cash out instantly to 600+ gift cards (Amazon, Steam, Just Eat, Spotify...). Or send to any wallet. Or, if you've earned more than you expected, MoonPay's bank withdrawal is one click away."
+
+That's a more complete story than any single Solana wager product has today. The 5-friends-in-a-TG-chat scenario (each puts £5 in via Apple Pay → 5-player wagered match → winner takes ~£22.50 of SOL) only closes if cashout is friction-free at the end. Bitrefill makes the 30-second "where's my £22?" question have a 60-second answer.
+
+**Treasury solvency for V3 (the load-bearing constraint):**
+
+```
+total_ticket_revenue_per_period  >  total_real_value_emitted_per_period
+```
+
+Where revenue = Ticket purchases (Apple Pay → SOL → Tickets) + diverted wagering rake. Emission = sum of all gift-card / prize payouts at face value plus the wholesale markup we pay the voucher vendor. If this flips, gift card redemptions start failing — reputational ruin. Safeguards: weekly emission cap, daily dashboard, soulbound cosmetics as the safety release valve (cost zero to emit).
+
+**Regulatory gates for V3 (locked before any V3 cash-equivalent prize ships):**
+- UK Gambling Commission consultation — Tickets + leaderboards + cashout next to SOL wagering may classify as a sweepstakes or skill-based prize promotion.
+- GDPR review for the voucher delivery email pipeline.
+- AML/KYC vendor verification.
+
+These gates are why V3's real-prize tier is locked out of V1/V2.
+
+### 6.6 The five non-negotiable rules
 
 1. **One-way valve.** Tickets are buyable and earnable, never sellable, never tradable.
 2. **Rate-based leaderboards.** Skill bonus ranks on rate/skill metrics, never cumulative volume.
 3. **Shop is administered, not a market.** Fixed inventory, fixed prices, capped supply.
-4. **Real-value goods are soulbound or modelled.** No uncontrolled secondary market on shop items.
-5. **Treasury solvency on USDC-out.** If USDC is in the shop, cap it globally per period and price so real revenue (Ticket purchases + wagering rake) exceeds total USDC emitted.
+4. **Real-value goods are soulbound, modelled, OR confined to the in-house marketplace.** No uncontrolled secondary market on shop items. The original North Star text said "soulbound or modelled"; §6.4 documented the addition: the in-house cosmetic marketplace is an *administered* secondary market, so it satisfies the spirit (no leak we don't control) while violating the letter (cosmetics are tradable). Treasury modelling must include in-house resale as a variable.
+5. **Treasury solvency on real-value out.** If real-world-equivalent value is in the shop (gift cards, USDC, capped NFTs), cap it globally per period and price so real revenue (Ticket purchases + wagering rake) exceeds total real-value emitted.
 
-### 6.5 SOL wagering — keep it firewalled
+### 6.7 SOL wagering — keep it firewalled
 
 SolShot wagering continues to exist alongside the Ticket economy. It is a **separate value-out system** and must NOT touch Tickets or shop:
 
@@ -214,11 +294,11 @@ SolShot wagering continues to exist alongside the Ticket economy. It is a **sepa
 
 If they touch, an exploiter farms the self-balancing system to feed the non-self-balancing one and drains the treasury.
 
-### 6.6 Why pay-to-win does NOT apply
+### 6.8 Why pay-to-win does NOT apply
 
-You can buy Tickets and swap into Tier 1 in-game currency. But in-game currency buys **entries and cosmetics, not aim.** Buying Tickets gets you more *attempts*, never more *skill* — you still have to win. Same line as Fortnite: pay for access and cosmetics, never for the win.
+You can buy Tickets and swap into Tier 1 in-game currency or into cosmetics. But neither buys **aim, weapons, damage, accuracy, or any in-match outcome.** Buying Tickets gets you more *attempts* and more *status*, never more *skill* — you still have to win. Same line as Fortnite (cosmetics + access only), reinforced by the 8 Ball lesson (introducing higher-power cues for purchase broke the community's trust; cosmetic tournament cues — pure flex — were what worked).
 
-### 6.7 The SDK question (V4+ only)
+### 6.9 The SDK question (V4+ only)
 
 The economy will lend itself to an SDK for indie devs — but **not for the reason you would pitch first**. The seductive (wrong) pitch is "plug in for crypto rails without launching a token." This attracts the exact mercenary-token crowd we are avoiding. The real draw is **"we handle the wallet, onboarding, payments, treasury, prize compliance, and player liquidity — you bring a game."** Same deal as Miniclip/Roblox.
 
@@ -486,18 +566,25 @@ Pattern applied to all 3 standalone games (basketball, keepie-uppies, free-kicks
 
 ## 12. Open questions / unresolved decisions
 
+### 12.1 Still open
+
 | # | Question | Blocker for | Status |
 |---|---|---|---|
-| 1 | Custom domain (`arcade.xyz` / `thearcade.gg` / alt) | Brand consistency | WHOIS pending |
-| 2 | SolShot leaderboard tab — top prestige? deep-link out? hide? | `/leaderboard` SolShot tab UX | Needs design call |
-| 3 | Stack policy — multi-stack support, or retroactive Phaser lock + port Free Kicks? | Future games' framework choice | Deferred |
-| 4 | Monorepo vs per-game repos | Future game additions | Currently multi-repo (Free Kicks broke monorepo lock); pragmatic-acceptance |
-| 5 | Δ rank delta column (needs daily ranking snapshots) | Leaderboard polish | Deferred |
-| 6 | Tickets — separate on-chain SPL token, or pure off-chain ledger? | V3 economy implementation | Recommended on-chain SPL per V3 doc, not yet decided |
-| 7 | USDC in shop — yes/no? | V3 economy implementation | Hard gate on regulatory review before shipping |
-| 8 | Privy back-on timing | Direct-web identity | Off intentionally; turn back on when ready |
-| 9 | Brand-name finalisation | Marketing | `@TheArcadeGG_Bot` placeholder; final name decision deferred |
-| 10 | Three-asset image commission (tile + hero + splash per game) | Studio-fresh game art | Spec proposed 2026-05-28; designer not yet briefed |
+| 1 | **Custom domain** — `arcade.xyz` / `thearcade.gg` / alt | Brand consistency. The brand-name itself is locked ("The Arcade"); only the domain is unresolved. | WHOIS pending. Currently live on `the-arcade-eta.vercel.app` (Vercel auto-suffix). |
+| 2 | **Master / overall leaderboard — is it necessary at all?** Each game already has its own LB (live for Basketball + Keepie Uppies + Free Kicks; SolShot uses gold/prestige). A cross-game master LB is in-progress but it is open whether one is even *needed*. **If we ship a master LB, the most likely medium is total Tickets earned across games** — provided we balance the ticket-earning economy across cabinets so no single game dominates. The current Overall tab ranks by total plays as a placeholder until that decision lands. | `/leaderboard` Overall tab + Tier-1 cross-game leaderboard scoring | Open |
+| 4 | **Monorepo vs per-game repos.** SolShot had to be in its own repo because of hackathon submission identity. **Going forward we could widen — pull future games into a monorepo.** Open question: is there a negative to that? (Iteration speed, deployment isolation, ownership boundaries, repo size, deploy-tagging?) Needs discussion. | Future game additions, SDK architecture | Open — JJ flagged for discussion |
+| 5 | **Δ (rank delta) column on leaderboards.** What we mean: the "moved +2 / -1 since the last snapshot" indicator next to each standings row. Computing it needs a scheduled daily snapshot job that records each player's rank at midnight UTC; the next day's standings compare against that. Currently shown as `—` for every row. | Leaderboard polish | Deferred — discovering what time-window cadence (daily / weekly) feels right against live behaviour. |
+| 8 | **Privy back-on timing.** Currently Privy login is disabled (CabinetLanding bypasses auth, RequireAuth is a pass-through). Direct web visitors have no identity, so their scores don't write to the leaderboard. Bot users still work (TG session JWT). Question: when does Privy come back on? | Direct-web identity, Your Standing for direct-web users, V3 wallet linkage | Off intentionally per JJ; turn back on when the auth UX is right. |
+| 10 | **Hero art commission** — three assets per game (tile 1280×800 + hero 2400×1050 + splash 1080×1920). Spec proposed 2026-05-28. JJ confirmed needed. **New sub-question: in-house artist vs external commission?** | Studio-fresh game art replacing the current cropped WebPs | Open — JJ flagged for discussion |
+
+### 12.2 Settled (moved here from open)
+
+| # | Was | Now |
+|---|---|---|
+| 3 | Stack policy — Phaser-only or multi-stack? | **Locked: any stack, as long as it can be hosted.** Free Kicks (Vite + Three.js) shipping unbroken settled the precedent. Opening the stack opens up the larger indie game base. |
+| 6 | Tickets — on-chain SPL or off-chain ledger? | **Locked: pure off-chain.** Per [`ARCADE_AVATAR_LAYER_V3.md`](../../notes/ARCADE_AVATAR_LAYER_V3.md) + [`CIVILIAN_CASHOUT_STRATEGY.md`](../../../SolShot/Docs/internal/CIVILIAN_CASHOUT_STRATEGY.md). The one-way valve only works if Tickets cannot leak via a secondary market — an SPL token would create one by default. |
+| 7 | USDC in shop — yes/no? | **Likely NO (Bitrefill negates the need).** V1 cashout = Bitrefill deep-link. V3 cashout = in-app Tickets shop with gift-card vouchers via Tillo/Tango/Runa. USDC-as-prize was a hard regulatory gate; gift-card vouchers are already-licensed pathways. Revisit if a specific reason to emit USDC directly appears. |
+| 9 | Brand-name finalisation | **Locked: "The Arcade".** Domain is the remaining sub-question (see Q1). |
 
 ---
 
@@ -508,6 +595,8 @@ Read this doc first. The docs below provide depth on specific topics:
 | Doc | Lives at | Covers |
 |---|---|---|
 | **V3 Arcade Economy North Star** | `SolShot/Docs/internal/V3_ARCADE_ECONOMY_NORTH_STAR.md` | The locked principle-level economy model. The source of §6 here. |
+| **Arcade Avatar & Item Layer V3** | `The-Arcade/notes/ARCADE_AVATAR_LAYER_V3.md` | The avatar render + in-house cosmetic marketplace + no-NFT call. Source of §6.4 here. |
+| **Civilian Cashout Strategy** | `SolShot/Docs/internal/CIVILIAN_CASHOUT_STRATEGY.md` | Bitrefill / MoonPay / V3 in-app shop cashout stack. Source of §6.5 here. |
 | **v2 Designer Handoff** | `The-Arcade/The_Arcade_Design_Package/design_handoff_the_arcade/README.md` | The locked v2 brand pack. The source of §4 here. Token tables, component contracts, screen specs. |
 | **Migration Playbook** | `The-Arcade/repo/docs/MIGRATION_PLAYBOOK.md` + `SolShot/Docs/ARCADE_MIGRATION_PLAYBOOK.md` | Operational rollout — pre-flight, lift moment, cutover, rollback. |
 | **Arcade Bot Architecture** | `SolShot/Docs/build-notes/ARCADE_BOT.md` | `@TheArcadeGG_Bot` — bot architecture, commands, env, JWT flow. |
@@ -537,9 +626,17 @@ These were positions taken at one point and have been overridden. They are prese
 
 ## 15. Changelog
 
+> **House rule:** every material edit to this doc gets a row here. **Same commit. No exceptions.** Future readers grep this section to understand how positions evolved.
+
 | Date | Change | Author |
 |---|---|---|
 | 2026-05-29 | Initial canonical doc. Consolidates V3 economy north star, v2 designer handoff, migration playbooks, bot architecture, live game state, and the silent-submit-failure hotfix. | main-claude |
+| 2026-05-29 | Economy status: ECONOMY ACCEPTED AND LOCKED at principle level. Added stress-test caveat at §6 header — numbers are illustrative until bot/gaming red-team work. Corrected participation floor wording: "⅓ Ticket" → "1–3 Tickets" per game. | main-claude (per JJ feedback) |
+| 2026-05-29 | §6.4 NEW — Avatar & item layer (in-house off-chain cosmetic marketplace, no NFTs, no Tensor, full marketplace fee captured, items tradable for Tickets or SOL). Sourced from `notes/ARCADE_AVATAR_LAYER_V3.md`. | main-claude |
+| 2026-05-29 | §6.5 NEW — Civilian cashout stack. V1 = Bitrefill deep-link (gift cards, ~20 min eng, zero reg burden). V1.x = + MoonPay Sell. V3 = in-app Tickets shop via Tillo/Tango/Runa. Sourced from `SolShot/Docs/internal/CIVILIAN_CASHOUT_STRATEGY.md`. | main-claude |
+| 2026-05-29 | §6.6 Rule 4 qualified — the in-house cosmetic marketplace is an administered secondary market that satisfies the spirit (no leak we don't control) while extending the letter (cosmetics are tradable in our venue). Treasury modelling must include in-house resale as a variable. | main-claude |
+| 2026-05-29 | §12 Open questions split into 12.1 (still open) + 12.2 (settled). Settled: Q3 stack policy (multi-stack accepted), Q6 Tickets shape (pure off-chain), Q7 USDC-in-shop (Bitrefill negates), Q9 brand name (The Arcade locked, domain still open). Q2 expanded — master LB necessity is the real question, Tickets earned as the likely medium if ticket-earning is balanced cross-game. Q4 expanded — monorepo question framed as "is there a negative to widening?". Q5 explained — Δ column = rank movement vs last snapshot, needs daily snapshot job. Q8 explained — Privy currently off, question is when it comes back. Q10 — hero art commission, sub-question in-house vs commission. | main-claude (per JJ feedback) |
+| 2026-05-29 | Strengthened iteration policy — changelog updates are a hard commitment, same commit as the edit. | main-claude (per JJ feedback) |
 
 ---
 
