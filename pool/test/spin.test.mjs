@@ -26,7 +26,7 @@ import {
   SPIN_FOLLOWTHROUGH_FACTOR,
   SPIN_FRICTION,
   SPIN_DEAD_ZONE
-} from '../src/physics/spin.ts';
+} from '../src/physics/spin';
 
 let failures = 0;
 function assert(cond, msg) {
