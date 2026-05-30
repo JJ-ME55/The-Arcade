@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Classic 8-Ball</title>
+    <link rel="shortcut icon" type="image/png" href="assets/sprites/favicon.png"/>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="gameArea">
+        <canvas id="screen"></canvas>
+    </div>
+    <div id="powerHud" aria-hidden="true">
+        <span id="powerHudLabel">POWER</span>
+        <input type="range" id="powerSlider" min="0" max="50" value="0" step="1" aria-label="Shot power">
+    </div>
+    <div id="spinHud" aria-hidden="true">
+        <span id="spinHudLabel">SPIN</span>
+        <div id="spinPad" role="application" aria-label="Cue ball impact point">
+            <div id="spinDot"></div>
+        </div>
+    </div>
+    <script src="bundle.js"></script>
+</body>
+</html>
