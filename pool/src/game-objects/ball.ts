@@ -82,9 +82,19 @@ export class Ball {
 
     //------Constructor------//
 
-    constructor(private _position: Vector2, color: Color) {
+    /**
+     * @param _id - stable ID used by the sim core for cross-frame ball
+     *              identification. Convention: 0 = cue ball, 8 = black,
+     *              1-7 = first half of object balls, 9-15 = second half.
+     *              GameWorld.initMatch() assigns these.
+     */
+    constructor(private _position: Vector2, color: Color, private _id: number = 0) {
         this._color = color;
         this.resolveSprite(color);
+    }
+
+    public get id(): number {
+        return this._id;
     }
 
     //------Private Methods------//

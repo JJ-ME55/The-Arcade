@@ -14,6 +14,9 @@ import { Mouse } from '../input/mouse';
 import { SpinHud } from '../input/spin-hud';
 import { State } from './state';
 import { applySidespinToCushionBounce, applyTopBackSpinToBallCollision } from '../physics/spin';
+import { stepWorld } from '../sim/world';
+import type { SerializableBall, TableConfig, PhysicsConfig, ShotEvent } from '../sim/types';
+import { syncBallsToSerializable, syncSerializableToBalls, buildSimTableConfig, buildSimPhysicsConfig } from '../sim/browser-adapter';
 
 //------Configurations------//
 
@@ -40,6 +43,13 @@ export class GameWorld {
     private _currentPlayerIndex = 0;
     private _turnState: State;
     private _referee: Referee;
+
+    // Sim core configs — built once per match in initMatch(), passed to
+    // stepWorld() every frame in simulateFrame(). The sim itself is stateless
+    // beyond its event accumulator; all state lives on the Balls.
+    private _simTable: TableConfig | null = null;
+    private _simPhysics: PhysicsConfig | null = null;
+    private _simTick: number = 0;
 
     //------Properties------//
 
@@ -408,24 +418,36 @@ export class GameWorld {
 
     public initMatch(): void {
 
+        // Stable ball IDs per the sim's convention (see sim/types.ts):
+        //   0      = cue ball
+        //   1-7    = first object group (variable-name "redBalls" — Color.yellow)
+        //   8      = black (the 8 ball)
+        //   9-15   = second object group (variable-name "yellowBalls" — Color.red)
+        // Browser ↔ server convergence depends on these IDs matching.
         const redBalls: Ball[] = GameConfig.redBallsPositions
-            .map((position: Vector2) => new Ball(Vector2.copy(position), Color.yellow));
+            .map((position: Vector2, i: number) => new Ball(Vector2.copy(position), Color.yellow, 1 + i));
 
         const yellowBalls: Ball[] = GameConfig.yellowBallsPositions
-            .map((position: Vector2) => new Ball(Vector2.copy(position), Color.red));
-        
-        this._8Ball = new Ball(Vector2.copy(GameConfig.eightBallPosition), Color.black);
+            .map((position: Vector2, i: number) => new Ball(Vector2.copy(position), Color.red, 9 + i));
 
-        this._cueBall = new Ball(Vector2.copy(GameConfig.cueBallPosition), Color.white);
+        this._8Ball = new Ball(Vector2.copy(GameConfig.eightBallPosition), Color.black, 8);
+
+        this._cueBall = new Ball(Vector2.copy(GameConfig.cueBallPosition), Color.white, 0);
 
         this._stick = new Stick(Vector2.copy(GameConfig.cueBallPosition));
 
         this._balls = [
-            ...redBalls, 
-            ... yellowBalls, 
+            ...redBalls,
+            ... yellowBalls,
             this._8Ball,
-            this._cueBall, 
+            this._cueBall,
         ];
+
+        // Build sim configs from GameConfig once — same values stepWorld
+        // sees every frame from now until the next initMatch.
+        this._simTable = buildSimTableConfig();
+        this._simPhysics = buildSimPhysicsConfig();
+        this._simTick = 0;
 
         this._currentPlayerIndex = 0;
 
@@ -500,15 +522,70 @@ export class GameWorld {
             return;
         }
 
+        // Run the sim's tick: cushion + ball-ball + advance + pocket — all
+        // identical to what the SolShot server will run for the same shot.
+        // Replaces the previous trio: handleCollisions() + per-ball
+        // ball.update() + the pocket-detection inside handleBallsInPockets().
+        this.simulateFrame();
+
+        // Bookkeeping for ball-pocket transitions (sound + player-color
+        // assignment). The actual detection moved into the sim; this just
+        // reacts to ball.visible flipping.
         this.handleBallsInPockets();
-        this.handleCollisions();
+
         this.handleInput();
         this._stick.update();
-        this._balls.forEach((ball: Ball) => ball.update());
 
         if(!this.isBallsMoving && !this._stick.visible) {
             this.concludeTurn();
             this.nextTurn();
+        }
+    }
+
+    /**
+     * Run a single sim tick over the current ball state.
+     * Mutates Balls in place via the adapter. Processes sim events for
+     * audio feedback + foul detection (firstCollidedBallColor).
+     */
+    private simulateFrame(): void {
+        if (!this._simTable || !this._simPhysics) return; // not initialised
+
+        // Skip the sim entirely if no ball is moving — preserves the existing
+        // behaviour where Ball.update() was a no-op for stopped balls.
+        if (!this.isBallsMoving) return;
+
+        // Snapshot Browser → sim
+        const view: SerializableBall[] = syncBallsToSerializable(this._balls);
+        const events: ShotEvent[] = [];
+
+        stepWorld(view, this._simTable, this._simPhysics, events, this._simTick);
+        this._simTick++;
+
+        // Write sim → Browser
+        syncSerializableToBalls(view, this._balls);
+
+        // React to events: sounds + foul detection (firstCollidedBallColor).
+        // Pocket-side bookkeeping (color assignment, scoring) stays in
+        // handleBallsInPockets() which fires immediately after this.
+        for (const evt of events) {
+            if (evt.type === 'ball_collision') {
+                const first = this._balls.find(b => b.id === evt.ballId);
+                const second = this._balls.find(b => b.id === evt.otherBallId);
+                if (first && second) {
+                    const force: number = first.velocity.length + second.velocity.length;
+                    const volume: number = mapRange(force, 0, ballConfig.maxExpectedCollisionForce, 0, 1);
+                    Assets.playSound(sounds.paths.ballsCollide, volume);
+
+                    if (!this._turnState.firstCollidedBallColor) {
+                        const color: Color = first.color === Color.white ? second.color : first.color;
+                        this._turnState.firstCollidedBallColor = color;
+                    }
+                }
+            }
+            // cushion_hit, pocket_drop, cue_ball_potted, eight_ball_potted
+            // events are observed but don't drive client-side audio here —
+            // pocket sound is triggered by handleBallsInPockets's
+            // visibility-transition check (kept unchanged for now).
         }
     }
 
