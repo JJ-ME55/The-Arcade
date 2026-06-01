@@ -1,0 +1,66 @@
+/* ============================================================================
+   SIDE POCKET — MATCH RESULT (Victory). The payoff: outcome stamp, frame score,
+   the pot won, ELO movement, rematch. Theatrical but classy, on the felt.
+   ============================================================================ */
+.sp-result {
+  --c-cream: #F1EAD6; --c-cream-d: #B7AE92; --c-brass: #C9A24A;
+  --c-gold1: #F6E9BE; --c-gold2: #D4AF5E; --c-gold3: #A37D34; --c-ink: #1A1206;
+  --c-line: rgba(201,162,74,0.24);
+  position: relative; width: 100%; height: 100%; overflow: hidden; isolation: isolate;
+  font-family: "Bitter", Georgia, serif; color: var(--c-cream); user-select: none; background: #070c09;
+}
+.sp-result * { box-sizing: border-box; }
+.res-bg { position: absolute; inset: 0; z-index: 0; background: url("assets/rack-green.png") center 60% / cover no-repeat; filter: brightness(0.34) saturate(0.9) blur(2px); }
+.res-veil { position: absolute; inset: 0; z-index: 0; background: radial-gradient(ellipse 60% 56% at 50% 40%, rgba(201,162,74,0.16) 0%, transparent 40%), radial-gradient(ellipse 72% 66% at 50% 44%, transparent 20%, rgba(6,11,8,0.8) 64%, #060b08 100%); }
+
+.res-top { position: relative; z-index: 3; display: flex; align-items: center; gap: 18px; padding: 22px 40px; }
+.res-top .rmtag { font-family: "Space Mono", monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--c-cream-d); }
+.res-top .rmtag b { color: var(--c-brass); }
+
+.res-stage { position: relative; z-index: 2; height: calc(100% - 88px); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.res-kick { font-weight: 700; font-size: 12px; letter-spacing: 0.46em; text-transform: uppercase; color: var(--c-brass); opacity: 0; animation: rsFade .5s ease .1s forwards; }
+.res-stamp.lose { background: linear-gradient(180deg, #E58A86 0%, #B5413C 55%, #7a2420 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 6px 30px rgba(181,65,60,0.4)); }
+.res-stamp { font-family: "Abril Fatface", Georgia, serif; font-size: 118px; line-height: 0.9; margin: 6px 0 0; letter-spacing: 0.01em;
+  background: linear-gradient(180deg, var(--c-gold1) 0%, var(--c-gold2) 50%, var(--c-gold3) 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 6px 30px rgba(201,162,74,0.45)); transform: scale(0.6); opacity: 0; animation: stampPop .6s cubic-bezier(.2,1.4,.4,1) .25s forwards; }
+@keyframes stampPop { to { transform: scale(1); opacity: 1; } }
+@keyframes rsFade { to { opacity: 1; } }
+
+/* score line with flanking portraits */
+.res-score { display: flex; align-items: center; gap: 34px; margin-top: 30px; opacity: 0; animation: rsFade .5s ease .7s forwards; }
+.res-pl { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 170px; }
+.res-pl .pp { width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; font-family: "Abril Fatface"; font-size: 40px; color: #fff;
+  border: 2px solid var(--c-line); }
+.res-pl.win .pp { border-color: var(--c-brass); box-shadow: 0 0 0 6px rgba(201,162,74,0.1), 0 0 46px rgba(201,162,74,0.45); background: radial-gradient(circle at 38% 30%, #2a6b4f, #143b2c 78%); }
+.res-pl.lose .pp { background: radial-gradient(circle at 38% 30%, #7a3aa0, #2c1140 80%); filter: grayscale(0.7); opacity: 0.6; }
+.res-pl .pn { font-weight: 800; font-size: 16px; }
+.res-pl.lose .pn { color: var(--c-cream-d); }
+.res-pl .tag { font-family: "Space Mono", monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+.res-pl.win .tag { color: var(--c-brass); } .res-pl.lose .tag { color: var(--c-cream-d); opacity: 0.7; }
+.res-vs { display: flex; align-items: baseline; gap: 14px; font-family: "Abril Fatface", Georgia, serif; font-size: 64px; color: var(--c-cream); }
+.res-vs .dash { font-size: 40px; color: var(--c-cream-d); }
+
+/* rewards */
+.res-rewards { display: flex; gap: 14px; margin-top: 38px; opacity: 0; animation: rsFade .5s ease 1s forwards; }
+.rwd { width: 200px; padding: 18px 20px; background: rgba(12,22,15,0.7); border: 1px solid var(--c-line); display: flex; align-items: center; gap: 14px; }
+.rwd .ic { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; font-family: "Abril Fatface"; font-size: 16px; }
+.rwd .ic.prestige { background: radial-gradient(circle at 36% 30%, #ffe9a8, var(--c-brass) 75%); color: #5a3f0e; }
+.rwd .ic.elo { color: var(--c-brass); border: 1px solid var(--c-brass); font-family: "Space Mono"; font-size: 18px; font-weight: 700; }
+.rwd .ic.stat { color: #9FD8A8; border: 1px solid rgba(123,200,140,0.5); font-size: 18px; }
+.rwd .rl { font-weight: 700; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--c-cream-d); }
+.rwd .rv { font-family: "Space Mono", monospace; font-weight: 700; font-size: 19px; color: var(--c-cream); margin-top: 3px; }
+.rwd .rv.up { color: #9FD8A8; }
+.rwd .rv.down { color: #E58A86; }
+.rwd .rv .sm { font-size: 11px; color: var(--c-cream-d); }
+
+.res-cta { display: flex; gap: 14px; margin-top: 40px; opacity: 0; animation: rsFade .5s ease 1.2s forwards; }
+.res-rematch { cursor: pointer; border: none; padding: 17px 44px; color: var(--c-ink); position: relative; overflow: hidden;
+  background: linear-gradient(180deg, #F4E2A6, #DCB85F 48%, #BD9038); box-shadow: 0 12px 28px rgba(0,0,0,0.5); transition: filter .15s ease, transform .08s ease;
+  font-family: "Bitter"; font-weight: 800; font-size: 18px; letter-spacing: 0.06em; }
+.res-rematch::after { content: ""; position: absolute; inset: 5px; border: 1px solid rgba(70,48,12,0.42); }
+.res-rematch:hover { filter: brightness(1.05); } .res-rematch:active { transform: translateY(2px); }
+.res-lobby { cursor: pointer; background: none; border: 1px solid var(--c-line); color: var(--c-cream); padding: 17px 38px;
+  font-family: "Bitter"; font-weight: 700; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; transition: border-color .15s ease, background .15s ease; }
+.res-lobby:hover { border-color: var(--c-brass); background: rgba(201,162,74,0.1); }

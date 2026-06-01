@@ -1,0 +1,78 @@
+/* ============================================================================
+   SIDE POCKET — BLEND. Between editorial and hero: the dramatic dark room +
+   warm tactile PLAY of the hero, with the real rendered table as centerpiece
+   and the daily challenge back — but still calm (no busy mode list).
+   ============================================================================ */
+.sp-bl {
+  --bl-cream: #ECE3CD; --bl-cream-d: #B7AE92; --bl-brass: #C49B4E;
+  --bl-amber: #E0A23C; --bl-ink: #1A1206; --bl-line: rgba(196,155,78,0.26);
+  position: relative; width: 100%; height: 100%; overflow: hidden;
+  font-family: "Bitter", Georgia, serif; color: var(--bl-cream);
+  user-select: none; background: #070D0A; isolation: isolate;
+}
+.sp-bl * { box-sizing: border-box; }
+
+/* moody room: lamp glow over the table + heavy vignette */
+.bl-room { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.bl-lamp { position: absolute; right: 18%; top: -20%; width: 1000px; height: 1000px;
+  background: radial-gradient(circle at 50% 50%, rgba(255,216,150,0.26), rgba(255,188,116,0.08) 34%, transparent 62%); }
+.bl-vignette { position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 70% at 66% 48%, transparent 32%, rgba(6,12,9,0.7) 78%, #06100a 100%); }
+
+/* quiet top bar (spec wallet) */
+.bl-top { position: relative; z-index: 3; display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 22px 44px; }
+.bl-wallet { display: flex; align-items: center; gap: 14px; font-family: "Space Mono", monospace; font-size: 12px; color: var(--bl-cream); }
+.bl-wallet .w u { text-decoration: none; font-size: 9px; letter-spacing: 0.14em; color: var(--bl-cream-d); margin-left: 5px; }
+.bl-wallet .w.sol b { color: #9FE7C4; } .bl-wallet .w.tkt b { color: #8FD0EC; } .bl-wallet .w.g b { color: var(--bl-brass); }
+.bl-wallet .dot { width: 3px; height: 3px; border-radius: 50%; background: rgba(196,155,78,0.4); }
+.bl-sig { display: inline-flex; align-items: center; gap: 9px; padding-left: 14px; border-left: 1px solid var(--bl-line); cursor: pointer; }
+.bl-sig .av { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 34px;
+  background: #1F4E35; border: 1px solid var(--bl-brass); color: var(--bl-cream); font-family: "Abril Fatface"; font-size: 15px; }
+.bl-sig .h { font-weight: 700; font-size: 13px; } .bl-sig .e { font-family: "Space Mono", monospace; font-size: 9px; color: var(--bl-cream-d); margin-top: 2px; }
+.bl-ico { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: var(--bl-cream);
+  background: rgba(255,255,255,0.04); border: 1px solid var(--bl-line); font-size: 17px; }
+
+/* layout: wordmark+buttons left, table+daily right */
+.bl-main { position: relative; z-index: 2; height: calc(100% - 82px); display: grid; grid-template-columns: 1fr 1.12fr;
+  align-items: center; gap: 56px; padding: 0 56px 30px; }
+.bl-left { display: flex; flex-direction: column; }
+.bl-est { font-weight: 700; font-size: 11px; letter-spacing: 0.42em; text-transform: uppercase; color: var(--bl-brass); }
+.bl-wm { font-family: "Abril Fatface", Georgia, serif; font-size: 96px; line-height: 0.82; margin: 14px 0 0; letter-spacing: 0.005em;
+  color: #E9DBAE; background: linear-gradient(180deg, #F6E9BE 0%, #D4AF5E 50%, #A37D34 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 6px 18px rgba(0,0,0,0.5)); }
+.bl-wm em { font-style: italic; }
+
+.bl-cta { display: flex; flex-direction: column; gap: 13px; margin-top: 36px; max-width: 360px; }
+.bl-play { position: relative; cursor: pointer; border: none; border-radius: 8px; padding: 21px 26px; overflow: hidden; text-align: left;
+  display: flex; align-items: center; justify-content: space-between; color: var(--bl-ink);
+  background: linear-gradient(180deg, #ECA748, #C9821F); box-shadow: 0 10px 26px rgba(0,0,0,0.45); transition: transform .08s ease, filter .15s ease; }
+.bl-play::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 50%; background: linear-gradient(180deg, rgba(255,255,255,0.32), transparent); pointer-events: none; }
+.bl-play::after { content: ""; position: absolute; inset: 4px; border: 1px solid rgba(26,18,6,0.22); border-radius: 5px; pointer-events: none; }
+.bl-play:hover { filter: brightness(1.05); }
+.bl-play:active { transform: translateY(2px); }
+.bl-play .t { position: relative; font-family: "Abril Fatface", Georgia, serif; font-size: 38px; line-height: 0.9; }
+.bl-play .chev { position: relative; font-family: "Abril Fatface"; font-size: 32px; }
+
+.bl-btn { cursor: pointer; border: 1px solid rgba(236,227,205,0.32); background: rgba(255,255,255,0.03); border-radius: 8px; white-space: nowrap;
+  padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; color: var(--bl-cream);
+  font-family: "Bitter"; font-weight: 800; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; transition: background .15s ease, border-color .15s ease; }
+.bl-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(196,155,78,0.55); }
+.bl-btn .tag { font-family: "Space Mono", monospace; font-weight: 400; font-size: 10px; letter-spacing: 0.06em; color: var(--bl-amber); text-transform: none; }
+.bl-more { display: flex; gap: 22px; margin-top: 16px; }
+.bl-more a { font-weight: 700; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--bl-cream-d); cursor: pointer; text-decoration: none; transition: color .15s ease; }
+.bl-more a:hover { color: var(--bl-brass); }
+
+/* right: the real table + ruled daily challenge */
+.bl-right { display: flex; flex-direction: column; align-items: center; }
+.bl-table { filter: drop-shadow(0 30px 50px rgba(0,0,0,0.55)); }
+.bl-daily { display: flex; align-items: center; justify-content: space-between; gap: 24px; width: 100%; max-width: 560px;
+  margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--bl-line); }
+.bl-daily .dk { font-weight: 700; font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--bl-brass); }
+.bl-daily .dt { font-family: "Abril Fatface"; font-size: 19px; color: var(--bl-cream); margin-top: 6px; }
+.bl-daily .dd { font-family: "Space Mono", monospace; font-size: 11px; color: var(--bl-cream-d); margin-top: 6px; }
+.bl-daily .dd b { color: #9FE7C4; }
+.bl-take { flex: 0 0 auto; cursor: pointer; background: none; border: 1px solid var(--bl-brass); border-radius: 6px; white-space: nowrap;
+  padding: 13px 22px; font-family: "Bitter"; font-weight: 800; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--bl-cream); transition: background .15s ease, color .15s ease; }
+.bl-take:hover { background: var(--bl-brass); color: var(--bl-ink); }

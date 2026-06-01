@@ -1,0 +1,66 @@
+/* ============================================================================
+   SIDE POCKET — ROUND 2 · MATCH STATES. Overlays on the cobalt table: foul/
+   scratch referee stamps (#13), ball-in-hand placement (#14), reconnect (#19),
+   and the locked stamp set reference (#20). Literal colours (overlays sit
+   outside the .spg token scope). Mobile sizes scale down inside .mscreen.
+   ============================================================================ */
+
+/* ---- #13 / #20 state stamp (referee-called) ---- */
+.st-stampwrap { position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; pointer-events: none;
+  background: radial-gradient(ellipse 60% 50% at 50% 46%, rgba(7,12,9,0.4), transparent 64%); }
+.st-stamp { font-family: "Bowlby One", "Abril Fatface", sans-serif; font-size: 88px; line-height: 1; text-transform: uppercase; transform: skewX(-6deg);
+  -webkit-text-stroke: 2px #1A1206; text-shadow: 0 5px 0 rgba(0,0,0,0.5); animation: stPop .45s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes stPop { from { transform: translateY(-14%) scale(0.6) skewX(-6deg); opacity: 0; } 70% { transform: scale(1.06) skewX(-6deg); opacity: 1; } to { transform: scale(1) skewX(-6deg); opacity: 1; } }
+.st-stamp.foul, .st-stamp.scratch, .st-stamp.eight { color: #E58A86; }
+.st-stamp.break, .st-stamp.win { color: #fff; background: linear-gradient(180deg, #F6E9BE, #C9A24A); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; -webkit-text-stroke: 2px #1A1206; }
+.st-stamp.solids { color: #fff; background: linear-gradient(180deg, #ffd86b, #F4B924); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; -webkit-text-stroke: 2px #1A1206; }
+.st-stamp.stripes { color: #fff; background: linear-gradient(180deg, #5fa3ff, #1F5BB3); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; -webkit-text-stroke: 2px #1A1206; }
+.st-stamp.rerack { color: #F6E9BE; } .st-stamp.lose { color: #6b4a4a; }
+.st-sub { font-family: "Space Mono", monospace; font-weight: 700; font-size: 16px; letter-spacing: 0.14em; text-transform: uppercase; color: #F1EAD6; }
+.st-sub b { color: #C9A24A; }
+.mscreen .st-stamp { font-size: 46px; } .mscreen .st-sub { font-size: 11px; }
+
+/* ---- #14 ball-in-hand placement ---- */
+.st-bih { position: absolute; inset: 0; z-index: 18; pointer-events: none; }
+.st-kitchen { position: absolute; top: 7%; bottom: 7%; left: 3.6%; width: 22%; background: linear-gradient(90deg, rgba(246,233,190,0.16), transparent); border-right: 1px dashed rgba(246,233,190,0.45); }
+.st-ghostball { position: absolute; width: 30px; height: 30px; border-radius: 50%; transform: translate(-50%,-50%); border: 2px dashed rgba(246,233,190,0.9);
+  background: radial-gradient(circle at 36% 30%, rgba(255,255,255,0.5), rgba(246,233,190,0.12) 60%, transparent); box-shadow: 0 0 18px rgba(246,233,190,0.5); }
+.st-ghostball::after { content: "✛"; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); color: #F6E9BE; font-size: 15px; }
+.mscreen .st-ghostball { width: 22px; height: 22px; }
+.st-bih-cap { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); display: flex; align-items: center; gap: 9px; padding: 10px 18px;
+  background: rgba(7,12,9,0.8); border: 1px solid #C9A24A; font-family: "Space Mono", monospace; font-weight: 700; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: #F6E9BE; }
+.mscreen .st-bih-cap { bottom: 16px; font-size: 10px; padding: 7px 12px; }
+
+/* ---- #19 reconnect / disconnect overlay ---- */
+.st-recon { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; padding: 30px;
+  background: rgba(7,12,9,0.84); backdrop-filter: blur(6px); }
+.st-recon .ring { width: 56px; height: 56px; border-radius: 50%; border: 4px solid rgba(201,162,74,0.2); border-top-color: #C9A24A; animation: stSpin .9s linear infinite; }
+@keyframes stSpin { to { transform: rotate(360deg); } }
+.st-recon h2 { font-family: "Abril Fatface", Georgia, serif; font-size: 32px; margin: 0; color: #F1EAD6; }
+.st-recon .cd { font-family: "Space Mono", monospace; font-weight: 700; font-size: 40px; color: #F6E9BE; }
+.st-recon .cd.low { color: #E58A86; }
+.st-recon .opp { font-family: "Space Mono", monospace; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #B7AE92; }
+.st-recon .opp i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 7px; background: #5BD06A; box-shadow: 0 0 7px #5BD06A; vertical-align: middle; }
+.st-recon .opp i.off { background: #E58A86; box-shadow: 0 0 7px #E58A86; }
+.st-recon .cta { display: flex; gap: 12px; margin-top: 8px; }
+.st-recon button { cursor: pointer; min-height: 46px; padding: 0 24px; font-family: "Bitter"; font-weight: 800; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; }
+.st-recon .keep { background: rgba(255,255,255,0.05); border: 1px solid rgba(201,162,74,0.5); color: #F1EAD6; }
+.st-recon .ff { border: none; color: #fff; background: linear-gradient(180deg, #E58A86, #9a1d27); }
+.st-recon .toast { font-family: "Space Mono", monospace; font-size: 11px; color: #B7AE92; }
+.mscreen .st-recon h2 { font-size: 22px; } .mscreen .st-recon .cd { font-size: 30px; } .mscreen .st-recon .ring { width: 42px; height: 42px; }
+
+/* ---- #20 stamp set reference board ---- */
+.st-board { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; padding: 30px 40px; overflow: hidden; }
+.st-board .bh { font-family: "Abril Fatface", Georgia, serif; font-size: 30px; }
+.st-board .bs { font-family: "Space Mono", monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #B7AE92; margin: 4px 0 18px; }
+.st-grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-content: start; }
+.mscreen .st-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.st-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 18px 12px; background: rgba(12,22,15,0.6); border: 1px solid rgba(201,162,74,0.24); }
+.st-cell .sx { font-family: "Bowlby One", sans-serif; font-size: 30px; line-height: 1; text-transform: uppercase; transform: skewX(-6deg); -webkit-text-stroke: 1.5px #1A1206; }
+.mscreen .st-cell { padding: 9px 6px; gap: 4px; } .mscreen .st-cell .sx { font-size: 17px; -webkit-text-stroke: 1px #1A1206; }
+.st-cell .cap { font-family: "Space Mono", monospace; font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: #B7AE92; text-align: center; }
+.mscreen .st-cell .cap { font-size: 7px; }
+.st-cell .sx.gold { color: #fff; background: linear-gradient(180deg, #F6E9BE, #C9A24A); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; -webkit-text-stroke: 1.5px #1A1206; }
+.st-cell .sx.solid { color: #fff; background: linear-gradient(180deg, #ffd86b, #F4B924); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; -webkit-text-stroke: 1.5px #1A1206; }
+.st-cell .sx.strip { color: #fff; background: linear-gradient(180deg, #5fa3ff, #1F5BB3); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; -webkit-text-stroke: 1.5px #1A1206; }
+.st-cell .sx.red { color: #E58A86; } .st-cell .sx.dim { color: #6b4a4a; }

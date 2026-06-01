@@ -1,0 +1,46 @@
+/* ============================================================================
+   SIDE POCKET — MOBILE TABLE. Hosts the LOCKED cobalt PoolTable (PoolTable.jsx)
+   inside the landscape gameplay screen. The board keeps its true 1500:825
+   (1.818:1) ratio, centred and contained (scale, never stretch) on any device.
+   Rules lifted from kit.css so we don't pull the whole desktop sheet.
+   ============================================================================ */
+
+/* largest 1.818:1 board that fits the (padded) stage on ANY aspect */
+.gboard { position: relative; width: min(100cqw, 181.82cqh); height: min(54.945cqw, 100cqh); }
+
+.table {
+  position: relative; width: 100%; height: 100%;
+  aspect-ratio: 1500 / 825;
+  border-radius: 12px;
+  overflow: visible; /* cue stick may overhang */
+  box-shadow: 0 28px 56px rgba(0,0,0,0.7), 0 4px 0 rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.05) inset;
+}
+.table .table-chrome { border-radius: 12px; overflow: hidden; }
+
+/* balls — grounding shadow + top-left key light */
+.ball-pos { position: absolute; transform: translate(-50%, -50%); z-index: 10; }
+.ball-pos::before { content: ""; position: absolute; left: 6%; right: -12%; bottom: -16%; height: 36%;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.20) 45%, rgba(0,0,0,0) 75%); filter: blur(1.5px); z-index: -1; pointer-events: none; }
+.ball-pos .ball-vis { position: absolute; inset: 0; border-radius: 50%; container-type: size;
+  box-shadow: 0 2px 3px rgba(0,0,0,0.55), inset -3px -4px 6px rgba(0,0,0,0.38), inset 2px 3px 5px rgba(255,255,255,0.22); }
+.ball-pos .ball-vis::after { content: ""; position: absolute; top: 12%; left: 18%; width: 26%; height: 18%; background: rgba(255,255,255,0.55); border-radius: 50%; filter: blur(1.5px); }
+.ball-cue   .ball-vis { background: radial-gradient(circle at 32% 28%, #ffffff 0%, #f4ecd2 60%, #d9cca6 100%); }
+.ball-eight .ball-vis { background: radial-gradient(circle at 32% 28%, #6a6a72 0%, #1a1a1f 35%, #0a0a0c 100%); }
+.ball-red    .ball-vis { background: var(--ball-3); }
+.ball-yellow .ball-vis { background: var(--ball-1); }
+.ball-numdot { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 40%; height: 40%; border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, #fff 0%, #f7f3e0 70%); display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 20cqmin; color: var(--slate-deep); line-height: 1; padding-bottom: 1px; box-shadow: inset 0 -1px 1px rgba(0,0,0,0.18); }
+
+/* floating state stamp (BREAK!/SOLIDS/FOUL! …) */
+.stamp-floating { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 40; pointer-events: none; animation: stampPop 460ms var(--ease-pop) both; }
+.stamp-floating .stamp { display: inline-block; font-family: var(--font-stamp); padding: 12px 22px; border-radius: 14px; text-transform: uppercase; transform: skewX(-6deg);
+  -webkit-text-stroke: 2px var(--slate-deep); text-shadow: 0 4px 0 rgba(0,0,0,0.5); box-shadow: 0 6px 0 rgba(0,0,0,0.5), var(--shadow-md); font-size: 24px; }
+.stamp-floating .stamp.solids  { color: var(--slate-deep); background: linear-gradient(180deg, #ffd86b, var(--ball-1)); -webkit-text-stroke: 2px #fff; }
+.stamp-floating .stamp.stripes { color: #fff; background: linear-gradient(180deg, #5fa3ff, var(--ball-2)); }
+.stamp-floating .stamp.break   { color: #fff; background: linear-gradient(180deg, var(--action-bright), var(--hot)); -webkit-text-stroke: 2px var(--slate-deep); font-size: 30px; padding: 14px 26px; }
+@keyframes stampPop {
+  0%   { transform: translate(-50%, -80%) scale(0.5); opacity: 0; }
+  70%  { transform: translate(-50%, -52%) scale(1.08); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}

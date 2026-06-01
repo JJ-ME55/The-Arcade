@@ -1,0 +1,112 @@
+/* ============================================================================
+   SIDE POCKET — TOURNAMENTS. A featured cup + your road to the final.
+   Club language: dark green room, gold, squared, editorial type.
+   ============================================================================ */
+.sp-tourney {
+  --c-cream: #F1EAD6; --c-cream-d: #B7AE92; --c-brass: #C9A24A;
+  --c-gold1: #F6E9BE; --c-gold2: #D4AF5E; --c-gold3: #A37D34; --c-ink: #1A1206;
+  --c-line: rgba(201,162,74,0.24);
+  position: relative; width: 100%; height: 100%; overflow: hidden; isolation: isolate;
+  font-family: "Bitter", Georgia, serif; color: var(--c-cream); user-select: none;
+  background: radial-gradient(ellipse 92% 80% at 50% -12%, #15281d 0%, #0A120D 58%, #070C09 100%);
+}
+.sp-tourney * { box-sizing: border-box; }
+.sp-tourney::before { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.3; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='0.4'/></svg>"); }
+
+.tn-top { position: relative; z-index: 3; display: flex; align-items: center; gap: 18px; padding: 22px 40px; border-bottom: 1px solid var(--c-line); }
+.tn-top .play-back { width: 44px; height: 44px; flex: 0 0 44px; display: grid; place-items: center; cursor: pointer; color: var(--c-cream);
+  background: rgba(255,255,255,0.04); border: 1px solid var(--c-line); font-size: 24px; line-height: 1; }
+.tn-top .tn-eyebrow { font-weight: 700; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; color: var(--c-cream-d); }
+.tn-top .tn-eyebrow b { color: var(--c-cream); }
+.tn-top .spacer { flex: 1; }
+.tn-wallet { display: flex; align-items: center; gap: 12px; }
+.tn-chip { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 16px; background: rgba(10,16,12,0.72); border: 1px solid var(--c-line); }
+.tn-chip .ci { width: 24px; height: 24px; flex: 0 0 24px; display: grid; place-items: center; font-family: "Abril Fatface"; font-size: 12px; border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #ffe9a8, #c9962b 75%); color: #5a3f0e; }
+.tn-chip b { font-family: "Space Mono", monospace; font-weight: 700; font-size: 14px; }
+.tn-chip u { text-decoration: none; font-size: 9px; letter-spacing: 0.14em; color: var(--c-cream-d); text-transform: uppercase; }
+
+.sp-tourney { display: flex; flex-direction: column; }
+
+/* compact cup band */
+.tn-band { position: relative; z-index: 2; flex: 0 0 auto; display: flex; align-items: center; gap: 30px; padding: 20px 40px;
+  border-bottom: 1px solid var(--c-line); background: linear-gradient(180deg, rgba(138,106,30,0.16), transparent); }
+.tn-band .tb-left { display: flex; flex-direction: column; gap: 4px; }
+.tn-band .tb-kick { font-weight: 700; font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--c-brass); }
+.tn-band .tb-name { font-family: "Abril Fatface", Georgia, serif; font-size: 38px; line-height: 0.9;
+  background: linear-gradient(180deg, var(--c-gold1), var(--c-gold2) 55%, var(--c-gold3)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.tn-band .tb-meta { display: flex; gap: 36px; margin-left: 20px; }
+.tn-band .tb-meta div { display: flex; flex-direction: column; gap: 5px; }
+.tn-band .tb-meta .k { font-family: "Space Mono", monospace; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--c-cream-d); }
+.tn-band .tb-meta .v { font-family: "Bitter"; font-weight: 700; font-size: 15px; color: var(--c-cream); }
+.tn-band .tb-meta .v.gold { color: var(--c-brass); }
+.tn-band .tb-go { margin-left: auto; cursor: pointer; border: none; position: relative; overflow: hidden; color: var(--c-ink);
+  background: linear-gradient(180deg, #F4E2A6, #DCB85F 48%, #BD9038); box-shadow: 0 12px 28px rgba(0,0,0,0.45);
+  font-family: "Bitter"; font-weight: 800; font-size: 16px; letter-spacing: 0.05em; padding: 16px 32px; transition: filter .15s ease, transform .08s ease; }
+.tn-band .tb-go::after { content: ""; position: absolute; inset: 5px; border: 1px solid rgba(70,48,12,0.42); }
+.tn-band .tb-go:hover { filter: brightness(1.05); } .tn-band .tb-go:active { transform: translateY(2px); }
+
+/* the bracket — a massive left-to-right tree */
+.tn-bracket { position: relative; z-index: 2; flex: 1; display: flex; justify-content: center; gap: 66px; padding: 26px 48px; min-height: 0; }
+.round { display: flex; flex-direction: column; min-width: 0; }
+.round.qf, .round.sf, .round.fn { flex: 0 0 252px; }
+.round.champ { flex: 0 0 176px; }
+.rhead { flex: 0 0 auto; text-align: center; font-family: "Space Mono", monospace; font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase; color: var(--c-brass); padding-bottom: 16px; }
+.matches { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+/* each match cell fills an equal slice; the card is centered within */
+.bmatch { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+/* connectors — out-stub to the right */
+.qf .bmatch::after, .sf .bmatch::after, .fn .bmatch::after { content: ""; position: absolute; left: 100%; top: 50%; width: 66px; height: 2px; background: rgba(201,162,74,0.34); transform: translateY(-1px); }
+/* vertical bus on receivers of two feeders (SF, Final) */
+.sf .bmatch::before, .fn .bmatch::before { content: ""; position: absolute; right: 100%; top: 25%; width: 2px; height: 50%; background: rgba(201,162,74,0.34); }
+/* highlight the live path (your QF1 → SF1) */
+.qf .bmatch:first-child::after { background: var(--c-brass); }
+.sf .bmatch.st-now::before { background: var(--c-brass); box-shadow: 0 0 10px -2px var(--c-brass); }
+
+.bm-card { position: relative; background: linear-gradient(180deg, rgba(20,32,24,0.7), rgba(12,22,15,0.78)); border: 1px solid var(--c-line); padding: 12px 14px 13px; }
+.bmatch.done .bm-card { border-color: rgba(201,162,74,0.3); }
+.bmatch.st-now .bm-card { border-color: var(--c-brass); box-shadow: 0 0 0 1px var(--c-brass), 0 14px 36px rgba(0,0,0,0.5), 0 0 60px -22px var(--c-brass); }
+.bmatch.st-locked .bm-card { border-style: dashed; border-color: var(--c-line); opacity: 0.7; }
+.bm-tag { display: block; font-family: "Space Mono", monospace; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--c-cream-d); margin-bottom: 9px; }
+.bm-side { display: flex; align-items: center; gap: 10px; padding: 6px 2px; }
+.bm-side .seed { width: 20px; height: 20px; flex: 0 0 20px; display: grid; place-items: center; font-family: "Space Mono", monospace; font-size: 10px; color: var(--c-cream-d); border: 1px solid var(--c-line); }
+.bm-side .bnm { flex: 1; font-family: "Bitter"; font-weight: 700; font-size: 14px; color: var(--c-cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bm-side .bsc { font-family: "Space Mono", monospace; font-size: 14px; color: var(--c-cream-d); }
+.bm-side.win .bnm { color: var(--c-gold1); }
+.bm-side.win .bsc { color: var(--c-gold1); }
+.bm-side.win .seed { border-color: var(--c-brass); color: var(--c-brass); }
+.bm-side.you .bnm { text-shadow: 0 0 14px rgba(123,200,140,0.4); }
+.bm-side.you .seed { background: radial-gradient(circle at 38% 30%, #2a6b4f, #143b2c 78%); color: var(--c-cream); border-color: rgba(123,200,140,0.5); }
+.bm-side.tbd { opacity: 0.5; }
+.bm-side.tbd .bnm { font-style: italic; font-weight: 400; font-family: "Space Mono", monospace; font-size: 12px; }
+.bm-div { height: 1px; background: var(--c-line); margin: 3px 0; }
+.bm-cta { display: block; margin-top: 10px; text-align: center; font-family: "Bitter"; font-weight: 800; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--c-ink); background: radial-gradient(circle at 50% 0%, #ffe9a8, var(--c-brass) 90%); padding: 8px; cursor: pointer; }
+.bm-meta { display: block; margin-top: 10px; text-align: center; font-family: "Space Mono", monospace; font-size: 10px; letter-spacing: 0.04em; color: var(--c-cream-d); }
+.bm-meta.locked { color: var(--c-cream-d); opacity: 0.7; }
+
+/* champion node */
+.champ .matches { justify-content: center; align-items: flex-start; }
+.bchamp { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; padding: 26px 16px;
+  background: linear-gradient(180deg, rgba(138,106,30,0.3), rgba(16,26,18,0.7)); border: 1px solid var(--c-brass); box-shadow: 0 0 60px -26px var(--c-brass); }
+.bchamp::before { content: ""; position: absolute; right: 100%; top: 50%; width: 66px; height: 2px; background: rgba(201,162,74,0.34); }
+.bchamp .crown { font-size: 46px; line-height: 1; color: var(--c-gold1); filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5)); }
+.bchamp .ct { font-family: "Abril Fatface", Georgia, serif; font-size: 24px; line-height: 1; text-align: center;
+  background: linear-gradient(180deg, var(--c-gold1), var(--c-gold3)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.bchamp .cs { font-family: "Space Mono", monospace; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-cream-d); text-align: center; }
+
+/* upcoming */
+.tn-upcoming { position: relative; z-index: 2; padding: 22px 40px 26px; }
+.tn-upcoming .ul { font-weight: 700; font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--c-cream-d); margin-bottom: 12px; }
+.tn-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.tcard { display: flex; align-items: center; gap: 16px; padding: 16px 18px; background: rgba(16,28,20,0.6); border: 1px solid var(--c-line); cursor: pointer; transition: border-color .15s ease, background .15s ease; }
+.tcard:hover { border-color: var(--c-brass); background: rgba(28,46,34,0.66); }
+.tcard .tc-when { width: 56px; flex: 0 0 56px; text-align: center; }
+.tcard .tc-when .d { display: block; font-family: "Abril Fatface"; font-size: 24px; line-height: 1; color: var(--c-brass); }
+.tcard .tc-when .u { display: block; font-family: "Space Mono", monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--c-cream-d); margin-top: 3px; }
+.tcard .tc-body { flex: 1; display: flex; flex-direction: column; }
+.tcard .tc-name { display: block; font-family: "Abril Fatface", Georgia, serif; font-size: 19px; }
+.tcard .tc-meta { display: block; font-family: "Space Mono", monospace; font-size: 11px; color: var(--c-cream-d); margin-top: 4px; }
+.tcard .tc-entry { display: block; flex: 0 0 auto; font-family: "Space Mono", monospace; font-size: 12px; color: var(--c-gold1); }

@@ -1,0 +1,202 @@
+/* =============================================================================
+   HUSTLE HALL — Design Tokens
+   -----------------------------------------------------------------------------
+   The look is "polished neon-lit pool hall" — bright cobalt felt under hot
+   overhead lamps, warm cherry-wood rails, glossy resin balls in saturated
+   solids, a dark slate HUD bar across the top with lime-green active-state
+   highlights. Vibrant and theatrical, not subtle. Reminiscent of the
+   commercial 8-ball mobile genre but its own brand.
+   ========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Lilita+One&family=Bowlby+One&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap");
+
+:root {
+  /* ---------- HUD chrome (dark slate top bar) ------------------------- */
+  --slate-deep:       #14192A;   /* page background — night blue-black */
+  --slate:            #1B2236;   /* HUD bar surface */
+  --slate-hi:         #2A3450;   /* raised slate, hover */
+  --slate-lo:         #0B0F1B;   /* deep slate, inset */
+  --slate-edge:       #3A455F;   /* light pinstripe on raised chrome */
+
+  --paper:            #F4ECDB;   /* warm cream, primary fg on dark */
+  --paper-bright:     #FFFFFF;   /* pure white for active labels / cue ball */
+  --paper-dim:        #B7AE94;   /* secondary cream */
+  --paper-faint:      #6E6750;   /* fine print */
+
+  /* ---------- Wood & felt (the table) -------------------------------- */
+  --felt:             #1E5FA8;   /* primary felt — cobalt/azure */
+  --felt-bright:      #3A8FD4;   /* hot center under lamp */
+  --felt-shadow:      #0F3266;   /* deep felt at corners */
+  --felt-line:        rgba(255,255,255,0.16);  /* head string */
+
+  --wood-rail:        #8C2A1F;   /* primary rail — warm cherry */
+  --wood-rail-hi:     #C04434;   /* highlight on rail edge */
+  --wood-rail-lo:     #4A140C;   /* deep cherry / shadow */
+  --cushion:          #2A0E08;   /* dark rubber cushion */
+  --pocket:           #050505;
+  --diamond:          #F1E1B5;   /* ivory rail-diamond markers */
+
+  /* ---------- Action colors ------------------------------------------ */
+  --active:           #7BD53A;   /* vibrant lime — current-player highlight */
+  --active-bright:    #A8E66B;   /* active glow */
+  --active-dim:       #4A8420;
+
+  --action:           #F5A623;   /* CTA orange — Play, Shoot */
+  --action-bright:    #FFB840;
+  --action-dim:       #B07210;
+
+  --hot:              #FF6B35;   /* hot accent — POWER bar full, win celebrate */
+  --hot-bright:       #FF8B5C;
+
+  --info:             #3DAEE9;   /* info / link blue (distinct from felt) */
+  --warn:             #F6C84C;   /* warning yellow */
+  --danger:           #DC3545;   /* foul / defeat */
+  --gold:             #E0B33A;   /* trophy / prestige */
+
+  /* ---------- Ball palette (standard American 8-ball) ---------------- */
+  --ball-cue:         #FAF6E4;   /* off-white cue */
+  --ball-eight:       #0E0E10;   /* near-black 8 */
+  --ball-1:           #F4B924;   /* yellow */
+  --ball-2:           #1F5BB3;   /* blue */
+  --ball-3:           #C6312A;   /* red */
+  --ball-4:           #5B2680;   /* purple */
+  --ball-5:           #E2691C;   /* orange */
+  --ball-6:           #1E7A3A;   /* green */
+  --ball-7:           #6E2618;   /* burgundy */
+
+  /* ---------- Semantic ------------------------------------------------- */
+  --bg:               var(--slate-deep);
+  --bg-panel:         var(--slate);
+  --bg-panel-hi:      var(--slate-hi);
+  --fg:               var(--paper);
+  --fg-bright:        var(--paper-bright);
+  --fg-muted:         var(--paper-dim);
+  --fg-inverse:       var(--slate-deep);
+  --accent:           var(--action);
+  --accent-secondary: var(--active);
+  --success:          var(--active);
+  --focus-ring:       var(--action-bright);
+
+  /* ---------- Borders & radii ----------------------------------------- */
+  --border:           1px solid var(--slate-edge);
+  --border-hairline:  1px solid rgba(255,255,255,0.08);
+  --border-active:    2px solid var(--active);
+  --border-action:    2px solid var(--action);
+
+  /* The brand uses generously rounded corners — soft, glossy, pool-app
+     friendly. Almost no hard 90° corners on chrome. */
+  --r-xs:             4px;
+  --r-sm:             6px;
+  --r-md:             10px;
+  --r-lg:             16px;
+  --r-xl:             22px;
+  --r-pill:           999px;
+
+  /* ---------- Shadows / elevation ------------------------------------- */
+  --shadow-sm:        0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md:        0 4px 12px rgba(0,0,0,0.5), 0 2px 0 rgba(0,0,0,0.4);
+  --shadow-lg:        0 14px 36px rgba(0,0,0,0.7), 0 4px 0 rgba(0,0,0,0.5);
+  --shadow-inset-up:  inset 0 1px 0 rgba(255,255,255,0.12);
+  --shadow-inset-down:inset 0 -2px 0 rgba(0,0,0,0.35);
+  --shadow-button:    inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -2px 0 rgba(0,0,0,0.25), 0 3px 0 rgba(0,0,0,0.35), 0 6px 14px rgba(0,0,0,0.45);
+  --shadow-glow-active: 0 0 0 2px var(--active), 0 0 24px rgba(123, 213, 58, 0.55);
+  --shadow-glow-action: 0 0 0 2px var(--action-bright), 0 0 28px rgba(245, 166, 35, 0.55);
+  --shadow-felt:      inset 0 0 240px rgba(0,0,0,0.55), 0 12px 36px rgba(0,0,0,0.55);
+  --shadow-ball:      inset -6px -8px 14px rgba(0,0,0,0.45), inset 5px 5px 10px rgba(255,255,255,0.32), 0 3px 6px rgba(0,0,0,0.6);
+
+  /* ---------- Spacing scale (4px base) -------------------------------- */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px; --s-5: 20px;
+  --s-6: 24px; --s-8: 32px; --s-10: 40px; --s-12: 48px; --s-16: 64px; --s-20: 80px;
+
+  /* ---------- Type ----------------------------------------------------- */
+  /* Lilita One — chunky friendly display, the wordmark / hero. Gives the
+     friendly pool-game character. Italic effect achieved via CSS transform. */
+  --font-display:     "Lilita One", "Bowlby One", "Impact", system-ui, sans-serif;
+  /* Bowlby One — heavier alternative for stamps that need to PUNCH. */
+  --font-stamp:       "Bowlby One", "Lilita One", "Impact", system-ui, sans-serif;
+  /* IBM Plex Mono — scoreboard / instrument face. */
+  --font-mono:        "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  /* Inter — running paragraph copy and most UI labels. */
+  --font-body:        "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --tracking-display: 0;
+  --tracking-allcaps: 0.08em;
+  --tracking-mono:    0.04em;
+
+  --t-display-1:      120px;
+  --t-display-2:      88px;
+  --t-display-3:      56px;
+  --t-display-4:      40px;
+  --t-h1:             24px;
+  --t-h2:             18px;
+  --t-h3:             15px;
+  --t-body:           14px;
+  --t-small:          12px;
+  --t-micro:          10px;
+
+  /* ---------- Motion --------------------------------------------------- */
+  --ease-pop:         cubic-bezier(0.18, 0.86, 0.30, 1.10);   /* slight overshoot for stamps */
+  --ease-soft:        cubic-bezier(0.22, 0.7, 0.2, 1);
+  --ease-physics:     cubic-bezier(0.45, 0, 0.55, 1);
+  --d-instant:        80ms;
+  --d-quick:          160ms;
+  --d-base:           240ms;
+  --d-slow:           480ms;
+}
+
+/* =============================================================================
+   Element defaults
+   ========================================================================== */
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: var(--t-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: var(--tracking-display);
+  color: var(--paper-bright);
+  text-transform: uppercase;
+  margin: 0;
+}
+h1 { font-size: var(--t-display-2); line-height: 0.95; }
+h2 { font-size: var(--t-display-4); line-height: 1.05; }
+h3 { font-size: var(--t-h1); line-height: 1.15; }
+h4 { font-size: var(--t-h2); line-height: 1.2; text-transform: none; font-family: var(--font-body); font-weight: 700; }
+
+.allcaps { font-family: var(--font-body); font-weight: 700; text-transform: uppercase; letter-spacing: var(--tracking-allcaps); font-size: var(--t-micro); color: var(--paper-dim); }
+
+code, kbd, samp, .mono { font-family: var(--font-mono); letter-spacing: var(--tracking-mono); }
+
+/* Primary CTA — glossy chunky button with deep drop. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 22px;
+  color: var(--paper-bright); background: var(--slate-hi);
+  border: none; padding: 14px 28px;
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-button);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  -webkit-text-stroke: 1px rgba(0,0,0,0.35);
+  transition: transform var(--d-instant) var(--ease-soft), filter var(--d-quick) var(--ease-soft), background var(--d-quick) var(--ease-soft);
+}
+.btn:hover { background: var(--slate-edge); filter: brightness(1.08); }
+.btn:active { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -2px 0 rgba(0,0,0,0.25), 0 1px 0 rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.45); }
+
+.btn--primary { background: linear-gradient(180deg, var(--action-bright) 0%, var(--action) 50%, var(--action-dim) 100%); color: var(--slate-deep); -webkit-text-stroke: 0; }
+.btn--primary:hover { filter: brightness(1.10); }
+
+.btn--success { background: linear-gradient(180deg, var(--active-bright) 0%, var(--active) 50%, var(--active-dim) 100%); color: var(--slate-deep); -webkit-text-stroke: 0; }
+.btn--success:hover { filter: brightness(1.10); }
+
+.btn--ghost { background: transparent; box-shadow: inset 0 0 0 2px var(--slate-edge); color: var(--paper); }
+.btn--ghost:hover { background: rgba(255,255,255,0.04); box-shadow: inset 0 0 0 2px var(--paper-dim); }

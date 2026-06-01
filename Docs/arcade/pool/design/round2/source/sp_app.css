@@ -1,0 +1,106 @@
+/* ============================================================================
+   SIDE POCKET — APP KIT (After-hours). Spec-driven chrome shared across every
+   pool screen: the SOL·TKT·G masthead, signet + prestige, mode buttons, the
+   Daily Challenge card. Built on top of .sp-night (dark room) tokens.
+   ============================================================================ */
+
+/* ---- masthead ---- */
+.menu-bar { padding: 18px 40px; }
+.mb-left, .mb-right { display: flex; align-items: center; gap: 18px; }
+.mb-icon { width: 40px; height: 40px; border-radius: 50%; flex: 0 0 40px; display: grid; place-items: center; cursor: pointer;
+  background: rgba(17,27,21,0.6); border: 1px solid rgba(201,162,74,0.3); color: var(--paper-c);
+  font-size: 22px; line-height: 1; font-family: "Bitter"; transition: background .15s ease; }
+.mb-icon:hover { background: rgba(20,32,24,0.85); }
+.mb-mode { font-weight: 700; font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase; color: rgba(239,230,208,0.42);
+  padding-left: 8px; border-left: 1px solid rgba(201,162,74,0.25); }
+
+/* ---- currency chips: SOL · TKT · G ---- */
+.cur-chips { display: flex; align-items: center; gap: 9px; }
+.cur { display: inline-flex; align-items: center; gap: 9px; height: 38px; padding: 0 14px 0 9px; border-radius: 999px;
+  background: rgba(13,21,16,0.8); border: 1px solid rgba(201,162,74,0.3);
+  font-family: "Bitter"; font-weight: 700; font-size: 14px; color: var(--paper-c); white-space: nowrap; }
+.cur .ci { width: 22px; height: 22px; flex: 0 0 22px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-family: "Abril Fatface"; line-height: 1; }
+.ci-sol { background: linear-gradient(135deg, #9945FF, #14F195); color: #07120c; }
+.ci-tkt { background: linear-gradient(135deg, #6fd0f5, #2a83b8); color: #06222e; }
+.ci-g { background: radial-gradient(circle at 35% 30%, #ffe9a8, #b8862b 72%); color: #5a3f0e; box-shadow: inset 0 -1px 2px rgba(0,0,0,0.35); }
+.cur .cu { color: rgba(239,230,208,0.5); font-weight: 600; font-size: 12px; }
+
+/* ---- signet (avatar + handle + prestige + ELO) ---- */
+.signet { display: inline-flex; align-items: center; gap: 12px; cursor: pointer; }
+.signet .av { position: relative; width: 44px; height: 44px; border-radius: 50%; flex: 0 0 44px; display: grid; place-items: center;
+  background: var(--green-c); color: var(--paper-c); font-family: "Abril Fatface"; font-size: 19px;
+  box-shadow: 0 0 0 2px rgba(201,162,74,0.65); }
+.signet .meta .h { font-weight: 700; font-size: 15px; color: var(--paper-c); line-height: 1; }
+.signet .meta .e { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.signet .meta .elo { font-family: "Space Mono", monospace; font-size: 11px; letter-spacing: 0.04em; color: rgba(239,230,208,0.6); }
+.prestige { font-weight: 800; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px;
+  color: #5a3f0e; background: radial-gradient(circle at 35% 30%, #ffe9a8, #C9A24A 75%); box-shadow: inset 0 -1px 1px rgba(0,0,0,0.25); }
+
+/* ---- main menu layout ---- */
+.menu-main { position: relative; z-index: 2; flex: 1; display: grid; grid-template-columns: 392px 1fr;
+  gap: 44px; align-items: center; padding: 0 40px; min-height: 0; }
+
+.menu-left { display: flex; flex-direction: column; gap: 18px; }
+.player-card { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 14px;
+  background: rgba(17,27,21,0.55); border: 1px solid rgba(201,162,74,0.24); }
+.player-card .av { width: 52px; height: 52px; border-radius: 50%; flex: 0 0 52px; display: grid; place-items: center;
+  background: var(--green-c); color: var(--paper-c); font-family: "Abril Fatface"; font-size: 23px; box-shadow: 0 0 0 2px rgba(201,162,74,0.65); }
+.player-card .pc-meta { flex: 1; }
+.player-card .pc-h { font-weight: 700; font-size: 17px; color: var(--paper-c); }
+.player-card .pc-sub { display: flex; align-items: center; gap: 9px; margin-top: 6px; }
+.player-card .pc-sub .elo { font-family: "Space Mono", monospace; font-size: 12px; color: rgba(239,230,208,0.6); }
+
+/* ---- mode buttons ---- */
+.mode-list { display: flex; flex-direction: column; gap: 11px; }
+.mode { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: 13px; cursor: pointer; text-align: left; width: 100%;
+  background: rgba(17,27,21,0.55); border: 1px solid rgba(201,162,74,0.22); color: var(--paper-c);
+  font-family: "Bitter"; transition: border-color .15s ease, background .15s ease, transform .1s ease; }
+.mode:hover { border-color: rgba(201,162,74,0.5); background: rgba(20,32,24,0.78); }
+.mode .mbody { flex: 1; }
+.mode .mt { display: block; font-weight: 800; font-size: 18px; letter-spacing: 0.07em; text-transform: uppercase; }
+.mode .ms { display: block; font-size: 12px; color: rgba(239,230,208,0.55); margin-top: 4px; }
+.mode .chev { color: #C9A24A; font-size: 22px; font-family: "Bitter"; }
+.mode .live { font-family: "Space Mono", monospace; font-size: 10px; letter-spacing: 0.06em; color: #F0A35A; white-space: nowrap;
+  border: 1px solid rgba(232,120,40,0.5); background: rgba(232,120,40,0.14); padding: 4px 9px; border-radius: 999px; }
+.mode--primary { background: var(--green-c); border: none; padding: 20px;
+  box-shadow: inset 0 0 0 2px rgba(239,230,208,0.18), 0 5px 0 #123524, 0 12px 22px rgba(30,40,30,0.32); }
+.mode--primary:hover { background: #235a43; transform: translateY(-1px); }
+.mode--primary:active { transform: translateY(3px); box-shadow: inset 0 0 0 2px rgba(239,230,208,0.18), 0 1px 0 #123524; }
+.mode--primary .mt { font-family: "Abril Fatface"; font-weight: 400; font-size: 30px; letter-spacing: 0; text-transform: none; color: var(--paper-c); }
+.mode--primary .ms { color: rgba(239,230,208,0.72); margin-top: 2px; }
+.mode--primary .chev { color: var(--paper-c); font-size: 26px; }
+.mode--primary.mode--hero { padding: 28px 26px; }
+.mode--primary.mode--hero .mt { font-size: 40px; }
+.mode--primary.mode--hero .ms { font-size: 13px; margin-top: 4px; }
+.mode--primary.mode--hero .chev { font-size: 32px; }
+
+/* ---- secondary modes as a quiet pill shelf (one hero button, then the rest) ---- */
+.mode-pills { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 2px; }
+.mpill { display: inline-flex; align-items: center; gap: 8px; padding: 11px 16px; border-radius: 999px; cursor: pointer;
+  background: rgba(17,27,21,0.5); border: 1px solid rgba(201,162,74,0.25); color: var(--paper-c);
+  font-family: "Bitter"; font-weight: 700; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+  transition: border-color .15s ease, background .15s ease, color .15s ease; }
+.mpill:hover { border-color: rgba(201,162,74,0.55); background: rgba(20,32,24,0.8); color: #E89A4A; }
+.mpill .ldot { width: 7px; height: 7px; border-radius: 50%; background: #F0A35A; box-shadow: 0 0 8px #F0A35A; }
+
+.side-links { display: flex; align-items: center; gap: 10px; padding-top: 4px; }
+.side-links a { font-weight: 700; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(201,162,74,0.85);
+  text-decoration: none; cursor: pointer; }
+.side-links a:hover { color: #E89A4A; }
+.side-links .sep { color: rgba(239,230,208,0.25); }
+
+/* ---- the room (right) ---- */
+.menu-room { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.menu-room .neon-wm { font-size: 58px; }
+.menu-room .neon-sub { margin-top: 10px; }
+
+/* ---- daily challenge card ---- */
+.daily { display: flex; align-items: center; gap: 18px; width: 100%; max-width: 560px; margin-top: 14px;
+  padding: 16px 20px; border-radius: 14px; background: rgba(13,21,16,0.82); border: 1px solid rgba(201,162,74,0.4); backdrop-filter: blur(4px); }
+.daily .dleft { flex: 1; }
+.daily .dk { font-weight: 800; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: #C9A24A; }
+.daily .dt { font-weight: 700; font-size: 17px; color: var(--paper-c); margin-top: 6px; }
+.daily .dd { font-family: "Space Mono", monospace; font-size: 12px; color: rgba(239,230,208,0.6); margin-top: 6px; letter-spacing: 0.02em; }
+.daily .dd b { color: #9FD8A8; font-weight: 700; }
+.daily .lbtn-primary { padding: 15px 26px; font-size: 15px; }

@@ -1,0 +1,91 @@
+/* ============================================================================
+   SIDE POCKET — MOBILE (LANDSCAPE). Shared base: brand tokens, the landscape
+   device frame (phone + tablet bezels, dynamic island, home indicator,
+   safe-area insets), shared chrome (top HUD, signet, SOL chip, gold CTA).
+   Everything is built for a short, wide viewport and big touch targets (≥44px).
+   ============================================================================ */
+.spm, .mdevice {
+  --c-cream: #F1EAD6; --c-cream-d: #B7AE92; --c-brass: #C9A24A;
+  --c-gold1: #F6E9BE; --c-gold2: #D4AF5E; --c-gold3: #A37D34; --c-ink: #1A1206;
+  --c-line: rgba(201,162,74,0.24); --c-line-2: rgba(201,162,74,0.5);
+  --felt: #1b5a3e; --felt-d: #103b28;
+}
+
+/* ---- device frame --------------------------------------------------------- */
+.mdevice { position: relative; display: inline-block; background: linear-gradient(150deg, #2a2a30, #0c0c10 60%); border-radius: 46px;
+  padding: 13px; box-shadow: 0 30px 70px rgba(0,0,0,0.55), inset 0 0 0 2px rgba(255,255,255,0.05); }
+.mdevice.tablet { border-radius: 30px; padding: 16px; background: linear-gradient(150deg, #26262b, #0c0c10 60%); }
+.mscreen { position: relative; overflow: hidden; border-radius: 34px; background: #070C09; }
+.mdevice.tablet .mscreen { border-radius: 16px; }
+/* dynamic island — left short edge in landscape, vertically centred */
+.mdevice .island { position: absolute; left: 17px; top: 50%; transform: translateY(-50%); width: 9px; height: 86px; border-radius: 9px; background: #000; z-index: 40; box-shadow: 0 0 0 1px rgba(255,255,255,0.04); }
+.mdevice .island::after { content: ""; position: absolute; left: 1.5px; top: 12px; width: 6px; height: 6px; border-radius: 50%; background: #0e1a24; box-shadow: inset 0 0 0 1px rgba(80,120,160,0.4); }
+.mdevice.portrait .island { left: 50%; top: 15px; transform: translateX(-50%); width: 86px; height: 9px; }
+.mdevice.portrait .island::after { left: auto; right: 12px; top: 1.5px; }
+.mdevice.tablet .island { display: none; }
+/* home indicator — bottom centre */
+.mdevice .homebar { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); width: 128px; height: 5px; border-radius: 3px; background: rgba(241,234,214,0.55); z-index: 40; }
+
+/* the screen root every mobile screen mounts into */
+.spm { position: absolute; inset: 0; font-family: "Bitter", Georgia, serif; color: var(--c-cream); user-select: none; overflow: hidden; }
+.spm * { box-sizing: border-box; }
+/* guard: the design-system stylesheet uppercases/tracks all h1–h3 globally —
+   keep mobile headings as authored (mixed-case serif wordmarks) */
+.spm h1, .spm h2, .spm h3 { text-transform: none; letter-spacing: normal; color: inherit; margin: 0; }
+/* safe-area: clear the island on the left, home bar at the bottom */
+.spm .safe { position: absolute; inset: 0; padding-left: 30px; padding-bottom: 14px; }
+.mdevice.tablet .spm .safe { padding-left: 16px; padding-bottom: 16px; }
+
+/* room/page background grades */
+.spm-bg { position: absolute; inset: 0; z-index: 0; background: radial-gradient(ellipse 110% 120% at 30% -20%, #15281d 0%, #0A120D 60%, #070C09 100%); }
+.spm-grain { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.22; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='0.4'/></svg>"); }
+
+/* ---- shared chrome -------------------------------------------------------- */
+/* compact top bar (menus) */
+.m-top { position: relative; z-index: 6; display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 16px 0 30px; }
+.m-back { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; cursor: pointer; color: var(--c-cream);
+  background: rgba(255,255,255,0.05); border: 1px solid var(--c-line); border-radius: 0; font-size: 22px; line-height: 1; }
+.m-eyebrow { font-family: "Space Mono", monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--c-cream-d); white-space: nowrap; }
+.m-eyebrow b { color: var(--c-cream); }
+.m-spacer { flex: 1; }
+
+/* signet (avatar + tier + elo), compact */
+.m-signet { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px 0 6px; background: rgba(10,16,12,0.72); border: 1px solid var(--c-line); }
+.m-signet .av { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 38% 30%, #2a6b4f, #143b2c 78%); color: var(--c-cream); font-family: "Abril Fatface"; font-size: 13px; box-shadow: 0 0 0 1.5px rgba(201,162,74,0.6); }
+.m-signet .prestige { font-weight: 800; font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 7px; color: #5a3f0e; background: radial-gradient(circle at 35% 30%, #ffe9a8, var(--c-brass) 75%); }
+.m-signet .elo { font-family: "Space Mono", monospace; font-size: 11px; color: var(--c-cream-d); }
+
+/* SOL chip — glossy resin ball + mono readout */
+.m-sol { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 13px 0 5px; background: rgba(10,16,12,0.72); border: 1px solid var(--c-line); }
+.m-sol .ball { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #3a2c08; font-family: "Bitter";
+  background: radial-gradient(circle at 36% 28%, #fff3c6 4%, #F6E9BE 18%, #D4AF5E 56%, #9b7322 100%); box-shadow: inset 0 -2px 4px rgba(90,63,14,0.5), inset 0 2px 2px rgba(255,255,255,0.7), 0 1px 4px rgba(0,0,0,0.5); }
+.m-sol .v { display: flex; flex-direction: column; line-height: 1; gap: 3px; }
+.m-sol .v b { font-family: "Space Mono", monospace; font-weight: 700; font-size: 13px; color: var(--c-cream); }
+.m-sol .v u { text-decoration: none; font-weight: 700; font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--c-brass); }
+.m-ico { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; cursor: pointer; color: var(--c-cream); background: rgba(255,255,255,0.04); border: 1px solid var(--c-line); font-size: 17px; }
+
+/* gold CTA — the signature button, sized for thumbs */
+.m-gold { position: relative; cursor: pointer; border: none; overflow: hidden; color: var(--c-ink); min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  background: linear-gradient(180deg, #F4E2A6 0%, #DCB85F 48%, #BD9038 100%); box-shadow: 0 10px 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.6);
+  font-family: "Bitter"; font-weight: 800; letter-spacing: 0.05em; transition: filter .12s ease, transform .08s ease; }
+.m-gold::after { content: ""; position: absolute; inset: 4px; border: 1px solid rgba(70,48,12,0.42); pointer-events: none; }
+.m-gold:active { transform: translateY(2px); filter: brightness(1.04); }
+.m-ghost { cursor: pointer; background: rgba(255,255,255,0.03); border: 1px solid var(--c-line-2); color: var(--c-cream); font-family: "Bitter"; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; min-height: 44px; padding: 0 18px; }
+.m-ghost:active { background: rgba(201,162,74,0.12); }
+
+/* status dot */
+.m-live { width: 7px; height: 7px; border-radius: 50%; background: #5BD06A; box-shadow: 0 0 7px #5BD06A; display: inline-block; }
+
+/* ---- rotate-to-landscape prompt (shown in portrait) ----------------------- */
+.spm-rotate { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; text-align: center; padding: 40px; z-index: 2; }
+.spm-rotate .phone { width: 92px; height: 150px; border-radius: 16px; border: 3px solid var(--c-brass); position: relative; animation: mrotate 2.6s ease-in-out infinite; }
+.spm-rotate .phone::before { content: ""; position: absolute; left: 50%; top: 8px; transform: translateX(-50%); width: 26px; height: 4px; border-radius: 3px; background: var(--c-brass); opacity: 0.7; }
+.spm-rotate .phone .ball { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 36% 30%, #ffffffcc, #14110a 62%); color: var(--c-cream); font-family: "Abril Fatface"; font-size: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+@keyframes mrotate { 0%, 18% { transform: rotate(0deg); } 50%, 68% { transform: rotate(-90deg); } 100% { transform: rotate(-90deg); } }
+.spm-rotate .rk { font-family: "Space Mono", monospace; font-size: 11px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--c-brass); }
+.spm-rotate h1 { font-family: "Abril Fatface", Georgia, serif; font-weight: 400; font-size: 34px; line-height: 1; margin: 0;
+  background: linear-gradient(180deg, var(--c-gold1), var(--c-gold3)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.spm-rotate p { font-style: italic; font-size: 14px; color: var(--c-cream-d); margin: 0; max-width: 280px; }
+.spm-rotate .wm { position: absolute; top: 26px; font-family: "Abril Fatface"; font-size: 18px; color: var(--c-cream); letter-spacing: 0.02em; opacity: 0.85; }

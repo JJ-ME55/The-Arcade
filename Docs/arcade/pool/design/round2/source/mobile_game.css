@@ -1,0 +1,113 @@
+/* ============================================================================
+   SIDE POCKET — MOBILE GAMEPLAY (landscape). The board is a FIXED 2:1 table,
+   centred and contained (scale, never stretch) with breathing space around it
+   on every device/aspect. Controls live in the side margins: a vertical power
+   slider on the cue-hand rail, a cue-ball spin node in a top corner, a top HUD
+   bar with both players (turn-timer ring + score + remaining-ball rack).
+   Variants: .var-a (right hand) / .var-b (left hand, mirrored, + Shoot button).
+   ============================================================================ */
+.gplay { position: absolute; inset: 0; overflow: hidden; font-family: "Bitter", Georgia, serif;
+  background: radial-gradient(ellipse 80% 90% at 50% 36%, #14241b 0%, #0b1410 52%, #070C09 100%); }
+
+/* ---- top HUD bar: both players, centre frame score + turn timer ---- */
+.gbar { position: absolute; top: 0; left: 0; right: 0; height: 56px; z-index: 9; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 14px 0 32px; background: linear-gradient(180deg, rgba(7,12,9,0.94), rgba(7,12,9,0.35)); }
+.gp { display: flex; align-items: center; gap: 10px; }
+.gp.right { flex-direction: row-reverse; }
+.gp .avw { position: relative; width: 40px; height: 40px; flex: 0 0 40px; }
+.gp .ring { position: absolute; inset: -3px; border-radius: 50%; background: conic-gradient(var(--c-brass) 0 var(--deg,300deg), rgba(255,255,255,0.12) 0); -webkit-mask: radial-gradient(circle, transparent 18px, #000 19px); mask: radial-gradient(circle, transparent 18px, #000 19px); }
+.gp.idle .ring { background: rgba(255,255,255,0.1); }
+.gp .av { position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center; font-family: "Abril Fatface"; font-size: 16px; color: #fff; }
+.gp .col { display: flex; flex-direction: column; gap: 4px; line-height: 1; }
+.gp.right .col { align-items: flex-end; }
+.gp .nm { font-weight: 800; font-size: 13px; color: var(--c-cream); }
+.gp .rack { display: flex; gap: 3px; }
+.gp .rack .pball { width: 11px; height: 11px; border-radius: 50%; box-shadow: inset 0 -2px 2px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.45); }
+.gp .rack .pball.rem { background: transparent !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28); }
+.gp .sc { font-family: "Abril Fatface", Georgia, serif; font-size: 30px; line-height: 0.8; color: var(--c-cream); }
+.gp.idle .nm, .gp.idle .sc { color: var(--c-cream-d); }
+.gbar .mid { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.gbar .mid .fr { font-family: "Space Mono", monospace; font-weight: 700; font-size: 13px; letter-spacing: 0.08em; color: var(--c-cream); }
+.gbar .mid .timer { display: flex; align-items: center; gap: 6px; }
+.gbar .mid .timer .t { font-family: "Space Mono", monospace; font-weight: 700; font-size: 15px; color: var(--c-cream); }
+.gbar .mid .timer.low .t { color: #FF6B35; }
+.gbar .mid .timer .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c-brass); box-shadow: 0 0 7px var(--c-brass); }
+.gbar .mid .timer.low .dot { background: #FF6B35; box-shadow: 0 0 7px #FF6B35; }
+
+/* ---- centred, contained 2:1 board ---- */
+.gstage { position: absolute; top: 56px; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; padding: 10px 74px 16px; container-type: size; }
+/* largest 2:1 board that fits the padded stage on ANY aspect (contain, not stretch) */
+.gtable { position: relative; aspect-ratio: 2 / 1; width: min(100cqw, 200cqh); height: min(50cqw, 100cqh); }
+/* wood rail frame */
+.gtable .wood { position: absolute; inset: 0; border-radius: 5.5% / 11%; background: linear-gradient(135deg, #7a4322, #43230f 48%, #6a3a1d); box-shadow: inset 0 0 0 2px rgba(0,0,0,0.4), 0 18px 40px rgba(0,0,0,0.55); }
+.gtable .felt { position: absolute; inset: 7% 3.6%; border-radius: 2%; overflow: hidden;
+  background: radial-gradient(ellipse 64% 88% at 50% 42%, #2d8159 0%, var(--felt) 48%, var(--felt-d) 100%); box-shadow: inset 0 0 40px rgba(0,0,0,0.45); }
+.felt .lamp { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(ellipse 52% 46% at 50% 6%, rgba(255,236,180,0.34), transparent 72%); }
+.felt .vig { position: absolute; inset: 0; z-index: 6; pointer-events: none; background: radial-gradient(ellipse 86% 96% at 50% 48%, transparent 56%, rgba(0,0,0,0.4) 100%); }
+
+/* pockets (on the felt: 4 corners + 2 long-rail mids) — sized to the felt */
+.gpk { position: absolute; z-index: 4; width: 6.4%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 38%, #000, #0a0a0a 72%); box-shadow: inset 0 1px 3px rgba(0,0,0,0.8), 0 0 0 2px rgba(0,0,0,0.45); transform: translate(-50%, -50%); }
+.gpk.tl { left: 1.5%; top: 3%; } .gpk.tr { left: 98.5%; top: 3%; }
+.gpk.bl { left: 1.5%; top: 97%; } .gpk.br { left: 98.5%; top: 97%; }
+.gpk.tm { left: 50%; top: 0.5%; } .gpk.bm { left: 50%; top: 99.5%; }
+/* diamonds */
+.gdia { position: absolute; z-index: 3; width: 1.3%; aspect-ratio: 1; border-radius: 50%; background: rgba(241,234,214,0.5); transform: translate(-50%, -50%); }
+
+/* ---- balls (sized as % of the felt → scale with the board, always round) ---- */
+.gball { position: absolute; z-index: 4; width: 6%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); display: grid; place-items: center; container-type: size;
+  box-shadow: inset 0 -10% 18% rgba(0,0,0,0.45), 0 4% 8% rgba(0,0,0,0.5); }
+.gball::after { content: ""; position: absolute; left: 28%; top: 22%; width: 26%; height: 26%; border-radius: 50%; background: rgba(255,255,255,0.62); }
+.gball .num { width: 46%; height: 46%; border-radius: 50%; background: #fff; display: grid; place-items: center; font-family: "Space Mono", monospace; font-weight: 700; font-size: 34cqmin; color: #1a1a1a; z-index: 1; }
+.gball.stripe { background: #fff !important; }
+.gball.stripe .band { position: absolute; left: 0; right: 0; top: 28%; height: 44%; z-index: 0; }
+.gcue { position: absolute; z-index: 5; width: 6%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 36% 30%, #ffffff, #d8d2c2 70%, #b8b2a2); box-shadow: inset 0 -10% 18% rgba(0,0,0,0.25), 0 4% 10% rgba(0,0,0,0.55); }
+
+/* ---- aim system (length/angle derived from felt px at runtime) ---- */
+.gaim { position: absolute; z-index: 5; height: 2px; transform-origin: 0 50%; pointer-events: none; }
+.gaim .line { position: absolute; left: 0; top: -1px; height: 2px; width: 100%; background: repeating-linear-gradient(90deg, rgba(241,234,214,0.92) 0 8px, transparent 8px 15px); }
+.gghost { position: absolute; z-index: 5; width: 6%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%,-50%); border: 1.5px dashed rgba(241,234,214,0.8); background: rgba(241,234,214,0.05); }
+.greflect { position: absolute; z-index: 5; height: 2px; transform-origin: 0 50%; pointer-events: none; }
+.greflect .line { position: absolute; left: 0; top: -1px; height: 2px; width: 100%; background: repeating-linear-gradient(90deg, rgba(255,107,53,0.7) 0 6px, transparent 6px 13px); }
+.gstick { position: absolute; z-index: 4; height: 6px; transform-origin: 100% 50%; pointer-events: none; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.5)); }
+.gstick .shaft { position: absolute; right: 0; top: 0; bottom: 0; left: 14%; background: linear-gradient(180deg, rgba(255,255,255,0.4), transparent 50%, rgba(0,0,0,0.25)), linear-gradient(90deg, #d8b878, #e8cd92); }
+.gstick .butt { position: absolute; left: 0; width: 16%; top: -1px; bottom: -1px; background: linear-gradient(90deg, #2a1a0a, #5a3a1a); border-radius: 3px 0 0 3px; }
+.gstick .tip { position: absolute; right: -2px; top: 1px; bottom: 1px; width: 4px; background: #3a6ea5; }
+
+/* ---- cue-ball spin node (top corner) ---- */
+.gspin { position: absolute; z-index: 9; width: 54px; height: 54px; border-radius: 50%; cursor: pointer;
+  background: radial-gradient(circle at 36% 30%, #ffffff, #ded8c8 68%, #aca693); box-shadow: 0 5px 12px rgba(0,0,0,0.5), inset 0 -4px 7px rgba(0,0,0,0.22); border: 2px solid rgba(7,12,9,0.65); }
+.gspin .dot { position: absolute; left: 50%; top: 36%; transform: translate(-50%,-50%); width: 12px; height: 12px; border-radius: 50%; background: #d33a2c; box-shadow: 0 0 0 2px rgba(255,255,255,0.7), 0 1px 2px rgba(0,0,0,0.4); }
+.gspin .lab { position: absolute; left: 50%; bottom: -15px; transform: translateX(-50%); font-family: "Space Mono", monospace; font-size: 7px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--c-cream-d); white-space: nowrap; }
+.var-a.hand-r .gspin { top: 64px; left: 34px; } .var-a.hand-l .gspin { top: 64px; right: 14px; }
+.var-b.hand-r .gspin { top: 64px; left: 34px; } .var-b.hand-l .gspin { top: 64px; right: 14px; }
+
+/* ---- power slider (cue-hand rail, in the side margin) ---- */
+.gpower { position: absolute; z-index: 9; top: 56px; bottom: 16px; width: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; }
+.hand-r .gpower { right: 6px; } .hand-l .gpower { left: 30px; }
+.gpower .cap { display: none; }
+.gtrack { position: relative; width: 24px; height: 56%; border-radius: 13px; background: rgba(7,12,9,0.8); border: 1px solid var(--c-line); overflow: hidden; }
+.gtrack .fill { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(0deg, #DCB85F, #FF6B35); box-shadow: 0 0 18px -2px #FF6B35; }
+.gmark { position: absolute; left: 50%; transform: translate(-50%, 50%); width: 38px; height: 19px; border-radius: 10px;
+  background: linear-gradient(180deg, #FCE38A, #F5C842 60%, #e0ad24); box-shadow: 0 3px 8px rgba(0,0,0,0.55), inset 0 1px 1px rgba(255,255,255,0.65); border: 1px solid rgba(120,90,10,0.55); }
+.gpct { font-family: "Space Mono", monospace; font-weight: 700; font-size: 13px; color: var(--c-cream); }
+/* variant B adds an explicit Shoot button under a shorter slider */
+.gshoot { width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; border: 2px solid #070c09; position: relative;
+  background: radial-gradient(circle at 40% 32%, #ffe9a8, var(--c-brass) 60%, #9a7322); box-shadow: 0 8px 20px rgba(0,0,0,0.55), inset 0 2px 3px rgba(255,255,255,0.5); color: #4a3408; font-family: "Bitter"; font-weight: 800; font-size: 13px; text-transform: uppercase; }
+.gshoot:active { transform: translateY(2px); }
+.var-b .gtrack { height: 40%; }
+
+/* utility buttons (menu / flag) — kept tiny, opposite the slider */
+.gutils { position: absolute; z-index: 9; bottom: 14px; display: flex; gap: 8px; }
+.hand-r .gutils { left: 32px; } .hand-l .gutils { right: 10px; }
+.gutil { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: var(--c-cream); background: rgba(7,12,9,0.7); border: 1px solid var(--c-line); font-size: 15px; }
+
+/* faint hint */
+.ghint { position: absolute; z-index: 8; left: 50%; bottom: 18px; transform: translateX(-50%); font-family: "Space Mono", monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(241,234,214,0.55); pointer-events: none; }
+/* wagered stake chip (#5) — overlaid top-centre over the felt */
+.gstake { position: absolute; z-index: 8; top: 62px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 5px 12px;
+  background: linear-gradient(180deg, #2a2418, #15110a); border: 1px solid #C9A24A; box-shadow: 0 6px 16px rgba(0,0,0,0.55); }
+.gstake .ic { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 10px; color: #08243a; background: radial-gradient(circle at 36% 30%, #eaf6ff, #7fb4d6 70%, #3f7fa6); }
+.gstake .on { font-family: "Space Mono", monospace; font-weight: 700; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: #F6E9BE; }
+.gstake .on b { color: #fff; }
+.gstake .pot { font-family: "Space Mono", monospace; font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; color: #B7AE92; padding-left: 8px; border-left: 1px solid rgba(201,162,74,0.3); }
