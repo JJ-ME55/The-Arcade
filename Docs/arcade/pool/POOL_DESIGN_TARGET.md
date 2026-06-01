@@ -1,10 +1,12 @@
 # Pool — Design Target
 
-Status: design-in-progress
-Date: 2026-05-26 (created), 2026-05-26 (match-flow locked)
-Game: TheArcade Game #2 — working name "SolShot Pool"
-Reference base: [henshmi/Classic-8-Ball-Pool](https://github.com/henshmi/Classic-8-Ball-Pool) — TypeScript remake (MIT, cloned to `C:\Users\johnk\SolShot-Arcade-Research\Classic-8-Ball-Pool`). Original vanilla JS base at [henshmi/Classic-Pool-Game](https://github.com/henshmi/Classic-Pool-Game) retained at `C:\Users\johnk\SolShot-Arcade-Research\Classic-Pool-Game` for reference only.
+Status: design-locked after Round 2 handoff
+Date: 2026-05-26 (created), 2026-06-01 (Side Pocket rebrand + Round 2 designer handoff)
+Game: **Side Pocket** (rebranded from "Pool" / "SolShot Pool")
+Reference base: [henshmi/Classic-8-Ball-Pool](https://github.com/henshmi/Classic-8-Ball-Pool) — TypeScript remake (MIT). Engine fork lives at `pool/` on `arcade/8-ball-pool` branch.
 Gold standard: Miniclip's 8 Ball Pool (https://www.miniclip.com/games/8-ball-pool)
+Designer: see [design/round2/README.md](design/round2/README.md) for the canonical Round 2 handoff
+Canonical decision log: [design/DECISIONS_2026-06-01.md](design/DECISIONS_2026-06-01.md)
 
 ## 1. Purpose
 
@@ -331,6 +333,45 @@ Distilled from teardowns of 8BP's design / UX / economy evolution (2010-2026). T
 9. **Cosmetic legendaries with NO economic perks.** Miniclip's Legendary Payback is the worst pay-to-win mechanic in the genre. Even if we ship limited-edition cues as soulbound NFTs at V3, they grant ZERO in-game stat or coin benefit. Cosmetic only. Forever.
 
 10. **Live-ops has diminishing returns.** After ~5 simultaneous live-ops systems (Pool Pass + Elite Pass + Pro Sub + Trophy Road + Showdowns + Clubs + Rings + Seasons + ...), new systems cannibalize attention from old ones. Community fatigue is now measurable in 8BP sentiment. **Lock the V3 economy at 3 core loops max** — wagered tables, cosmetic shop, prestige progression. Resist the urge to stack more on.
+
+## 12. Side Pocket — Round 2 reframes (2026-06-01)
+
+After designer's Round 2 handoff + JJ Q&A, several positions in this doc need refinement. Full decision log in [design/DECISIONS_2026-06-01.md](design/DECISIONS_2026-06-01.md); summary of *changes from earlier sections of THIS doc* below.
+
+### 12.1 Rebrand
+Game name is **Side Pocket**. Code identifiers stay `pool*` (descriptive of what code does), branch stays `arcade/8-ball-pool`, doc filenames stay `POOL_*.md` — but every player-facing surface reads "Side Pocket".
+
+### 12.2 Marathon — REFRAMED to trick-shot lives mode
+Originally specced as bot-ladder (each consecutive win raises bot ELO, streak count, per-difficulty boards). **NOW: trick-shot lives mode**, similar shape to the Free-Kicks lives mode on the existing arcade. See [design/TRICK_SHOT_LIBRARY_v0.md](design/TRICK_SHOT_LIBRARY_v0.md) for the setup catalogue.
+
+Key shape:
+- 3 lives, curated setups from a server-held catalogue
+- Miss / foul = −1 life. Retry-in-place OR skip.
+- Bank Streak voluntary cash-out OR 0-lives auto-end
+- **NO difficulty floor / NO Easy-Hard picker** (designer removed deliberately to avoid leaderboard fragmentation)
+- **ONE leaderboard**, three time scopes (daily / weekly / all-time)
+- Internal tier ladder rises automatically as run progresses
+- Streak milestone TKT bonuses at 5 / 10 / 20
+
+Engineering implication: existing `MarathonRun.startingDifficulty` field becomes optional/internal; `poolMarathon.js` getNextBot logic stays (still useful for vs-Computer warm-up bots) but the per-difficulty leaderboard queries collapse to a single board.
+
+### 12.3 Rooms — NOT a real thing
+Earlier rooms-as-schema idea is **abandoned**. No `Room` model, no queue partitioning. Matchmaking is Elo-band-with-expansion only. Any "room" visual in the designs (Break Room → Penthouse) is **cosmetic ambient theming**, not a queue gate.
+
+### 12.4 Matchmaking fallback for cold-start
+At max Elo-band expansion (±400 normal, ±250 wagered), instead of timing out with "no opponent found", **fall back to ANY available player** in the same mode. Better to play someone too strong/weak than not at all in early days. As player base grows, can tighten bands.
+
+### 12.5 Wagering — surgical sub-mode, NOT default
+Earlier framing was "V3-only economy lock; no wagered matches before V3." **Reframed: wagered 1v1 is V1**, surgical sub-mode entered from a toggle on the Play 1v1 modal. Wagered tournaments remain V3+. Stakes (0.01 / 0.05 / 0.1 / 0.5 / 1 / 5 SOL), 90/7/3 split, 1.8× pot to winner, on-chain settlement with Solscan link. Anti-smurf gate (25 ranked matches before wagered unlocks) already wired in `PoolElo.canWagerAboveLowStake`.
+
+### 12.6 Mobile interaction model
+Earlier spec said "drag anywhere on felt to rotate" for mobile aim. **Locked: tap-on-felt sets aim direction, hold-and-move fine-scrubs.** Power = chunky yellow PILL thumb wider than the rail track. Cue-hand mirror toggle dropped entirely.
+
+### 12.7 Stamps locked
+Stamp font = **Abril Fatface** (Victory/Defeat/Completed/Missed/Run Ended/Champion). Gold/red gradient, no heavy stroke. ~1.5s overlays (slam 200ms / hold 1s / fade 300ms). Full stamp set: BREAK · SOLIDS · STRIPES · FOUL · SCRATCH · 8 ON BREAK·RE-RACK · 8 EARLY·DEFEAT · VICTORY · DEFEAT · COMPLETED · MISSED · RUN ENDED · BANKED · CHAMPION.
+
+### 12.8 Onboarding shipped at V1
+Earlier framing was "defer onboarding to V3". **Reframed: 4-step tutorial (aim · power · spin · shoot) ships at V1**, designer specced it in Round 2.
 
 ## 11. Sources
 
