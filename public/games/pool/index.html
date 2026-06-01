@@ -22,6 +22,24 @@
             <div id="spinDot"></div>
         </div>
     </div>
+    <script>
+        // Side Pocket Phase B — when the hub's MatchHUD wraps this iframe
+        // (?hud=parent), hide the in-iframe DOM widgets (power slider +
+        // spin pad) and tell the canvas not to draw the in-canvas "PLAYER 1"
+        // and "00" labels — the parent React HUD takes over for player
+        // cards, scores, timer, room name, power, shoot, spin. Game.ts /
+        // game-world.ts read `window.__SIDE_POCKET_PARENT_HUD` to suppress
+        // those draws.
+        (function(){
+            var params = new URLSearchParams(location.search);
+            if (params.get('hud') === 'parent') {
+                window.__SIDE_POCKET_PARENT_HUD = true;
+                var s = document.createElement('style');
+                s.textContent = '#powerHud,#spinHud{display:none !important;}';
+                document.head.appendChild(s);
+            }
+        })();
+    </script>
     <script src="bundle.js"></script>
 </body>
 </html>

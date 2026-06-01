@@ -1,0 +1,429 @@
+/* ============================================================================
+   SIDE POCKET — DESKTOP MATCH HUD. Port of designer's sp_game.css (Round 2
+   handoff). Three-row layout: brass HUD bar (both players + score racks +
+   room/timer) · cobalt iframe board · action shelf (tools + power + Shoot).
+   All tokens scoped to .spg so the design-system globals never leak.
+   ========================================================================== */
+
+.spg {
+    /* Side Pocket brand */
+    --c-cream: #F1EAD6;
+    --c-cream-d: #B7AE92;
+    --c-brass: #C9A24A;
+    --c-gold1: #F6E9BE;
+    --c-gold2: #D4AF5E;
+    --c-gold3: #A37D34;
+    --c-ink: #1A1206;
+    --c-line: rgba(201, 162, 74, 0.24);
+    --c-line-2: rgba(201, 162, 74, 0.5);
+    /* Ball palette (scoped) */
+    --ball-1: #F4B924;
+    --ball-2: #1F5BB3;
+    --ball-3: #C6312A;
+    --ball-4: #5B2680;
+    --ball-5: #E2691C;
+    --ball-6: #1E7A3A;
+    --ball-7: #6E2618;
+    --ball-cue: #FAF6E4;
+    --ball-eight: #0E0E10;
+    --slate-deep: #14192A;
+    --font-display: "Abril Fatface", Georgia, serif;
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    isolation: isolate;
+    font-family: "Bitter", Georgia, serif;
+    color: var(--c-cream);
+    user-select: none;
+    background: radial-gradient(ellipse 90% 90% at 50% 34%, #14241b 0%, #0b1410 52%, #070C09 100%);
+    display: flex;
+    flex-direction: column;
+}
+.spg * { box-sizing: border-box; }
+
+.spg-grain {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.2;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='0.4'/></svg>");
+}
+
+/* ============= TOP HUD BAR ============= */
+.spg-bar {
+    position: relative;
+    z-index: 5;
+    flex: 0 0 auto;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 30px;
+    border-bottom: 1px solid var(--c-line);
+    background: linear-gradient(180deg, rgba(7, 12, 9, 0.92), rgba(7, 12, 9, 0.32));
+}
+
+.spg-p {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.spg-p.right { flex-direction: row-reverse; }
+
+.spg-p .avw {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    flex: 0 0 56px;
+}
+.spg-p .ring {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: conic-gradient(var(--c-brass) 0 var(--deg, 300deg), rgba(255, 255, 255, 0.1) 0);
+    -webkit-mask: radial-gradient(circle, transparent 26px, #000 27px);
+    mask: radial-gradient(circle, transparent 26px, #000 27px);
+}
+.spg-p.idle .ring { background: rgba(255, 255, 255, 0.1); }
+.spg-p .av {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-family: "Abril Fatface", Georgia, serif;
+    font-size: 24px;
+    color: #fff;
+}
+.spg-p .col {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    line-height: 1;
+}
+.spg-p.right .col { align-items: flex-end; }
+.spg-p .nmrow {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+.spg-p .nm {
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--c-cream);
+}
+.spg-p .tier {
+    font-weight: 800;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    color: #5a3f0e;
+    background: radial-gradient(circle at 35% 30%, #ffe9a8, var(--c-brass) 75%);
+}
+.spg-p .rack {
+    display: flex;
+    gap: 4px;
+}
+.spg-p .rack i {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    box-shadow:
+        inset 0 -2px 2px rgba(0, 0, 0, 0.4),
+        inset 0 1px 1px rgba(255, 255, 255, 0.45),
+        0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.spg-p .rack i.rem {
+    background: transparent !important;
+    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.26);
+}
+.spg-p .sc {
+    font-family: "Abril Fatface", Georgia, serif;
+    font-size: 46px;
+    line-height: 0.7;
+    color: var(--c-cream);
+}
+.spg-p.idle .nm, .spg-p.idle .sc { color: var(--c-cream-d); }
+.spg-p.active .nm { color: var(--c-gold1); }
+
+.spg-mid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+.spg-mid .room {
+    font-family: "Space Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-cream-d);
+}
+.spg-mid .tm {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.spg-mid .tm .ring2 {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: conic-gradient(var(--c-brass) 0 280deg, rgba(255, 255, 255, 0.12) 0);
+    -webkit-mask: radial-gradient(circle, transparent 7px, #000 8px);
+    mask: radial-gradient(circle, transparent 7px, #000 8px);
+}
+.spg-mid .tm .t {
+    font-family: "Space Mono", monospace;
+    font-weight: 700;
+    font-size: 22px;
+    color: var(--c-cream);
+}
+.spg-mid .turn {
+    font-weight: 800;
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--c-brass);
+}
+
+/* ============= STAGE — centered iframe board ============= */
+.spg-stage {
+    position: relative;
+    z-index: 2;
+    height: calc(100% - 90px - 104px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 22px 60px;
+    container-type: size;
+    min-height: 0;
+}
+
+/* The board container — sized at the table's 1500:825 aspect.
+   The iframe inside renders the pool canvas (table + balls + cue). */
+.spg-board {
+    position: relative;
+    aspect-ratio: 1500 / 825;
+    width: min(100cqw, 181.82cqh);
+    height: min(54.945cqw, 100cqh);
+    box-shadow:
+        0 30px 60px rgba(0, 0, 0, 0.72),
+        0 4px 0 rgba(0, 0, 0, 0.4),
+        0 1px 0 rgba(255, 255, 255, 0.05) inset;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #070c09;
+}
+
+/* The iframe — fills the board container. The pool canvas inside is
+   sized to its viewport so it letterboxes correctly. */
+.spg-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+}
+
+/* Spin node — cue-ball impact picker, top-right of the playfield.
+   V1 visual only — non-interactive. The iframe's own #spinHud is the
+   real input until we wire postMessage. */
+.spg-spin {
+    position: absolute;
+    z-index: 6;
+    top: 30px;
+    right: 40px;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    cursor: pointer;
+    background: radial-gradient(circle at 36% 30%, #ffffff, #ded8c8 68%, #aca693);
+    box-shadow:
+        0 6px 14px rgba(0, 0, 0, 0.5),
+        inset 0 -5px 9px rgba(0, 0, 0, 0.22);
+    border: 2px solid rgba(7, 12, 9, 0.65);
+}
+.spg-spin .dot {
+    position: absolute;
+    left: 50%;
+    top: 36%;
+    transform: translate(-50%, -50%);
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #C6312A;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7), 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.spg-spin .lab {
+    position: absolute;
+    left: 50%;
+    bottom: -16px;
+    transform: translateX(-50%);
+    font-family: "Space Mono", monospace;
+    font-size: 8px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-cream-d);
+}
+
+/* ============= ACTION SHELF ============= */
+.spg-shelf {
+    position: relative;
+    z-index: 5;
+    flex: 0 0 auto;
+    height: 104px;
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    padding: 0 36px;
+    border-top: 1px solid var(--c-line);
+    background: linear-gradient(0deg, rgba(7, 12, 9, 0.92), rgba(7, 12, 9, 0.32));
+}
+
+.spg-tools {
+    display: flex;
+    gap: 10px;
+}
+.spg-tool {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    color: var(--c-cream);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--c-line);
+    font-size: 18px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.spg-tool:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--c-brass);
+}
+
+.spg-power {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.spg-power .lbl {
+    font-family: "Space Mono", monospace;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    color: var(--c-cream);
+}
+.spg-power .barwrap {
+    flex: 1;
+    position: relative;
+}
+.spg-power .mark {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px;
+    height: 26px;
+    border-radius: 13px;
+    background: linear-gradient(180deg, #FCE38A, #F5C842 58%, #e0ad24);
+    border: 1px solid rgba(120, 90, 10, 0.6);
+    box-shadow:
+        0 3px 8px rgba(0, 0, 0, 0.55),
+        inset 0 1px 1px rgba(255, 255, 255, 0.65);
+}
+.spg-power .bar {
+    position: relative;
+    height: 16px;
+    border-radius: 999px;
+    background: rgba(7, 12, 9, 0.8);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7);
+    overflow: hidden;
+    border: 1px solid var(--c-line);
+}
+.spg-power .fill {
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    bottom: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #DCB85F, #F5A623, #FF6B35);
+    box-shadow: 0 0 16px -2px #FF6B35;
+}
+.spg-power .pct {
+    font-family: "Space Mono", monospace;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--c-cream);
+    width: 54px;
+    text-align: right;
+}
+
+.spg-shoot {
+    position: relative;
+    cursor: pointer;
+    border: none;
+    overflow: hidden;
+    min-width: 200px;
+    height: 60px;
+    color: var(--c-ink);
+    background: linear-gradient(180deg, #F4E2A6 0%, #DCB85F 48%, #BD9038 100%);
+    box-shadow:
+        0 12px 28px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    font-family: "Bitter", Georgia, serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: filter 0.12s ease, transform 0.08s ease;
+}
+.spg-shoot::after {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border: 1px solid rgba(70, 48, 12, 0.42);
+}
+.spg-shoot:hover { filter: brightness(1.05); }
+.spg-shoot:active { transform: translateY(2px); }
+.spg-shoot.wait {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--c-cream-d);
+    box-shadow: none;
+    cursor: default;
+    pointer-events: none;
+}
+.spg-shoot.wait::after { display: none; }
+
+/* Opponent's turn dims the action controls */
+.spg.opp .spg-spin { opacity: 0.4; pointer-events: none; }
+.spg.opp .spg-power { opacity: 0.45; }
+
+/* ============= Mobile fallback (narrow viewports) ============= */
+@media (max-width: 700px) {
+    .spg-bar { height: 64px; padding: 0 12px; }
+    .spg-p .avw { width: 40px; height: 40px; flex-basis: 40px; }
+    .spg-p .av { font-size: 18px; }
+    .spg-p .nm { font-size: 14px; }
+    .spg-p .sc { font-size: 30px; }
+    .spg-p .rack i { width: 10px; height: 10px; }
+    .spg-mid .room { font-size: 8px; }
+    .spg-mid .tm .t { font-size: 16px; }
+    .spg-mid .turn { font-size: 8px; }
+    .spg-stage {
+        height: calc(100% - 64px - 84px);
+        padding: 12px;
+    }
+    .spg-spin { top: 8px; right: 12px; width: 48px; height: 48px; }
+    .spg-shelf { height: 84px; padding: 0 12px; gap: 12px; }
+    .spg-tool { width: 40px; height: 40px; font-size: 14px; }
+    .spg-power .lbl { font-size: 10px; }
+    .spg-power .pct { font-size: 14px; width: 42px; }
+    .spg-shoot { min-width: 110px; height: 48px; font-size: 16px; }
+}

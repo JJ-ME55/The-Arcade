@@ -11,8 +11,9 @@ import { GameDetail } from '@/routes/games/GameDetail';
 import { KeepieUppies } from '@/routes/games/KeepieUppies';
 import { Basketball } from '@/routes/games/Basketball';
 import { FreeKicks } from '@/routes/games/FreeKicks';
-import { Pool } from '@/routes/games/Pool';
+// Pool (legacy chromeless iframe wrapper) replaced by MatchHUD below.
 import { PoolLobby } from '@/routes/games/pool/Lobby';
+import { MatchHUD } from '@/routes/games/pool/MatchHUD';
 
 export function App() {
   return (
@@ -29,7 +30,11 @@ export function App() {
         <Route path="/play/keepie-uppies/launch" element={<KeepieUppies />} />
         <Route path="/play/basketball/launch" element={<Basketball />} />
         <Route path="/play/free-kicks/launch" element={<FreeKicks />} />
-        <Route path="/play/pool/launch" element={<Pool />} />
+        {/* Match HUD wraps the pool iframe with brass HUD bar + power
+            shelf (Round 2 DesktopMatch port). MatchHUD replaces the
+            chromeless Pool wrapper; the iframe receives ?hud=parent so
+            its in-iframe DOM widgets stand down. */}
+        <Route path="/play/pool/launch" element={<MatchHUD />} />
         {/* Side Pocket Lobby — chromeless. Designer's MainMenuClub variant
             (Round 2 handoff). Sits at /play/pool ahead of the generic
             GameDetail catch-all below. */}
