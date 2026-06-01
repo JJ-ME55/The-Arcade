@@ -779,4 +779,49 @@ Designer + engineer alignment meeting recommended after Phase A mockups land —
 
 ---
 
+## 15. Playtest feedback (live, 2026-06-01)
+
+V2.α was deployed at `the-arcade-eta.vercel.app/play/pool/launch` and JJ tested on mobile. Three observations, with implications for the designer:
+
+### 15.1 Mobile cue movement is tricky
+The current henshmi base uses *tap-the-cue-stick-to-rotate*. Small target, sensitive, no separate aim control. Aiming on a phone feels fiddly.
+
+**For the designer:** the **Aiming Wheel** toggle in §3.4.1 is the answer the spec already anticipated. Mock up the wheel:
+- Recommended placement: right edge of the screen, dedicated touch area (~80×200 px)
+- Drag vertically (or radially) for fine angle adjustment
+- Settings toggle so players can pick drag-cue vs aiming-wheel (§3.9)
+- iOS Safari testing at 390×844 is the mandatory target
+
+### 15.2 Faint aim hint line — visible but not "easy"
+Player wants a subtle white line from cue ball toward the cue's direction. Distinct from the full predictive trajectory (which is a separate luxury, §7.3 calls this togglable ON/SHORT/OFF — currently always ON in the V2.α bundle).
+
+**For the designer:** define the *baseline* aim hint that's always on (player can't disable). Spec target:
+- Thin (1–2 px), low opacity (~30–40%), white
+- Short — extends maybe 1.5× ball diameter forward from the cue ball, not all the way to first contact
+- Differentiate visually from the full predictive line (which is brighter + longer + has the deflection marker)
+- Disappears once player presses READY TO SHOOT and the shot animation begins
+
+### 15.3 Visible exit / return-to-arcade button
+No way to leave the pool game back to the hub except browser-back. Felt trapped.
+
+**Engineering ships this independent of design** as a small overlay on the iframe parent (`Pool.tsx`) — top-right `× Back to Arcade` button. Designer can later style/reposition it to match the in-game HUD, but the *function* lands first as a quick win.
+
+### 15.4 Strategic note from JJ — design uplift will reshape implementation
+Quote: *"there is a huge design uplift here which will largely dictate how we back fill it with code to allow for all the modes and versions, when I do share that, considerations will have to be made for the bot and the game and the modes"*.
+
+Read: the designer's mockup is the contract every UI screen + interaction in this doc gets re-evaluated against. Specifically the designer should plan for:
+
+- **Bot behaviour parity with PvP** — the vs-Computer mode (§3.3) uses the same in-match HUD as PvP. The bot's "turn" should feel similar to a human's: same async pause feel? Or instant? Design call. Mock up how a bot's shot is announced in the HUD — does it have a thinking indicator, an avatar, an ELO display? The spec assumes "yes to all" (§3.2 player-blocks layout); the designer needs to confirm the visual treatment.
+- **Mode variants — game version differences** — V1 mode flow is straight 8-ball with our locked rules (§7.3: no calling pockets, kitchen placement, BO1 default). V3 may include 9-ball, call-pocket variants, no-guideline mode (the spec already calls these out at §3.1 only at the higher level). Designer should plan for how the player picks variants, how variants surface in the HUD (different rule reminders), and how cue/felt cosmetic unlocks tie to variants.
+- **Mode-specific HUD differences** — Quick / Wagered / vs Computer / Tournament / Marathon all share the in-match HUD shell (§3.4) but have different top-strip content (stakes vs round info vs streak vs current bot diff). Mock up each.
+- **Cosmetic and currency surfaces inside vs outside matches** — design where the SOL · TKT · G chips live during a match (visible at all times? collapse when in sync-timer mode?). Currency context affects readability of stake / pot / per-shot reward toasts.
+- **Phase boundary — designer Phase A first** — focus designer time on the 15 V1 screens (§12) before opening Phase C tournament/marathon work. Phase A includes everything needed for V2.α + V2.β playable: main menu, mode select, in-match HUD with the Aiming Wheel + aim hint sorted, Pool Card, settings, empty/error states.
+
+### 15.5 Engineering implications
+- **Pre-design work that's safe to build now** (unblocks V2.β regardless of designer outcome): exit button, socket.io handlers, async match state persistence, server-side sim integration into PoolMatch flow, match timeout + tournament scheduler crons.
+- **Post-design work that waits**: all UI screens (~30 of the 38 specced), mobile aim tuning, aim line visual, brand reskin, prestige UI, shop UI, locker UIs, Pool Card visual.
+- **Cross-cutting**: backend's data layer is feature-complete (8 services, 6 schemas, 152 unit assertions on SolShot main). Sim core is byte-equivalent on browser + server (this week's V2.α work). When the designer ships, engineering can land UI screens fast because the data they consume already exists.
+
+---
+
 *Maintainer: JJ. Reviewer: pool designer. Update policy: append to this doc as scope changes; never delete a screen, mark as superseded instead.*
