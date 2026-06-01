@@ -29,9 +29,12 @@
 .sp-club * { box-sizing: border-box; }
 
 /* Photoreal plate — right side, feathered into the dark room.
-   Default is a CSS gradient that mimics the dark-green pool room mood
-   from the designer's mockup. Drop /assets/pool/rack-green.png to
-   replace with the designer's photoreal render. */
+   Uses the designer's rack-green.png render from the Round 2 handoff.
+   Source: asset/side_pocket_handoff/source/assets/rack-green.png →
+   vendored to /public/assets/pool/rack-green.png so Vite copies it
+   into the production bundle.
+   Mask feathers the left edge into the slate room background so the
+   gold wordmark + CTAs sit clean over the dark side. */
 .club-plate {
     position: absolute;
     right: 0;
@@ -39,12 +42,7 @@
     bottom: 0;
     width: 82%;
     z-index: 0;
-    background:
-        radial-gradient(ellipse 60% 50% at 70% 40%, rgba(40, 90, 60, 0.55) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 35% at 75% 65%, rgba(80, 50, 25, 0.45) 0%, transparent 60%),
-        linear-gradient(135deg, #0F1B14 0%, #1A2D20 40%, #0B1410 100%);
-    /* When the designer ships the photoreal render, swap the background to:
-       background: url("/assets/pool/rack-green.png") center center / cover no-repeat; */
+    background: url("/assets/pool/rack-green.png") center center / cover no-repeat;
     -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 30%, #000 100%);
     mask-image: linear-gradient(90deg, transparent 0%, #000 30%, #000 100%);
 }
