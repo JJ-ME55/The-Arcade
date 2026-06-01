@@ -590,7 +590,10 @@ export class GameWorld {
     }
 
     public draw(): void {
-        Canvas2D.drawImage(Assets.getSprite(sprites.paths.table));
+        // Side Pocket procedural table chrome (replaces spr_background4.png).
+        // See Canvas2D.drawSidePocketTable for the cherry/cobalt/diamond
+        // composition lifted from the Round 2 designer's round2_canvas.jsx.
+        Canvas2D.drawSidePocketTable();
         this.drawCurrentPlayerLabel();
         this.drawMatchScores();
         this.drawOverallScores();

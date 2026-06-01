@@ -76,7 +76,9 @@ export class Menu {
     public draw(): void {
         if(this._active){
             Canvas2D.changeCursor(cursorConfig.default);
-            Canvas2D.drawImage(Assets.getSprite(sprites.paths.menuBackground))
+            // Side Pocket procedural menu bg (replaces main_menu_background.png).
+            // Slate-deep room gradient with a faint cobalt glow centre.
+            Canvas2D.drawSidePocketMenuBg();
             this._labels.forEach((label: MenuLabel) => label.draw());
             this._buttons.forEach((button: MenuButton) => button.draw());
         }

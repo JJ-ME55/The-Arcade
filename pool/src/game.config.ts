@@ -17,25 +17,28 @@ export const GameConfig : IGameConfig = {
 
     timeoutToLoadSubMenu: 100,
 
+    // Side Pocket palette — paper cream on cobalt felt for in-canvas labels.
+    // Font stack: Lilita One (brand display) with Impact as the immediate
+    // fallback so we stay readable while webfonts hydrate.
     labels: {
         currentPlayer: {
             position: { x: 640, y: 260},
-            color: '#126736',
-            font: '70px Impact',
+            color: '#F4ECDB',
+            font: '70px "Lilita One", Impact, sans-serif',
             alignment: 'top',
             text: 'PLAYER ',
         },
         overalScores: [
             {
                 position: { x: 628, y: 460 },
-                color: '#126736',
-                font: '200px Impact',
+                color: '#F4ECDB',
+                font: '200px "Lilita One", Impact, sans-serif',
                 alignment: 'top'
             },
             {
                 position: { x: 778, y: 460 },
-                color: '#126736',
-                font: '200px Impact',
+                color: '#F4ECDB',
+                font: '200px "Lilita One", Impact, sans-serif',
                 alignment: 'top'
             }
         ]
@@ -165,17 +168,24 @@ export const GameConfig : IGameConfig = {
         
         labels: [
             {
-                text: 'Classic 8-Ball',
-                position: { x: 200, y: 100 },
-                font: '100px Bookman',
-                color: 'white',
+                text: 'SIDE POCKET',
+                position: { x: 200, y: 130 },
+                font: '120px "Lilita One", Impact, sans-serif',
+                color: '#F4ECDB',
                 alignment: 'left',
             },
             {
-                text: `© ${new Date().getFullYear()} Chen Shmilovich`,
+                text: 'THE ARCADE · 8-BALL',
+                position: { x: 200, y: 175 },
+                font: '22px "Inter", system-ui, sans-serif',
+                color: '#B7AE94',
+                alignment: 'left',
+            },
+            {
+                text: `© ${new Date().getFullYear()} The Arcade`,
                 position: { x: 1250, y: 800 },
-                font: '20px Bookman',
-                color: 'white',
+                font: '14px "IBM Plex Mono", monospace',
+                color: '#6E6750',
                 alignment: 'left',
             }
         ],
@@ -207,17 +217,17 @@ export const GameConfig : IGameConfig = {
                 
                 labels: [
                     {
-                        text: 'Choose Difficulty',
-                        position: { x: 200, y: 80 },
-                        font: '70px Bookman',
-                        color: 'white',
+                        text: 'CHOOSE DIFFICULTY',
+                        position: { x: 200, y: 100 },
+                        font: '72px "Lilita One", Impact, sans-serif',
+                        color: '#F4ECDB',
                         alignment: 'left',
                     },
                     {
-                        text: `© ${new Date().getFullYear()} Chen Shmilovich`,
+                        text: `© ${new Date().getFullYear()} The Arcade`,
                         position: { x: 1250, y: 800 },
-                        font: '20px Bookman',
-                        color: 'white',
+                        font: '14px "IBM Plex Mono", monospace',
+                        color: '#6E6750',
                         alignment: 'left',
                     }
                 ],
