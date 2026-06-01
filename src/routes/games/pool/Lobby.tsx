@@ -65,8 +65,8 @@ export function PoolLobby() {
           <button
             className="club-gear"
             title="Settings"
-            onClick={() => navigate('/play')}
-            aria-label="Back to The Arcade"
+            onClick={() => navigate('/play/pool/settings')}
+            aria-label="Settings"
           >
             ⚙
           </button>
@@ -110,7 +110,7 @@ export function PoolLobby() {
           {/* Tournaments — secondary emerald-glass CTA */}
           <button
             className="club-tour"
-            onClick={() => navigate('/play/pool/launch')}
+            onClick={() => navigate('/play/pool/tournament')}
           >
             <span className="tico">
               {/* Trophy icon */}

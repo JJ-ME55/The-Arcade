@@ -14,6 +14,12 @@ import { FreeKicks } from '@/routes/games/FreeKicks';
 // Pool (legacy chromeless iframe wrapper) replaced by MatchHUD below.
 import { PoolLobby } from '@/routes/games/pool/Lobby';
 import { MatchHUD } from '@/routes/games/pool/MatchHUD';
+import { Marathon } from '@/routes/games/pool/Marathon';
+import { Tournament } from '@/routes/games/pool/Tournament';
+import { Wager } from '@/routes/games/pool/Wager';
+import { Async as PoolAsync } from '@/routes/games/pool/Async';
+import { Settings as PoolSettings } from '@/routes/games/pool/Settings';
+import { Splash as PoolSplash } from '@/routes/games/pool/Splash';
 
 export function App() {
   return (
@@ -39,6 +45,15 @@ export function App() {
             (Round 2 handoff). Sits at /play/pool ahead of the generic
             GameDetail catch-all below. */}
         <Route path="/play/pool" element={<PoolLobby />} />
+        {/* Side Pocket sub-screens — all chromeless, all ported from Round 2
+            designer JSX. Mock data for V1 visual ship; backend wiring is a
+            follow-up slice per screen. */}
+        <Route path="/play/pool/splash" element={<PoolSplash />} />
+        <Route path="/play/pool/marathon" element={<Marathon />} />
+        <Route path="/play/pool/tournament" element={<Tournament />} />
+        <Route path="/play/pool/wager" element={<Wager />} />
+        <Route path="/play/pool/async" element={<PoolAsync />} />
+        <Route path="/play/pool/settings" element={<PoolSettings />} />
         <Route path="/play/solshot" element={<SolShotRedirect />} />
 
         {/* Everything else wraps in the v2 brand chrome
