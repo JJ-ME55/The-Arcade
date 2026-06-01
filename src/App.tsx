@@ -12,6 +12,7 @@ import { KeepieUppies } from '@/routes/games/KeepieUppies';
 import { Basketball } from '@/routes/games/Basketball';
 import { FreeKicks } from '@/routes/games/FreeKicks';
 import { Pool } from '@/routes/games/Pool';
+import { PoolLobby } from '@/routes/games/pool/Lobby';
 
 export function App() {
   return (
@@ -29,6 +30,10 @@ export function App() {
         <Route path="/play/basketball/launch" element={<Basketball />} />
         <Route path="/play/free-kicks/launch" element={<FreeKicks />} />
         <Route path="/play/pool/launch" element={<Pool />} />
+        {/* Side Pocket Lobby — chromeless. Designer's MainMenuClub variant
+            (Round 2 handoff). Sits at /play/pool ahead of the generic
+            GameDetail catch-all below. */}
+        <Route path="/play/pool" element={<PoolLobby />} />
         <Route path="/play/solshot" element={<SolShotRedirect />} />
 
         {/* Everything else wraps in the v2 brand chrome
