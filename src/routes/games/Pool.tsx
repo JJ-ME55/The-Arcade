@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 /**
  * Pool launch route — `/play/pool/launch`.
@@ -31,6 +31,7 @@ import { useSearchParams } from 'react-router-dom';
  */
 export function Pool() {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   // Stash the arcade-bot session JWT (parent-side). The iframe also reads
@@ -78,6 +79,40 @@ export function Pool() {
           display: 'block',
         }}
       />
+
+      {/*
+        Exit button — overlay on the iframe parent so players can return
+        to the hub without using browser-back. Designer-spec §15.3 ships
+        this as a quick win independent of the design uplift; visual
+        styling can be re-skinned later to match the in-game HUD.
+        Top-right, safe-area-inset aware for iOS notches.
+      */}
+      <button
+        onClick={() => navigate('/play')}
+        aria-label="Back to the Arcade"
+        style={{
+          position: 'fixed',
+          top: 'max(env(safe-area-inset-top, 0px), 12px)',
+          right: 'max(env(safe-area-inset-right, 0px), 12px)',
+          minWidth: 44,
+          minHeight: 44,
+          padding: '8px 14px',
+          background: 'rgba(14, 18, 9, 0.85)',
+          color: '#c8b87a',
+          border: '1px solid #2e3e20',
+          borderRadius: 4,
+          fontFamily: '"IBM Plex Mono", "Share Tech Mono", ui-monospace, monospace',
+          fontSize: 11,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          cursor: 'pointer',
+          zIndex: 100,
+          backdropFilter: 'blur(4px)',
+          WebkitBackdropFilter: 'blur(4px)',
+        }}
+      >
+        × Exit
+      </button>
     </div>
   );
 }
