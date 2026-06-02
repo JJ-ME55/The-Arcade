@@ -47,7 +47,7 @@ export function BasketballHUD({ onPlayAgain }) {
                             <div style={styles.submitWarning}>
                                 {state.arcadeSubmitError === 'session_expired'
                                     ? '⚠ Score not saved — re-launch /basketball in @TheArcadeGG_Bot'
-                                    : '⚠ Score not saved — network error'}
+                                    : '⚠ Score not yet saved — will retry automatically next time'}
                             </div>
                         )}
                         <div style={styles.playAgainBtn}>TAP TO PLAY AGAIN</div>

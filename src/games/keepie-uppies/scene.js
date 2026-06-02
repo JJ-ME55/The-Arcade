@@ -66,6 +66,89 @@ const DEPTH = {
 
 const MIN_TAP_INTERVAL_MS = 30;
 
+// === Arcade leaderboard POST resilience ===
+// Forward-port of JJ-ME55/solshot-free-kicks commit 70eb14f. Stash failed
+// submissions in localStorage, retry on next scene mount, single retry
+// on network exception. Per-game key — pending keepie-uppies score won't
+// be confused with basketball or free-kicks pending.
+const ARCADE_API_BASE =
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SOLSHOT_API_BASE) ||
+    'https://solshot.onrender.com';
+const ARCADE_ENDPOINT = `${ARCADE_API_BASE}/api/games/keepieuppies/score`;
+const ARCADE_PENDING_KEY = 'arcade_pending_keepieuppies';
+
+function _stashPending(score) {
+    try {
+        const existing = _readPending();
+        const max = existing !== null && existing > score ? existing : score;
+        localStorage.setItem(ARCADE_PENDING_KEY, String(max));
+    } catch { /* localStorage unavailable */ }
+}
+function _clearPending() {
+    try { localStorage.removeItem(ARCADE_PENDING_KEY); } catch {}
+}
+function _readPending() {
+    try {
+        const v = localStorage.getItem(ARCADE_PENDING_KEY);
+        if (!v) return null;
+        const n = parseInt(v, 10);
+        return Number.isFinite(n) && n >= 0 ? n : null;
+    } catch { return null; }
+}
+function _getSession() {
+    try { return sessionStorage.getItem('arcade_session'); } catch { return null; }
+}
+async function _postOnce(score, session) {
+    return fetch(ARCADE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ score, session }),
+    });
+}
+async function _submitWithResilience(score) {
+    const session = _getSession();
+    if (!session) return { ok: false, reason: 'no_session' };
+    let resp;
+    try {
+        resp = await _postOnce(score, session);
+    } catch {
+        try {
+            await new Promise(r => setTimeout(r, 800));
+            resp = await _postOnce(score, session);
+        } catch (e) {
+            console.warn('[arcade-leaderboard/keepieuppies] network error (after retry):', e?.message || e);
+            _stashPending(score);
+            return { ok: false, reason: 'network_error' };
+        }
+    }
+    if (!resp.ok) {
+        if (resp.status === 401) {
+            console.warn('[arcade-leaderboard/keepieuppies] session expired (401)');
+            return { ok: false, reason: 'session_expired' };
+        }
+        console.warn('[arcade-leaderboard/keepieuppies] POST failed:', resp.status);
+        _stashPending(score);
+        return { ok: false, reason: 'server_error', status: resp.status };
+    }
+    _clearPending();
+    try { return { ok: true, ...(await resp.json()) }; } catch { return { ok: true }; }
+}
+async function _retryPending() {
+    const pending = _readPending();
+    if (pending === null) return;
+    let session = null;
+    for (let i = 0; i < 30; i++) {
+        session = _getSession();
+        if (session) break;
+        await new Promise(r => setTimeout(r, 100));
+    }
+    if (!session) return;
+    const result = await _submitWithResilience(pending);
+    if (result?.ok) {
+        console.log('[arcade-leaderboard/keepieuppies] recovered pending score:', pending);
+    }
+}
+
 class KeepieUppiesScene extends Phaser.Scene {
     constructor() {
         super('KeepieUppies');
@@ -77,6 +160,11 @@ class KeepieUppiesScene extends Phaser.Scene {
     }
 
     create() {
+        // Fire-and-forget recovery of any score stashed by a previous
+        // failed submission. Polls sessionStorage for up to 3s — safe
+        // before useArcadeSessionMint completes.
+        _retryPending();
+
         // ── backdrops ──
         const sky = this.add.graphics();
         sky.fillGradientStyle(0x4a7fb3, 0x4a7fb3, 0xa8c8e0, 0xa8c8e0, 1);
@@ -206,43 +294,29 @@ class KeepieUppiesScene extends Phaser.Scene {
         this._submitToArcadeLeaderboard(this.score);
     }
 
-    _submitToArcadeLeaderboard(finalScore) {
-        let session = null;
-        try {
-            session = sessionStorage.getItem('arcade_session');
-        } catch (_) { /* sessionStorage unavailable (privacy mode etc.) */ }
-        if (!session) return;
-        const endpoint = 'https://solshot.onrender.com/api/games/keepieuppies/score';
-        fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ score: finalScore, session }),
-        })
-            .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
-            .then(data => {
-                if (data?.ok && this.overlayBest) {
-                    const rankText = data.newBest
-                        ? `NEW BEST · RANK #${data.rank} of ${data.totalPlayers}`
-                        : `RANK #${data.rank} of ${data.totalPlayers}`;
-                    this.overlayBest.setText(rankText);
-                }
-            })
-            .catch(err => {
-                const msg = String(err.message || '');
-                const isExpired = msg.includes('401');
-                if (!isExpired) {
-                    console.warn('[arcade-leaderboard] submit failed:', msg);
-                }
-                // Surface failure on the game-over overlay. Previously silent;
-                // that meant 401s (session expired) and network errors hid
-                // from the user, who then assumed their best score had landed.
-                if (this.overlayBest) {
-                    const warnLine = isExpired
-                        ? '⚠ Not saved — re-launch /keepieuppies in TG bot'
-                        : '⚠ Not saved — network error';
-                    this.overlayBest.setText(`${this.overlayBest.text}\n${warnLine}`);
-                }
-            });
+    async _submitToArcadeLeaderboard(finalScore) {
+        // Routes through the module-level resilience helpers (stash +
+        // single retry + structured result). If the POST fails for a
+        // transient reason (network blip, 5xx), the score is stashed in
+        // localStorage and recovered on next scene mount via _retryPending.
+        const result = await _submitWithResilience(finalScore);
+        if (!this.overlayBest) return;
+        if (result?.ok) {
+            const rankText = result.newBest
+                ? `NEW BEST · RANK #${result.rank} of ${result.totalPlayers}`
+                : `RANK #${result.rank} of ${result.totalPlayers}`;
+            this.overlayBest.setText(rankText);
+            return;
+        }
+        if (result?.reason === 'no_session') {
+            // Free-play mode — user has no JWT, nothing to submit. Stay
+            // silent (existing overlay text already reflects local best).
+            return;
+        }
+        const warnLine = result?.reason === 'session_expired'
+            ? '⚠ Not saved — re-launch /keepieuppies in TG bot'
+            : '⚠ Not yet saved — will retry next time';
+        this.overlayBest.setText(`${this.overlayBest.text}\n${warnLine}`);
     }
 
     // ── input ───────────────────────────────────────────────────────

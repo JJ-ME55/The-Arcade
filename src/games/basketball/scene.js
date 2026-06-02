@@ -127,6 +127,94 @@ const DEPTH_NET = 3;
 const DEPTH_BALL = 4;
 const DEPTH_POPUP = 10;
 
+// === Arcade leaderboard POST resilience ===
+// Forward-port of the pattern in JJ-ME55/solshot-free-kicks commit 70eb14f
+// (also lives in this repo's free-kicks/boot.js as of 2026-06-02). Stash
+// failed submissions in localStorage and retry on next scene mount. Adds
+// a single retry on network exception. Per-game key so basketball pending
+// doesn't collide with keepie-uppies or free-kicks pending.
+const ARCADE_API_BASE =
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SOLSHOT_API_BASE) ||
+    'https://solshot.onrender.com';
+const ARCADE_ENDPOINT = `${ARCADE_API_BASE}/api/games/basketball/score`;
+const ARCADE_PENDING_KEY = 'arcade_pending_basketball';
+
+function _stashPending(score) {
+    try {
+        const existing = _readPending();
+        const max = existing !== null && existing > score ? existing : score;
+        localStorage.setItem(ARCADE_PENDING_KEY, String(max));
+    } catch { /* localStorage unavailable */ }
+}
+function _clearPending() {
+    try { localStorage.removeItem(ARCADE_PENDING_KEY); } catch {}
+}
+function _readPending() {
+    try {
+        const v = localStorage.getItem(ARCADE_PENDING_KEY);
+        if (!v) return null;
+        const n = parseInt(v, 10);
+        return Number.isFinite(n) && n >= 0 ? n : null;
+    } catch { return null; }
+}
+function _getSession() {
+    try { return sessionStorage.getItem('arcade_session'); } catch { return null; }
+}
+async function _postOnce(score, session) {
+    return fetch(ARCADE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ score, session }),
+    });
+}
+// Returns { ok: true, ... } or { ok: false, reason: 'no_session' | 'session_expired' | 'network_error' | 'server_error', status? }
+async function _submitWithResilience(score) {
+    const session = _getSession();
+    if (!session) return { ok: false, reason: 'no_session' };
+    let resp;
+    try {
+        resp = await _postOnce(score, session);
+    } catch {
+        try {
+            await new Promise(r => setTimeout(r, 800));
+            resp = await _postOnce(score, session);
+        } catch (e) {
+            console.warn('[arcade-leaderboard/basketball] network error (after retry):', e?.message || e);
+            _stashPending(score);
+            return { ok: false, reason: 'network_error' };
+        }
+    }
+    if (!resp.ok) {
+        if (resp.status === 401) {
+            console.warn('[arcade-leaderboard/basketball] session expired (401)');
+            return { ok: false, reason: 'session_expired' };
+        }
+        console.warn('[arcade-leaderboard/basketball] POST failed:', resp.status);
+        _stashPending(score);
+        return { ok: false, reason: 'server_error', status: resp.status };
+    }
+    _clearPending();
+    try { return { ok: true, ...(await resp.json()) }; } catch { return { ok: true }; }
+}
+// Fire-and-forget recovery. Polls sessionStorage for up to 3s — handles
+// the race with useArcadeSessionMint (Privy → server-mint async). Safe to
+// call before the session token is ready.
+async function _retryPending() {
+    const pending = _readPending();
+    if (pending === null) return;
+    let session = null;
+    for (let i = 0; i < 30; i++) {
+        session = _getSession();
+        if (session) break;
+        await new Promise(r => setTimeout(r, 100));
+    }
+    if (!session) return;
+    const result = await _submitWithResilience(pending);
+    if (result?.ok) {
+        console.log('[arcade-leaderboard/basketball] recovered pending score:', pending);
+    }
+}
+
 /**
  * BasketballScene — first-person 3D basketball scene, timed
  * rapid-fire mode (see Docs/games/basketball/TIMED_MODE_DESIGN.md).
@@ -213,6 +301,11 @@ export class BasketballScene extends Phaser.Scene {
     }
 
     create() {
+        // Fire-and-forget recovery of any score stashed by a previous
+        // failed submission. Polls sessionStorage for up to 3s so it's
+        // safe to call before useArcadeSessionMint completes.
+        _retryPending();
+
         // Procedural sky + floor sit underneath the cabinet backdrop.
         // Whole stack is pinned to DEPTH_BACKDROP so a ball at
         // DEPTH_BALL_BEHIND_BOARD (long miss past the board plane)
@@ -723,42 +816,34 @@ export class BasketballScene extends Phaser.Scene {
         this._submitToArcadeLeaderboard(finalScore);
     }
 
-    _submitToArcadeLeaderboard(finalScore) {
-        let session = null;
-        try {
-            session = sessionStorage.getItem('arcade_session');
-        } catch (_) { /* sessionStorage unavailable (privacy mode etc.) */ }
-        if (!session) return;
-        const endpoint = 'https://solshot.onrender.com/api/games/basketball/score';
-        fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ score: finalScore, session }),
-        })
-            .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
-            .then(data => {
-                if (data?.ok) {
-                    this.bridge.updateState({
-                        arcadeRank: data.rank,
-                        arcadeTotalPlayers: data.totalPlayers,
-                        arcadeNewBest: data.newBest,
-                    });
-                }
-            })
-            .catch(err => {
-                const msg = String(err.message || '');
-                const isExpired = msg.includes('401');
-                if (!isExpired) {
-                    console.warn('[arcade-leaderboard] submit failed:', msg);
-                }
-                // Surface failure into the React HUD so the user knows
-                // their score didn't land. Previously this was silent,
-                // which is how Elliot's 450-point free-kick run got lost
-                // (2026-05-28 incident → see SESSION_TTL bump on server).
-                this.bridge.updateState({
-                    arcadeSubmitError: isExpired ? 'session_expired' : 'network_error',
-                });
+    async _submitToArcadeLeaderboard(finalScore) {
+        // Goes through the module-level resilience layer (stash + single
+        // retry + structured result). Updates bridge state with rank on
+        // success, or with an error type the HUD renders into copy.
+        const result = await _submitWithResilience(finalScore);
+        if (result?.ok) {
+            this.bridge.updateState({
+                arcadeRank: result.rank,
+                arcadeTotalPlayers: result.totalPlayers,
+                arcadeNewBest: result.newBest,
+                arcadeSubmitError: null,
             });
+            return;
+        }
+        if (result?.reason === 'no_session') {
+            // Free-play (no JWT minted) — stay silent. User didn't
+            // intend to submit.
+            return;
+        }
+        // 'session_expired' → user must re-launch the bot to mint a fresh
+        // JWT (score NOT stashed — stale token would fail the same way on
+        // retry). Other errors → score stashed for retry on next mount /
+        // replay.
+        this.bridge.updateState({
+            arcadeSubmitError: result?.reason === 'session_expired'
+                ? 'session_expired'
+                : 'pending_retry',
+        });
     }
 
     // ──────────────────────────────────────────────────────────────
