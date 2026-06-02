@@ -666,49 +666,55 @@ class Canvas2D_Singleton {
         ctx.arc(0, 0, R * 1.3, 0, Math.PI * 2);
         ctx.fill();
 
-        // ROLLING — Miniclip-style restraint. JJ 2026-06: "the numbers
-        // and stripes are coming off the balls, how did miniclip get
-        // it so perfect?" The previous attempt translated the number
-        // disc along the motion axis — the disc slid past the ball
-        // edge and looked broken. Miniclip in fact keeps the number
-        // disc dead-centre on every ball and lets ONLY the stripe band
-        // rotate around the ball axis (the painted stripe visibly
-        // orbits the ball face). Solid balls and the cue ball show no
-        // rolling animation — motion + deceleration alone read as
-        // movement, which is how Miniclip does it too.
+        // ROLLING — the painted markings (number disc + stripe band)
+        // are part of the BALL SURFACE. As the ball rolls, they rotate
+        // with it. Previously I had kept them dead-centred, which JJ
+        // rightly called out: "but that doesn't make sense" — a real
+        // billiard ball's number visibly tumbles as the ball rolls.
         //
-        // `rotation` param = Ball._rollAngle, advanced by
-        // Ball.updateRollAngle each tick (damped 0.25× so it doesn't
-        // strobe at high velocity).
+        // What we do now: every painted element is rotated around the
+        // ball centre by `rotation` (Ball._rollAngle, advanced from
+        // velocity by Ball.updateRollAngle each tick, damped 0.25× so
+        // it doesn't strobe at high speed). Number digit tumbles,
+        // stripe band orbits, both stay ON the ball (no sliding past
+        // the edge). The base colour and the specular highlight don't
+        // rotate — base is rotationally symmetric, specular is fixed
+        // in screen space (overhead lamp).
 
         if (ballId === 0) {
-            // Cue ball — uniform off-white. No painted marking, no
-            // rolling indicator. Matches Miniclip's restraint.
+            // Cue ball — uniform off-white. No painted markings on a
+            // standard cue ball, so no visible rotation. Motion +
+            // deceleration alone read as movement.
             this.drawBallBase(ctx, R, CUE_COLOR);
         } else if (ballId === 8) {
-            // 8-ball — black base with centred white "8" disc, no rotation.
+            // 8-ball — black base, rotating white "8" disc.
             this.drawBallBase(ctx, R, EIGHT_COLOR);
+            ctx.save();
+            ctx.rotate(rotation);
             this.drawNumberDot(ctx, R, 8);
+            ctx.restore();
         } else {
             const c = SOLID_COLORS[baseN] || '#999999';
             if (isStripe) {
-                // White base + rotated stripe band + centred number disc.
-                // The band is the rolling indicator — it visibly orbits
-                // the ball face as the ball travels, while the number
-                // disc stays put on the white area where it sits in
-                // real life.
+                // Stripe ball — white base, then stripe band + number
+                // disc rotated together around the ball centre. They're
+                // both painted on the same surface so they orbit in lock
+                // step. Number sits on the white area between the
+                // stripes, and rotates with everything else.
                 this.drawBallBase(ctx, R, '#FAF6E4');
                 ctx.save();
                 ctx.rotate(rotation);
                 this.drawStripeBand(ctx, R, c);
+                this.drawNumberDot(ctx, R, ballId);
                 ctx.restore();
-                this.drawNumberDot(ctx, R, ballId);
             } else {
-                // Solid ball — coloured base, centred white disc with
-                // number, no rotation (rotating a digit looks like a
-                // tumbling number, not a rolling ball).
+                // Solid ball — coloured base, rotating white disc with
+                // number. The tumbling digit is the rolling indicator.
                 this.drawBallBase(ctx, R, c);
+                ctx.save();
+                ctx.rotate(rotation);
                 this.drawNumberDot(ctx, R, ballId);
+                ctx.restore();
             }
         }
         // Specular highlight — fixed in screen space (light source = overhead
