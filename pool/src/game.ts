@@ -134,6 +134,31 @@ export class Game {
             (window as any).__SIDE_POCKET_SET_SPIN = (x: number, y: number) => {
                 this._poolGame?.setSpinFromHud(x, y);
             };
+            // Debug probe — expose internal state so playtest can diagnose
+            // why force_shoot does nothing. JJ 2026-06: "yet to see a ball
+            // moving since the gap analysis." This lets a Claude_in_Chrome
+            // probe inspect what guard is failing inside forceShootFromHud.
+            (window as any).__SIDE_POCKET_DEBUG = () => {
+                const pg: any = this._poolGame;
+                if (!pg) return { error: 'no poolGame' };
+                const stick = pg._stick;
+                const cue = pg._cueBall;
+                return {
+                    AI_finishedSession: AI.finishedSession,
+                    stick_visible: stick?._visible,
+                    stick_movable: stick?._movable,
+                    stick_power: stick?._power,
+                    stick_rotation: stick?._rotation,
+                    stick_aimState: stick?._aimState,
+                    cue_position: cue ? { x: cue._position?.x, y: cue._position?.y } : null,
+                    cue_velocity: cue ? { x: cue._velocity?.x, y: cue._velocity?.y } : null,
+                    cue_moving: cue?._moving,
+                    cue_visible: cue?._visible,
+                    isBallInHand: pg.isBallInHand,
+                    isBallsMoving: pg.isBallsMoving,
+                    currentPlayerIndex: pg._currentPlayerIndex,
+                };
+            };
 
             // Now replay buffered actions (skip immediate shoots since
             // the player would not have aimed yet — only the LAST power
