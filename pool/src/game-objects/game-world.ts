@@ -534,13 +534,23 @@ export class GameWorld {
      * from wherever the cue is currently pointing.
      */
     public forceShootFromHud(): void {
-        if (!AI.finishedSession) return;
-        if (!this._stick.visible || !this._stick.movable) return;
+        // eslint-disable-next-line no-console
+        console.log('[SP] forceShootFromHud called', {
+            ai_done: AI.finishedSession,
+            stick_visible: this._stick.visible,
+            stick_movable: this._stick.movable,
+            stick_power: this._stick.power,
+            stick_rot: this._stick.rotation,
+        });
+        if (!AI.finishedSession) { console.log('[SP] EARLY: AI session running'); return; }
+        if (!this._stick.visible || !this._stick.movable) { console.log('[SP] EARLY: stick invis/immovable'); return; }
         let power = this._stick.power;
         if (power < 1) {
             power = Math.round(GameConfig.stick.maxPower * 0.5);
         }
+        console.log('[SP] firing with power=' + power);
         this.shootCueBall(power, this._stick.rotation);
+        console.log('[SP] after shootCueBall: vel=', this._cueBall.velocity.x, this._cueBall.velocity.y, 'moving=', (this._cueBall as any)._moving);
     }
 
     /**
