@@ -17,8 +17,16 @@ export interface ArcadeGame {
   stake: string;
   yield: number;
   hi: string;
-  /** Hero illustration (studio-provided art). Vite serves from /public. */
+  /** Wide hero illustration (16:7, ~2400×1050 target). Featured Cabinet
+   *  + Game Detail Marquee. Always required. */
   heroSrc: string;
+  /** Tile crop (16:10, ~1280×800 target). The Floor grid tiles. Falls
+   *  back to `heroSrc` with `object-fit: cover` when missing. */
+  tileSrc?: string;
+  /** Vertical splash (9:16, ~1080×1920 target). Mobile launch / TG
+   *  webview takeover / OG share / future trophy card. Stored ready;
+   *  not all surfaces consume it yet. */
+  splashSrc?: string;
   /** Where to bias the cropped focal area. Defaults to center. */
   heroFocus?: string;
 }
@@ -35,6 +43,8 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     yield: 50,
     hi: '142,089',
     heroSrc: '/assets/games/hero/solshot.webp',
+    tileSrc: '/assets/games/hero/solshot-tile.webp',
+    splashSrc: '/assets/games/hero/solshot-splash.webp',
     heroFocus: 'center',
   },
   {

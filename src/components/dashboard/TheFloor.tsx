@@ -98,9 +98,11 @@ function CabinetTile({ game }: { game: ArcadeGame }) {
           overflow: 'hidden',
         }}
       >
-        {/* studio hero art fills the screen area */}
+        {/* studio art fills the screen area — prefer tile crop when the
+            game has shipped one, fall back to the hero with object-fit
+            cover for games still on a single asset */}
         <img
-          src={game.heroSrc}
+          src={game.tileSrc ?? game.heroSrc}
           alt={`${game.name} cabinet art`}
           loading="lazy"
           style={{
