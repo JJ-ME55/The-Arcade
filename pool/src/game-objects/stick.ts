@@ -51,6 +51,10 @@ export class Stick {
         return this._power;
     }
 
+    public get movable(): boolean {
+        return this._movable;
+    }
+
     public set movable(value: boolean) {
         this._movable = value;
     }
