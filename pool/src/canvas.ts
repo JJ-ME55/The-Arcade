@@ -666,74 +666,49 @@ class Canvas2D_Singleton {
         ctx.arc(0, 0, R * 1.3, 0, Math.PI * 2);
         ctx.fill();
 
-        // ROLLING — the number disc / stripe band TRANSLATES in the
-        // direction opposite to motion. JJ 2026-06: "the balls aren't
-        // rolling." Previous implementation only rotated the disc at
-        // the centre, which is invisible at top-down. Now the disc
-        // visibly slides across the ball as it rolls (the top surface
-        // moves opposite to the rolling direction — what you'd see
-        // looking straight down at a real ball).
-        const speed = Math.hypot(velocity.x, velocity.y);
-        let discOffsetX = 0, discOffsetY = 0;
-        if (speed > 0.05) {
-            // Disc slides in the direction OPPOSITE motion. sin(rotation)
-            // oscillates as the ball rolls multiple revolutions, magnitude
-            // bumped from 0.5R to 0.75R 2026-06 (JJ: "balls are still not
-            // rolling"). Combined with the slowed rollAngle progression
-            // (ball.updateRollAngle dampens by 0.25×) the disc visibly
-            // travels back and forth across the ball as it rolls.
-            const phase = Math.sin(rotation);
-            const dirMag = R * 0.75 * phase;
-            discOffsetX = (-velocity.x / speed) * dirMag;
-            discOffsetY = (-velocity.y / speed) * dirMag;
-        }
+        // ROLLING — Miniclip-style restraint. JJ 2026-06: "the numbers
+        // and stripes are coming off the balls, how did miniclip get
+        // it so perfect?" The previous attempt translated the number
+        // disc along the motion axis — the disc slid past the ball
+        // edge and looked broken. Miniclip in fact keeps the number
+        // disc dead-centre on every ball and lets ONLY the stripe band
+        // rotate around the ball axis (the painted stripe visibly
+        // orbits the ball face). Solid balls and the cue ball show no
+        // rolling animation — motion + deceleration alone read as
+        // movement, which is how Miniclip does it too.
+        //
+        // `rotation` param = Ball._rollAngle, advanced by
+        // Ball.updateRollAngle each tick (damped 0.25× so it doesn't
+        // strobe at high velocity).
 
         if (ballId === 0) {
-            // Cue ball — uniform off-white. To convey rolling we paint a
-            // small faint spot at a fixed point on the surface; as the
-            // ball rolls, the spot orbits its centre, then dips out of
-            // sight on the back half (we clip it when sin(rotation) < 0).
-            // Without this the cue ball was the only ball with NO visual
-            // rolling cue (no number disc to slide across it).
+            // Cue ball — uniform off-white. No painted marking, no
+            // rolling indicator. Matches Miniclip's restraint.
             this.drawBallBase(ctx, R, CUE_COLOR);
-            if (speed > 0.05) {
-                const phaseTop = Math.sin(rotation);
-                if (phaseTop > 0) {
-                    // Spot rides along the motion axis as the ball rolls
-                    // — moves backward relative to motion when on the top
-                    // half (matches the disc-translation convention).
-                    const spotMag = R * 0.65 * phaseTop;
-                    const sx = (-velocity.x / speed) * spotMag;
-                    const sy = (-velocity.y / speed) * spotMag;
-                    ctx.fillStyle = 'rgba(40,30,15,0.18)';
-                    ctx.beginPath();
-                    ctx.arc(sx, sy, R * 0.18, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
         } else if (ballId === 8) {
-            // 8-ball — black base with a translating white number disc.
+            // 8-ball — black base with centred white "8" disc, no rotation.
             this.drawBallBase(ctx, R, EIGHT_COLOR);
-            ctx.save();
-            ctx.translate(discOffsetX, discOffsetY);
             this.drawNumberDot(ctx, R, 8);
-            ctx.restore();
         } else {
             const c = SOLID_COLORS[baseN] || '#999999';
             if (isStripe) {
-                // White base + translating stripe band + translating disc
+                // White base + rotated stripe band + centred number disc.
+                // The band is the rolling indicator — it visibly orbits
+                // the ball face as the ball travels, while the number
+                // disc stays put on the white area where it sits in
+                // real life.
                 this.drawBallBase(ctx, R, '#FAF6E4');
                 ctx.save();
-                ctx.translate(discOffsetX, discOffsetY);
+                ctx.rotate(rotation);
                 this.drawStripeBand(ctx, R, c);
-                this.drawNumberDot(ctx, R, ballId);
                 ctx.restore();
+                this.drawNumberDot(ctx, R, ballId);
             } else {
+                // Solid ball — coloured base, centred white disc with
+                // number, no rotation (rotating a digit looks like a
+                // tumbling number, not a rolling ball).
                 this.drawBallBase(ctx, R, c);
-                ctx.save();
-                ctx.translate(discOffsetX, discOffsetY);
                 this.drawNumberDot(ctx, R, ballId);
-                ctx.restore();
             }
         }
         // Specular highlight — fixed in screen space (light source = overhead
