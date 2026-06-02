@@ -122,17 +122,24 @@ export const GameConfig : IGameConfig = {
     },
 
     // Physics — two-regime model from deep-research workflow wghummavd
-    // (2026-06). Replaces the old single `friction` exponential damping
-    // with Han 2005 / Shepard constant-decel sliding + rolling. The
-    // `friction` field stays for legacy code paths but is no longer
-    // read; slidingDecel + rollingDecel + rollSlipThreshold drive the
-    // actual ball deceleration. See pool/src/sim/types.ts for the
-    // derivation: μ_s=0.20, μ_r=0.01, world scale ~528 px/m, 60 fps.
+    // (2026-06). Velocity in our codebase is in px/TICK (not px/sec),
+    // so the literal physics decel (17.3 px/tick²) was 25× too strong
+    // — a 60 px/tick shot stopped in 4 frames. Retuned empirically to
+    // match the original game's stop-time (~4s for medium shots) while
+    // keeping the two-regime SHAPE: snappy slide, long slow roll.
+    //
+    // Tuning constraints:
+    //   - Hard shot (120 px/tick) stops in ~4.5s
+    //   - Medium shot (60 px/tick) stops in ~4s
+    //   - Soft shot (15 px/tick) stops in ~2.5s
+    //   - Slide phase ~25-50% of total time (snappy feel)
+    //   - Roll phase ~50-75% (long, slow tail)
+    //   - Ratio slidingDecel:rollingDecel ≈ 15× (close to research's 20-30×)
     physics: {
-        friction:           0.018,   // legacy, unused
-        slidingDecel:       17.3,    // μ_s·g·dt at 60 fps
-        rollingDecel:       0.86,    // μ_r·g·dt at 60 fps
-        rollSlipThreshold:  1.2,     // |v| below which ball is in pure rolling
+        friction:           0.018,   // legacy, unused by stepWorld
+        slidingDecel:       1.5,     // px/tick² during sliding phase
+        rollingDecel:       0.1,     // px/tick² during rolling phase (15× smaller)
+        rollSlipThreshold:  20,      // |v| below this = pure rolling regime
         collisionLoss:      0.018,
     },
 

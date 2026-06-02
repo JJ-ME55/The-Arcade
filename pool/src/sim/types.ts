@@ -157,9 +157,9 @@ export interface SimulationResult {
  */
 export const DEFAULT_PHYSICS_CONFIG: PhysicsConfig = Object.freeze({
   friction: 0.018,            // legacy, unused by stepWorld
-  slidingDecel: 17.3,
-  rollingDecel: 0.86,
-  rollSlipThreshold: 1.2,     // tuned empirically — captures the surface-vel transition
+  slidingDecel: 1.5,          // px/tick² during sliding (snappy launch)
+  rollingDecel: 0.1,          // px/tick² during rolling (long slow tail, 15× smaller)
+  rollSlipThreshold: 20,      // |v| below this = pure rolling regime
   collisionLoss: 0.018,
   ballDiameter: 32,
   minVelocityLength: 0.05
