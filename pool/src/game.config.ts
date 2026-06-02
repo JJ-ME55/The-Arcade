@@ -126,16 +126,22 @@ export const GameConfig : IGameConfig = {
         collisionLoss: 0.018,
     },
 
+    // Table geometry — aligned to designer Round 2 spec (asset/side_pocket_handoff/
+    // source/round2_canvas.jsx). Drift from the original Classic-8-Ball-Pool
+    // clone was: cushion +9px (57→48), pocket radius +6px (48→42), TR/BR corner
+    // -3px (1435→1438), side pockets 24-25px outside the cushion (y=32/794 →
+    // y=56/769). Aligned 2026-06 per JJ playtest feedback. POCKET_R = 42 puts
+    // pocket diameter at 84px = 2.2× ball, matches regulation 4.5-5" pocket.
     table: {
-        cushionWidth: 57,
-        pocketRadius: 48,
+        cushionWidth: 48,
+        pocketRadius: 42,
         pocketsPositions: [
-            { x: 62, y: 62 },
-            { x: 750, y: 32 },
-            { x: 1435, y: 62 },
-            { x: 62, y: 762 },
-            { x: 750, y: 794 },
-            { x: 1435, y: 762 }
+            { x: 62,   y: 62  },   // TL corner
+            { x: 750,  y: 56  },   // Top side
+            { x: 1438, y: 62  },   // TR corner
+            { x: 62,   y: 763 },   // BL corner
+            { x: 750,  y: 769 },   // Bottom side
+            { x: 1438, y: 763 }    // BR corner
         ]
     },
 
