@@ -169,7 +169,22 @@ export function MatchHUD() {
                 </div>
 
                 {you
-                    ? <button className="spg-shoot">Shoot</button>
+                    ? (
+                        <button
+                            className="spg-shoot"
+                            onClick={() => {
+                                // Same-origin iframe → contentWindow exposes the
+                                // __SIDE_POCKET_FORCE_SHOOT global set by the pool
+                                // client when ?hud=parent. Fires regardless of the
+                                // canvas click-to-aim state, so the React button is
+                                // a real shoot trigger, not decoration.
+                                const win = iframeRef.current?.contentWindow as { __SIDE_POCKET_FORCE_SHOOT?: () => void } | null;
+                                win?.__SIDE_POCKET_FORCE_SHOOT?.();
+                            }}
+                        >
+                            Shoot
+                        </button>
+                    )
                     : <button className="spg-shoot wait">Waiting…</button>
                 }
             </footer>
