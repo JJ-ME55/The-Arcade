@@ -174,10 +174,14 @@ export class Ball {
         const dir = Math.abs(this._velocity.x) > 0.01
             ? Math.sign(this._velocity.x)
             : Math.sign(this._velocity.y) || 1;
-        // 0.25 damping → ~4× slower than literal physics. At v=35 this
-        // gives ~0.46 rad/frame ≈ 4.4 rev/sec — slow enough to read as
-        // rotation, fast enough to feel like the ball is moving.
-        this._rollAngle += (speed / ballR) * dir * 0.25;
+        // 0.08 damping → ~12× slower than literal physics. JJ playtest
+        // 2026-06 confirmed rotation IS visible in Miniclip but it's
+        // SUBTLE — earlier 0.25× was strobing too fast and looked like
+        // a spinning top. At v=35 px/tick, 0.08 gives ~0.15 rad/frame
+        // ≈ 1.4 rev/sec at 60fps — about right per JJ's frame-pair
+        // comparison of a Miniclip 13-ball where the stripe band tilt
+        // shifts only a few degrees per second.
+        this._rollAngle += (speed / ballR) * dir * 0.08;
     }
 
     public update(): void {

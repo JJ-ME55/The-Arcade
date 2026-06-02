@@ -749,14 +749,45 @@ class Canvas2D_Singleton {
         ctx: CanvasRenderingContext2D,
         R: number,
     ): void {
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        // Three-layer specular per JJ playtest 2026-06 reference shots:
+        // Miniclip balls have a STRONG bright highlight upper-left, a
+        // softer halo around it, and a darker ambient lower-right.
+        // Previous one-layer specular at 0.4 alpha looked flat. The
+        // gradient + tight inner spot + outer halo gives the sphere
+        // its 3D pop.
+
+        // Outer halo — soft + wide, suggests the overhead lamp's
+        // diffuse reflection across the whole top hemisphere.
+        const halo = ctx.createRadialGradient(-R * 0.35, -R * 0.4, 0, -R * 0.35, -R * 0.4, R * 0.85);
+        halo.addColorStop(0, 'rgba(255,255,255,0.40)');
+        halo.addColorStop(0.6, 'rgba(255,255,255,0.10)');
+        halo.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = halo;
         ctx.beginPath();
-        ctx.ellipse(-R * 0.35, -R * 0.4, R * 0.28, R * 0.18, -Math.PI * 0.18, 0, Math.PI * 2);
+        ctx.arc(0, 0, R, 0, Math.PI * 2);
         ctx.fill();
-        // Tighter inner bright spot
-        ctx.fillStyle = 'rgba(255,255,255,0.65)';
+
+        // Mid-bright reflection — punches the highlight zone.
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
         ctx.beginPath();
-        ctx.ellipse(-R * 0.4, -R * 0.45, R * 0.13, R * 0.08, -Math.PI * 0.18, 0, Math.PI * 2);
+        ctx.ellipse(-R * 0.35, -R * 0.4, R * 0.30, R * 0.20, -Math.PI * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Tight inner specular dot — the lamp's specular reflection.
+        ctx.fillStyle = 'rgba(255,255,255,0.95)';
+        ctx.beginPath();
+        ctx.ellipse(-R * 0.42, -R * 0.47, R * 0.10, R * 0.06, -Math.PI * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Lower-right ambient dimming — suggests the curve falling away
+        // from the light source.
+        const ambient = ctx.createRadialGradient(R * 0.3, R * 0.35, 0, R * 0.3, R * 0.35, R * 0.95);
+        ambient.addColorStop(0, 'rgba(0,0,0,0.18)');
+        ambient.addColorStop(0.6, 'rgba(0,0,0,0.06)');
+        ambient.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = ambient;
+        ctx.beginPath();
+        ctx.arc(0, 0, R, 0, Math.PI * 2);
         ctx.fill();
     }
 
