@@ -58,7 +58,9 @@
 .mar-start:active { transform: translateY(2px); }
 .mar-aside { display: flex; flex-direction: column; gap: calc(12px * var(--u)); justify-content: center; min-width: 0; }
 .mar-card { background: rgba(12,22,15,0.6); border: 1px solid var(--c-line); padding: calc(14px * var(--u)); }
-.mar-card .ch { display: flex; align-items: baseline; justify-content: space-between; padding-bottom: calc(9px * var(--u)); border-bottom: 1px solid var(--c-line); }
+/* Marathon card-heading class — renamed from designer's .ch to .mc-h to
+   avoid colliding with the .ch chrome-root selector further down. */
+.mar-card .mc-h { display: flex; align-items: baseline; justify-content: space-between; padding-bottom: calc(9px * var(--u)); border-bottom: 1px solid var(--c-line); }
 .mar-card .ct { font-family: "Abril Fatface", Georgia, serif; font-size: calc(18px * var(--u)); }
 .mar-card .cs { font-family: "Space Mono", monospace; font-size: calc(9px * var(--u)); text-transform: uppercase; letter-spacing: 0.08em; color: var(--c-cream-d); }
 .mar-lb { display: flex; align-items: center; gap: calc(10px * var(--u)); padding: calc(8px * var(--u)) 0; border-bottom: 1px solid rgba(201,162,74,0.12); }

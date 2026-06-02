@@ -76,7 +76,7 @@ export function Marathon() {
 
                     <div className="mar-aside">
                         <div className="mar-card">
-                            <div className="ch">
+                            <div className="mc-h">
                                 <span className="ct">This Week</span>
                                 <span className="cs">Top Runs</span>
                             </div>
@@ -90,7 +90,7 @@ export function Marathon() {
                         </div>
 
                         <div className="mar-card">
-                            <div className="ch">
+                            <div className="mc-h">
                                 <span className="ct">Rewards</span>
                                 <span className="cs">Per Setup</span>
                             </div>
