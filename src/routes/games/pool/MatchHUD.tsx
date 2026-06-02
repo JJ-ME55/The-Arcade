@@ -186,17 +186,20 @@ export function MatchHUD() {
 }
 
 /**
- * Functional power bar — drag to set, displays current %, writes
- * through to the iframe game via __SIDE_POCKET_SET_POWER(pct).
+ * Functional power bar — drag the BAR ITSELF (not a separate slider
+ * knob below) to set power. Writes through to the iframe game via
+ * __SIDE_POCKET_SET_POWER(pct).
  *
- * JJ 2026-06: "duplicate controls everywhere" — iframe's #powerHud is
- * now hidden (hud=parent), so this is the only power control the
- * player sees. The bar fill + small mark visually mirror Round 2's
- * .spg-power look; the underlying <input type=range> is invisible but
- * captures drag.
+ * Previous implementation used an <input type=range> overlay; that
+ * worked but the native thumb rendered at the wrapper's vertical
+ * centre, which was UNDER the visible bar — JJ 2026-06: "the knob to
+ * move it is UNDER the bar." This replaces it with a pure pointer-drag
+ * handler bound to the barwrap itself. The visible .mark element IS
+ * the knob; click anywhere on the bar to set, drag to scrub.
  */
 function PowerBar({ iframeRef }: { iframeRef: React.RefObject<HTMLIFrameElement> }) {
     const [pct, setPct] = useState(50);
+    const barRef = useRef<HTMLDivElement | null>(null);
 
     const apply = (next: number) => {
         const clamped = Math.max(0, Math.min(100, next));
@@ -205,33 +208,62 @@ function PowerBar({ iframeRef }: { iframeRef: React.RefObject<HTMLIFrameElement>
         win?.__SIDE_POCKET_SET_POWER?.(clamped);
     };
 
+    const setFromClientX = (clientX: number) => {
+        const el = barRef.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const x = clientX - rect.left;
+        apply((x / rect.width) * 100);
+    };
+
+    useEffect(() => {
+        let dragging = false;
+        const onMove = (e: PointerEvent) => {
+            if (!dragging) return;
+            setFromClientX(e.clientX);
+        };
+        const onUp = () => {
+            dragging = false;
+        };
+        const el = barRef.current;
+        if (!el) return;
+        const onDown = (e: PointerEvent) => {
+            dragging = true;
+            setFromClientX(e.clientX);
+            (e.target as Element)?.setPointerCapture?.(e.pointerId);
+        };
+        el.addEventListener('pointerdown', onDown);
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+        document.addEventListener('pointercancel', onUp);
+        return () => {
+            el.removeEventListener('pointerdown', onDown);
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            document.removeEventListener('pointercancel', onUp);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     return (
-        <div className="spg-power" style={{ position: 'relative' }}>
+        <div className="spg-power">
             <span className="lbl">POWER</span>
-            <div className="barwrap" style={{ position: 'relative', flex: 1 }}>
-                <span className="mark" style={{ left: pct + '%' }} />
+            <div
+                ref={barRef}
+                className="barwrap"
+                style={{ position: 'relative', flex: 1, cursor: 'pointer', touchAction: 'none' }}
+                role="slider"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(pct)}
+                aria-label="Shot power"
+            >
                 <div className="bar">
                     <span className="fill" style={{ width: `calc(${pct}% - 4px)` }} />
                 </div>
-                <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={pct}
-                    onChange={(e) => apply(parseInt(e.target.value, 10))}
-                    style={{
-                        position: 'absolute',
-                        inset: 0,
-                        width: '100%',
-                        height: '100%',
-                        opacity: 0,
-                        cursor: 'pointer',
-                        margin: 0,
-                    }}
-                    aria-label="Shot power"
-                />
+                <span className="mark" style={{ left: pct + '%' }} />
             </div>
-            <span className="pct">{pct}%</span>
+            <span className="pct">{Math.round(pct)}%</span>
         </div>
     );
 }

@@ -210,12 +210,11 @@ export class Ball {
 
     public draw(): void {
         if(this._visible){
-            // Side Pocket American 8-ball — procedural draw via Canvas2D
-            // using the ball's stable _id (0 cue, 1-7 solids, 8 black,
-            // 9-15 stripes). _rollAngle is advanced in update() based
-            // on velocity; the renderer rotates the stripe band + number
-            // disc by that amount so the ball visually rolls.
-            Canvas2D.drawAmericanBall(this._position, this._id, this._rollAngle);
+            // Side Pocket American 8-ball — procedural draw via Canvas2D.
+            // Passes velocity so the renderer can translate the number
+            // disc/stripe band in the direction of motion (visible
+            // rolling effect — JJ 2026-06: "the balls aren't rolling").
+            Canvas2D.drawAmericanBall(this._position, this._id, this._rollAngle, this._velocity);
         }
     }
 }

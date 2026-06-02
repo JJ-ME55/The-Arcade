@@ -1,5 +1,4 @@
-import { IStickConfig, IInputConfig } from './../game.config.type';
-import { Keyboard } from '../input/keyboard';
+import { IStickConfig } from './../game.config.type';
 import { Mouse } from '../input/mouse';
 import { PowerHud } from '../input/power-hud';
 import { SpinHud } from '../input/spin-hud';
@@ -12,7 +11,6 @@ import { IAssetsConfig } from '../game.config.type';
 
 //------Configurations------//
 
-const inputConfig: IInputConfig = GameConfig.input;
 const stickConfig: IStickConfig = GameConfig.stick;
 const sprites: IAssetsConfig = GameConfig.sprites;
 const sounds: IAssetsConfig = GameConfig.sounds;
@@ -86,21 +84,11 @@ export class Stick {
     }
 
     private updatePower(): void {
-        let target = PowerHud.value;
-
-        if (Keyboard.isDown(inputConfig.increaseShotPowerKey)) {
-            target += stickConfig.powerToAddPerFrame;
-        }
-        else if (Keyboard.isDown(inputConfig.decreaseShotPowerKey)) {
-            target -= stickConfig.powerToAddPerFrame;
-        }
-
-        target = Math.max(0, Math.min(stickConfig.maxPower, target));
-        // HUD is the source of truth — keep it in sync so the slider thumb visibly
-        // tracks keyboard input on desktop and the next read sees the clamped value.
-        if (PowerHud.value !== target) {
-            PowerHud.value = target;
-        }
+        // Slider is the source of truth — keyboard W/S removed per JJ
+        // 2026-06 ("I'm not sure I like the 'w' functionality, I want to
+        // use the slider"). PowerHud.value is driven by the React
+        // MatchHUD's PowerBar (via setPowerDirect → __SIDE_POCKET_SET_POWER).
+        const target = Math.max(0, Math.min(stickConfig.maxPower, PowerHud.value));
         this.setPower(target);
     }
 

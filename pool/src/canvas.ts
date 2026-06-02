@@ -14,12 +14,16 @@ const RENDER_PADDING = 0;
 // palette declarative: one hex per ball, gradient stops computed.
 function lightenColor(hex: string): string {
     const { r, g, b } = parseHex(hex);
-    const f = 0.45;  // 45% blend with white
+    // Softened 2026-06 from 0.45→0.20 — was creating a halo-bright centre
+    // that read as "weird inner glow" per JJ playtest.
+    const f = 0.20;
     return `rgb(${Math.round(r + (255 - r) * f)},${Math.round(g + (255 - g) * f)},${Math.round(b + (255 - b) * f)})`;
 }
 function darkenColor(hex: string): string {
     const { r, g, b } = parseHex(hex);
-    const f = 0.55;  // keep 55% of source color
+    // Softened 2026-06 from 0.55→0.78 — was creating a harsh dark ring at
+    // the ball perimeter that read as "weird inner shadow."
+    const f = 0.78;
     return `rgb(${Math.round(r * f)},${Math.round(g * f)},${Math.round(b * f)})`;
 }
 function parseHex(hex: string): { r: number; g: number; b: number } {
@@ -623,7 +627,12 @@ class Canvas2D_Singleton {
     // Drawn in game-coords; Canvas2D wraps the scale + padding translate.
     // Each ball ≈ 38px diameter (matches GameConfig.ball.diameter).
     // ====================================================================
-    public drawAmericanBall(position: IVector2, ballId: number, rotation: number = 0): void {
+    public drawAmericanBall(
+        position: IVector2,
+        ballId: number,
+        rotation: number = 0,
+        velocity: IVector2 = { x: 0, y: 0 },
+    ): void {
         const ctx = this._context;
         const R = GameConfig.ball.diameter / 2;  // 19
         const isStripe = ballId >= 9 && ballId <= 15;
@@ -646,63 +655,71 @@ class Canvas2D_Singleton {
         ctx.scale(this._scale.x, this._scale.y);
         ctx.translate(RENDER_PADDING + position.x, RENDER_PADDING + position.y);
 
-        // TOP-DOWN SHADOW (Miniclip-style) — soft circular vignette
-        // OUTSIDE the ball perimeter. No directional ellipse — that
-        // makes the ball look 3D-angled, wrong for top-down pool.
-        // The shadow is symmetric and sells "ball resting on felt"
-        // depth without implying a side-lit camera.
-        const shadowGrad = ctx.createRadialGradient(0, 0, R * 0.95, 0, 0, R * 1.4);
-        shadowGrad.addColorStop(0, 'rgba(0,0,0,0.35)');
-        shadowGrad.addColorStop(0.5, 'rgba(0,0,0,0.18)');
+        // TOP-DOWN SHADOW — softened per JJ 2026-06: "balls have a weird
+        // inner shadow." Reduced opacity, tighter radius.
+        const shadowGrad = ctx.createRadialGradient(0, 0, R * 0.98, 0, 0, R * 1.3);
+        shadowGrad.addColorStop(0, 'rgba(0,0,0,0.22)');
+        shadowGrad.addColorStop(0.6, 'rgba(0,0,0,0.10)');
         shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = shadowGrad;
         ctx.beginPath();
-        ctx.arc(0, 0, R * 1.4, 0, Math.PI * 2);
+        ctx.arc(0, 0, R * 1.3, 0, Math.PI * 2);
         ctx.fill();
 
-        // ROLLING — apply the ball's rotation. The pattern (stripe band,
-        // number disc) rotates inside the perimeter; the specular and
-        // vignette stay fixed in screen space (light source is the
-        // overhead lamp, not the ball itself). Save/rotate/restore so
-        // only the pattern rolls.
+        // ROLLING — the number disc / stripe band TRANSLATES in the
+        // direction opposite to motion. JJ 2026-06: "the balls aren't
+        // rolling." Previous implementation only rotated the disc at
+        // the centre, which is invisible at top-down. Now the disc
+        // visibly slides across the ball as it rolls (the top surface
+        // moves opposite to the rolling direction — what you'd see
+        // looking straight down at a real ball).
+        const speed = Math.hypot(velocity.x, velocity.y);
+        let discOffsetX = 0, discOffsetY = 0;
+        if (speed > 0.05) {
+            // Disc slides in the direction OPPOSITE motion (the top of
+            // the ball moves backward relative to the rolling direction).
+            // sin(rotation) gives oscillation as the ball rolls multiple
+            // revolutions, magnitude up to R * 0.5 (disc moves halfway
+            // to the edge).
+            const phase = Math.sin(rotation);
+            const dirMag = R * 0.5 * phase;
+            discOffsetX = (-velocity.x / speed) * dirMag;
+            discOffsetY = (-velocity.y / speed) * dirMag;
+        }
+
         if (ballId === 0) {
-            // Cue ball — uniform off-white. Rotation invisible (symmetric).
+            // Cue ball — uniform off-white. Rotation invisible.
             this.drawBallBase(ctx, R, CUE_COLOR);
-            this.drawBallSpecular(ctx, R);
         } else if (ballId === 8) {
-            // 8-ball — black base with a rolling white number disc.
+            // 8-ball — black base with a translating white number disc.
             this.drawBallBase(ctx, R, EIGHT_COLOR);
             ctx.save();
-            ctx.rotate(rotation);
+            ctx.translate(discOffsetX, discOffsetY);
             this.drawNumberDot(ctx, R, 8);
             ctx.restore();
-            this.drawBallSpecular(ctx, R);
         } else {
             const c = SOLID_COLORS[baseN] || '#999999';
             if (isStripe) {
-                // White base + rotated stripe band + rotated number disc.
+                // White base + translating stripe band + translating disc
                 this.drawBallBase(ctx, R, '#FAF6E4');
                 ctx.save();
-                ctx.rotate(rotation);
+                ctx.translate(discOffsetX, discOffsetY);
                 this.drawStripeBand(ctx, R, c);
                 this.drawNumberDot(ctx, R, ballId);
                 ctx.restore();
             } else {
                 this.drawBallBase(ctx, R, c);
                 ctx.save();
-                ctx.rotate(rotation);
+                ctx.translate(discOffsetX, discOffsetY);
                 this.drawNumberDot(ctx, R, ballId);
                 ctx.restore();
             }
-            this.drawBallSpecular(ctx, R);
         }
+        // Specular highlight — fixed in screen space (light source = overhead
+        // lamp; doesn't move with the ball).
+        this.drawBallSpecular(ctx, R);
 
-        // BALL RIM — thin dark outline grounds the ball on the felt.
-        ctx.strokeStyle = 'rgba(0,0,0,0.45)';
-        ctx.lineWidth = 0.8;
-        ctx.beginPath();
-        ctx.arc(0, 0, R, 0, Math.PI * 2);
-        ctx.stroke();
+        // No dark rim outline — JJ 2026-06: "weird inner shadow." Removed.
 
         ctx.restore();
     }
