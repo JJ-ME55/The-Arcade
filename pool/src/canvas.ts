@@ -760,87 +760,57 @@ class Canvas2D_Singleton {
             this.drawBallSpecular(ctx, R);
         }
 
-        // Layer the painted markings ON TOP of the 3D sphere using
-        // CYCLOID PROJECTION — the physically correct way a painted
-        // point on a rolling sphere appears from a top-down view.
+        // ORBITAL ROLLING — the painted markings ORBIT the ball centre
+        // in a 2D circle as the ball rolls. JJ playtest 2026-06: "the
+        // dot whips around with each evolution, you have it fading in
+        // and out." Each full revolution of the ball sweeps the disc
+        // through one full orbit around the centre. Disc stays visible
+        // the whole time — no fade through a "back half", no
+        // translation off the ball, no edge clipping. The 3D-baked
+        // sphere base provides the "this is a ball" anchor; the
+        // orbiting marking provides the "this ball is rolling" cue.
         //
-        // Earlier attempts (2D rotation around centre, or dead-centred)
-        // both failed JJ's eye test: the first looked like a spinning
-        // top, the second was static. Cycloid math is what an actual
-        // marble or pool ball does:
-        //   - As ball rolls in direction d, surface point at top moves
-        //     by R*sin(θ) in direction d, where θ is accumulated roll.
-        //   - When θ goes past ±π/2, point dips below the visible
-        //     hemisphere (out of view), reappears from the other side
-        //     when θ continues past ±π.
-        //   - Visibility factor = max(0, cos(θ)) — full at θ=0, fades
-        //     to zero as θ→π/2, hidden through the back half.
-        //
-        // We clip ALL marking drawing to the ball circle so translations
-        // can't push numbers/stripes past the silhouette (which was JJ's
-        // "numbers and stripes are coming off the balls" complaint).
-        //
-        // The 3D sphere base does NOT translate or rotate — lighting is
-        // fixed in screen space (overhead lamp doesn't follow the ball).
+        // For stripe balls the band itself rotates with rollAngle (the
+        // band wraps the equator — rotating around centre changes its
+        // tilt, which is exactly what's visible in JJ's Miniclip
+        // reference frames where the 13-ball's orange stripe tilts
+        // between successive break-shot frames).
 
         if (ballId !== 0) {
-            const speed = Math.hypot(velocity.x, velocity.y);
-            const moving = speed > 0.05;
-
-            // Direction unit vector — for stationary balls, default to
-            // +x so the marking just sits at the top (rotation=0 → no
-            // translation anyway).
-            const dx = moving ? velocity.x / speed : 1;
-            const dy = moving ? velocity.y / speed : 0;
-
-            const sinTheta = Math.sin(rotation);
-            const cosTheta = Math.cos(rotation);
-            // Translation magnitude — R * sin(θ) is the literal cycloid
-            // projection. 0.7R keeps the disc comfortably within the
-            // ball edge even at the peak; clipping below catches any
-            // overshoot from the digit's own width.
-            const transAmount = R * 0.7 * sinTheta;
-            const tx = dx * transAmount;
-            const ty = dy * transAmount;
-
-            // Visibility — full when on top hemisphere (cos>0), fades to
-            // 0 by the time the surface point is on the equator (cos=0),
-            // hidden through the back half.
-            const visibility = Math.max(0, cosTheta);
-
-            ctx.save();
-            // Clip to ball circle so the translated disc can never push
-            // past the silhouette. Inflate 1px to hide AA seams.
-            ctx.beginPath();
-            ctx.arc(0, 0, R + 1, 0, Math.PI * 2);
-            ctx.clip();
-            ctx.globalAlpha = visibility;
-            ctx.translate(tx, ty);
+            // Disc orbits around the ball centre at radius 0.40R — far
+            // enough out to read as motion, close enough in that the
+            // disc itself (0.42R radius) stays comfortably within the
+            // ball silhouette.
+            const orbitR = R * 0.40;
+            const ox = orbitR * Math.sin(rotation);
+            const oy = -orbitR * Math.cos(rotation);  // -cos so at rotation=0 the disc starts at the top
 
             if (ballId === 8) {
+                ctx.save();
+                ctx.translate(ox, oy);
                 this.drawNumberDot(ctx, R, 8);
+                ctx.restore();
             } else {
                 const c = SOLID_COLORS[baseN] || '#999999';
                 if (isStripe) {
-                    // For stripe balls, the band wraps the ball around
-                    // the white-disc axis. When the white disc rolls
-                    // forward, the band visually shifts PERPENDICULAR
-                    // to motion (not in motion direction). So the band
-                    // gets its own perpendicular translation; the number
-                    // disc still gets the standard forward translation.
-                    // Render the band un-translated (it stays in place
-                    // around the equator), then translate to draw the
-                    // disc on top.
+                    // Stripe band rotates around centre — produces the
+                    // tilt-shift visible in Miniclip's stripe balls.
                     ctx.save();
-                    ctx.translate(-tx, -ty);  // cancel the parent translate
+                    ctx.rotate(rotation);
                     this.drawStripeBand(ctx, R, c);
                     ctx.restore();
+                    // Disc orbits AROUND centre on top of the rotated band.
+                    ctx.save();
+                    ctx.translate(ox, oy);
                     this.drawNumberDot(ctx, R, ballId);
+                    ctx.restore();
                 } else {
+                    ctx.save();
+                    ctx.translate(ox, oy);
                     this.drawNumberDot(ctx, R, ballId);
+                    ctx.restore();
                 }
             }
-            ctx.restore();
         }
         // Cue ball (ballId === 0) — no painted markings, the bare 3D
         // sphere is the entire visual.

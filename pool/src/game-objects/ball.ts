@@ -174,14 +174,15 @@ export class Ball {
         const dir = Math.abs(this._velocity.x) > 0.01
             ? Math.sign(this._velocity.x)
             : Math.sign(this._velocity.y) || 1;
-        // 0.08 damping → ~12× slower than literal physics. JJ playtest
-        // 2026-06 confirmed rotation IS visible in Miniclip but it's
-        // SUBTLE — earlier 0.25× was strobing too fast and looked like
-        // a spinning top. At v=35 px/tick, 0.08 gives ~0.15 rad/frame
-        // ≈ 1.4 rev/sec at 60fps — about right per JJ's frame-pair
-        // comparison of a Miniclip 13-ball where the stripe band tilt
-        // shifts only a few degrees per second.
-        this._rollAngle += (speed / ballR) * dir * 0.08;
+        // 0.14 damping — paired with the new orbital marking renderer
+        // in canvas.ts (the disc orbits the ball centre once per
+        // revolution). At v=35 px/tick this gives ~0.26 rad/frame ≈
+        // 2.5 rev/sec at 60fps — the orbit visibly sweeps once roughly
+        // every 24 frames, slow enough to track with the eye but fast
+        // enough that you can't miss it. JJ playtest 2026-06: "the dot
+        // whips around with each evolution" — this rate matches the
+        // "whip" cadence he described.
+        this._rollAngle += (speed / ballR) * dir * 0.14;
     }
 
     public update(): void {
