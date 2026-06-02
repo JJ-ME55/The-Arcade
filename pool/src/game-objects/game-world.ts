@@ -632,6 +632,14 @@ export class GameWorld {
         // Write sim → Browser
         syncSerializableToBalls(view, this._balls);
 
+        // Advance per-ball visual roll angle (sim doesn't touch this —
+        // _rollAngle is a Ball-only render-side field). Without this hop
+        // every ball appeared stuck even while clearly moving on screen
+        // (JJ 2026-06: "the balls are still not rolling"). The render
+        // pass reads ball._rollAngle every frame in drawAmericanBall to
+        // translate the number disc / stripe band along the motion axis.
+        for (const ball of this._balls) ball.updateRollAngle();
+
         // React to events: sounds + foul detection (firstCollidedBallColor).
         // Pocket-side bookkeeping (color assignment, scoring) stays in
         // handleBallsInPockets() which fires immediately after this.

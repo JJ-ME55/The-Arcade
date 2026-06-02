@@ -136,10 +136,23 @@ export const GameConfig : IGameConfig = {
     //   - Roll phase ~50-75% (long, slow tail)
     //   - Ratio slidingDecel:rollingDecel ≈ 15× (close to research's 20-30×)
     physics: {
+        // Retuned 2026-06 per JJ playtest: "balls slow down prematurely
+        // and the power settings seem weaker than they should." Eased
+        // sliding and especially rolling so a hard shot covers ~2 table
+        // widths instead of stopping after 1. Slip threshold lowered so
+        // the long rolling tail kicks in sooner — most of the "feel" of
+        // a pool shot is in that slow roll, not the brief slide.
+        //
+        // For v0=50 (max power): sliding 50→15 = 29 frames @ ~940 px,
+        // rolling 15→0 = 250 frames @ ~1875 px, total ~2815 px / ~4.7 s.
+        // For v0=25 (half):       sliding 25→15 = 8 frames @ ~160 px,
+        // rolling 15→0 = 250 frames @ ~1875 px, total ~2035 px / ~4.3 s.
+        // Differentiation comes from sliding distance, not rolling
+        // (which converges to a fixed tail given threshold + decel).
         friction:           0.018,   // legacy, unused by stepWorld
-        slidingDecel:       1.5,     // px/tick² during sliding phase
-        rollingDecel:       0.1,     // px/tick² during rolling phase (15× smaller)
-        rollSlipThreshold:  20,      // |v| below this = pure rolling regime
+        slidingDecel:       1.2,     // was 1.5 — eased so power reads stronger
+        rollingDecel:       0.06,    // was 0.10 — long lazy roll, like real felt
+        rollSlipThreshold:  15,      // was 20 — earlier transition to rolling
         collisionLoss:      0.018,
     },
 

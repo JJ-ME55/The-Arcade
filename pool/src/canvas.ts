@@ -676,20 +676,41 @@ class Canvas2D_Singleton {
         const speed = Math.hypot(velocity.x, velocity.y);
         let discOffsetX = 0, discOffsetY = 0;
         if (speed > 0.05) {
-            // Disc slides in the direction OPPOSITE motion (the top of
-            // the ball moves backward relative to the rolling direction).
-            // sin(rotation) gives oscillation as the ball rolls multiple
-            // revolutions, magnitude up to R * 0.5 (disc moves halfway
-            // to the edge).
+            // Disc slides in the direction OPPOSITE motion. sin(rotation)
+            // oscillates as the ball rolls multiple revolutions, magnitude
+            // bumped from 0.5R to 0.75R 2026-06 (JJ: "balls are still not
+            // rolling"). Combined with the slowed rollAngle progression
+            // (ball.updateRollAngle dampens by 0.25×) the disc visibly
+            // travels back and forth across the ball as it rolls.
             const phase = Math.sin(rotation);
-            const dirMag = R * 0.5 * phase;
+            const dirMag = R * 0.75 * phase;
             discOffsetX = (-velocity.x / speed) * dirMag;
             discOffsetY = (-velocity.y / speed) * dirMag;
         }
 
         if (ballId === 0) {
-            // Cue ball — uniform off-white. Rotation invisible.
+            // Cue ball — uniform off-white. To convey rolling we paint a
+            // small faint spot at a fixed point on the surface; as the
+            // ball rolls, the spot orbits its centre, then dips out of
+            // sight on the back half (we clip it when sin(rotation) < 0).
+            // Without this the cue ball was the only ball with NO visual
+            // rolling cue (no number disc to slide across it).
             this.drawBallBase(ctx, R, CUE_COLOR);
+            if (speed > 0.05) {
+                const phaseTop = Math.sin(rotation);
+                if (phaseTop > 0) {
+                    // Spot rides along the motion axis as the ball rolls
+                    // — moves backward relative to motion when on the top
+                    // half (matches the disc-translation convention).
+                    const spotMag = R * 0.65 * phaseTop;
+                    const sx = (-velocity.x / speed) * spotMag;
+                    const sy = (-velocity.y / speed) * spotMag;
+                    ctx.fillStyle = 'rgba(40,30,15,0.18)';
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, R * 0.18, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
         } else if (ballId === 8) {
             // 8-ball — black base with a translating white number disc.
             this.drawBallBase(ctx, R, EIGHT_COLOR);

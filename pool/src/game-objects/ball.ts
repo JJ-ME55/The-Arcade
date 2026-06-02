@@ -154,6 +154,32 @@ export class Ball {
         this._visible = false;
     }
 
+    /**
+     * Advance the visual roll angle one frame, based on current velocity.
+     * Used by the sim-core path (GameWorld.simulateFrame) — the sim core
+     * only operates on SerializableBall views and doesn't touch this
+     * field. Without this hook, balls never visibly rolled even though
+     * they moved (JJ 2026-06: "the balls are still not rolling").
+     *
+     * Δθ = Δposition / R radians (rigid-body rolling on a surface).
+     * Slowed by a damping factor — physical rev/sec at high speed strobes
+     * faster than the human eye can resolve; we want perceivable rolling,
+     * not literally accurate per-tick angular velocity.
+     */
+    public updateRollAngle(): void {
+        if (!this._moving) return;
+        const speed = this._velocity.length;
+        if (speed <= 0) return;
+        const ballR = ballConfig.diameter / 2;
+        const dir = Math.abs(this._velocity.x) > 0.01
+            ? Math.sign(this._velocity.x)
+            : Math.sign(this._velocity.y) || 1;
+        // 0.25 damping → ~4× slower than literal physics. At v=35 this
+        // gives ~0.46 rad/frame ≈ 4.4 rev/sec — slow enough to read as
+        // rotation, fast enough to feel like the ball is moving.
+        this._rollAngle += (speed / ballR) * dir * 0.25;
+    }
+
     public update(): void {
         if(this._moving) {
             // Two-regime constant-decel friction (deep-research workflow

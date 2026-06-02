@@ -85,6 +85,29 @@ function isInsidePocket(pos: IVec2, table: TableConfig): { hit: boolean; pocketI
   return { hit: false, pocketIdx: -1 };
 }
 
+/**
+ * Ball is in the "approach throat" of a pocket — close enough that the
+ * cushion deflection should NOT fire, so the ball drops cleanly into
+ * the pocket instead of bouncing off the rail. JJ 2026-06: "the ball
+ * can sometimes bounce off the pocket when it should go in."
+ *
+ * Without this gate, the cushion check fires the moment the ball edge
+ * touches the cushion-width boundary, which happens BEFORE the ball
+ * center crosses into pocketRadius at corner pockets (the cushion line
+ * runs THROUGH the pocket footprint). The bounce wins the race.
+ *
+ * The throat radius is the pocket detection radius plus the ball
+ * diameter — i.e. the moment the ball OVERLAPS the pocket, suppress
+ * the cushion.
+ */
+function isInPocketThroat(pos: IVec2, table: TableConfig, ballDiameter: number): boolean {
+  const throat = table.pocketRadius + ballDiameter;
+  for (const p of table.pocketsPositions) {
+    if (vDist(pos, p) <= throat) return true;
+  }
+  return false;
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // Cushion collision — mirrors game-world.ts handleCollisionWith*Cushion
 // ──────────────────────────────────────────────────────────────────────
@@ -140,6 +163,22 @@ function resolveCushionCollisions(
   tick: number
 ): void {
   const next = nextPosition(ball, physics.friction);
+
+  // Pocket-throat suppression: if either current or next position is
+  // inside the throat of any pocket, skip cushion deflection. Without
+  // this gate, balls approaching a corner pocket bounce off the rail
+  // before the pocket-drop check ever fires (cushion runs through the
+  // pocket footprint at corners). Checked against BOTH current and
+  // next position because the cushion check uses next, but the ball
+  // might already be deep in the throat with the cushion check about
+  // to overcorrect it back out.
+  if (
+    isInPocketThroat(ball.position, table, physics.ballDiameter) ||
+    isInPocketThroat(next, table, physics.ballDiameter)
+  ) {
+    return;
+  }
+
   let collided = false;
 
   if (isOutsideTopBorder(next, table, physics.ballDiameter)) {
