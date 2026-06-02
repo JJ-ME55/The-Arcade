@@ -106,6 +106,12 @@ export class Game {
         // Chromium). Soft-fails if any sphere is missing — falls back
         // to procedural draw rather than blocking the game.
         await Canvas2D.preloadSphereSprites();
+        // AAA atlas — 16 balls × 32 rotation frames. Falls back to the
+        // sphere-base + procedural-overlay path if any frame fails to
+        // load. Preferred when available because Miniclip's actual
+        // rolling visual (per ex-Miniclip dev Ivo Alves's CV) is also
+        // a pre-baked Cocos2d sprite atlas — same technique.
+        await Canvas2D.preloadBallAtlas();
 
         this.initMenuActions();
         this.initMainMenu();

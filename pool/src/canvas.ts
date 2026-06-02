@@ -56,6 +56,12 @@ class Canvas2D_Singleton {
     private _scale: Vector2;
     private _sphereSprites: Partial<Record<SphereSpriteName, HTMLImageElement>> = {};
     private _sphereSpritesReady: boolean = false;
+    // AAA atlas — 16 balls × 32 rotation frames. Indexed [ballId][frameIdx].
+    // Loaded by preloadBallAtlas(); if loading fails, falls back to the
+    // older preloadSphereSprites() path which uses static-sphere bases
+    // plus procedural marking overlays.
+    private _ballAtlas: HTMLImageElement[][] = [];
+    private _ballAtlasReady: boolean = false;
 
     //------Properties------//
     
@@ -94,6 +100,53 @@ class Canvas2D_Singleton {
      * Called once from game.init() before the gameLoop starts so the
      * first frame the player sees already uses the 3D-baked spheres.
      */
+    /**
+     * AAA atlas preload — 16 balls × 32 rotation frames = 512 PNGs.
+     * Each frame is a fully 3D-baked textured ball at one rotation
+     * step around its rolling axis. drawAmericanBall picks the right
+     * frame based on Ball._rollAngle and just drawImage's it — no
+     * procedural marking overlay needed, since the marking IS in the
+     * 3D-baked sprite.
+     *
+     * Soft-fails: any missing/failed image leaves the atlas not-ready,
+     * and drawAmericanBall falls back to the static-sphere + procedural
+     * marking path (preloadSphereSprites).
+     */
+    public preloadBallAtlas(): Promise<void> {
+        const FRAMES = 32;
+        const BALL_IDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+        const promises: Promise<void>[] = [];
+        for (const ballId of BALL_IDS) {
+            this._ballAtlas[ballId] = [];
+            for (let f = 0; f < FRAMES; f++) {
+                promises.push(new Promise<void>((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        this._ballAtlas[ballId][f] = img;
+                        resolve();
+                    };
+                    img.onerror = () => {
+                        // eslint-disable-next-line no-console
+                        console.warn(`[canvas] ball atlas missing: ball ${ballId} frame ${f} — atlas disabled`);
+                        resolve();
+                    };
+                    const frameStr = String(f).padStart(2, '0');
+                    img.src = `assets/sprites/balls/ball_${ballId}_frame_${frameStr}.png`;
+                }));
+            }
+        }
+        return Promise.all(promises).then(() => {
+            let complete = true;
+            for (const ballId of BALL_IDS) {
+                for (let f = 0; f < FRAMES; f++) {
+                    if (!this._ballAtlas[ballId]?.[f]) { complete = false; break; }
+                }
+                if (!complete) break;
+            }
+            this._ballAtlasReady = complete;
+        });
+    }
+
     public preloadSphereSprites(): Promise<void> {
         return Promise.all(SPHERE_SPRITE_NAMES.map((name) => new Promise<void>((resolve) => {
             const img = new Image();
@@ -700,8 +753,7 @@ class Canvas2D_Singleton {
         ctx.scale(this._scale.x, this._scale.y);
         ctx.translate(RENDER_PADDING + position.x, RENDER_PADDING + position.y);
 
-        // TOP-DOWN SHADOW — softened per JJ 2026-06: "balls have a weird
-        // inner shadow." Reduced opacity, tighter radius.
+        // TOP-DOWN SHADOW under the ball, soft and small.
         const shadowGrad = ctx.createRadialGradient(0, 0, R * 0.98, 0, 0, R * 1.3);
         shadowGrad.addColorStop(0, 'rgba(0,0,0,0.22)');
         shadowGrad.addColorStop(0.6, 'rgba(0,0,0,0.10)');
@@ -710,6 +762,50 @@ class Canvas2D_Singleton {
         ctx.beginPath();
         ctx.arc(0, 0, R * 1.3, 0, Math.PI * 2);
         ctx.fill();
+
+        // AAA PATH — sprite atlas (3D-baked frames, 32 rotations per ball).
+        // When the atlas is loaded, every ball renders as one drawImage of
+        // the right pre-rendered frame. The marking IS in the 3D-baked
+        // sprite, already correctly rotated — no procedural overlay needed.
+        //
+        // Frame selection: rollAngle / (2π) * 32, then modulo 32.
+        // Motion-direction alignment: 2D-rotate the sprite by the motion
+        // angle so the baked rolling axis (X in 3D, which projects as a
+        // specific 2D direction) lines up with the ball's actual velocity
+        // direction on screen.
+        if (this._ballAtlasReady && this._ballAtlas[ballId]) {
+            const FRAMES = 32;
+            // Wrap rollAngle into [0, 2π) and pick the frame.
+            const twoPi = Math.PI * 2;
+            const wrapped = ((rotation % twoPi) + twoPi) % twoPi;
+            const frameIdx = Math.floor((wrapped / twoPi) * FRAMES) % FRAMES;
+            const frame = this._ballAtlas[ballId][frameIdx];
+            if (frame) {
+                const speed = Math.hypot(velocity.x, velocity.y);
+                // Align the baked rolling-axis to motion direction. The bake
+                // renders the ball rolling along the screen-down direction
+                // (+y in canvas space). For a ball moving with velocity
+                // (vx, vy), atan2 gives the motion angle relative to +x;
+                // we want the sprite rotated so its baked "forward" lines
+                // up with the velocity vector. -π/2 offset because the
+                // bake's forward is +y in canvas (down), not +x (right).
+                const motionAngle = speed > 0.05
+                    ? Math.atan2(velocity.y, velocity.x) - Math.PI / 2
+                    : 0;
+                if (motionAngle !== 0) {
+                    ctx.rotate(motionAngle);
+                }
+                const drawR = R * 1.05;  // slight inflate to hide AA seam
+                ctx.drawImage(frame, -drawR, -drawR, drawR * 2, drawR * 2);
+            }
+            ctx.restore();
+            return;
+        }
+
+        // ────── Fallback path ────────────────────────────────────────
+        // Below: the older static-sphere base + procedural marking
+        // overlay. Used when the AAA atlas didn't load (e.g. missing
+        // sprites in dev). Kept for resilience.
 
         // ROLLING — the painted markings (number disc + stripe band)
         // are part of the BALL SURFACE. As the ball rolls, they rotate
