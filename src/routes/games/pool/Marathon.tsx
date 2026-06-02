@@ -18,15 +18,11 @@ import './screens.css';
  *   - Personal best: Best Streak 23, Setups Done 186, Best Score 412
  */
 
-function Lives({ remaining = 3, total = 3 }: { remaining?: number; total?: number }) {
-    return (
-        <span className="mar-lives">
-            {Array.from({ length: total }).map((_, i) => (
-                <i key={i} className={'mar-life' + (i < remaining ? '' : ' lost')} />
-            ))}
-        </span>
-    );
-}
+/**
+ * Lives glyphs live in the in-match MarathonHUD (not the entry screen).
+ * Will land alongside that port; the .mar-life styles stay in screens.css
+ * ready for use.
+ */
 
 export function Marathon() {
     const navigate = useNavigate();
@@ -71,7 +67,6 @@ export function Marathon() {
                         </div>
 
                         <button className="mar-start">Start Run ›</button>
-                        <Lives remaining={3} total={3} />
                     </div>
 
                     <div className="mar-aside">

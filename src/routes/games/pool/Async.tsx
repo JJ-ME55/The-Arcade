@@ -42,7 +42,7 @@ export function Async() {
                     <span className="nm">Velvet Q</span>
                 </div>
                 <div className="aw-cd">11h 23m</div>
-                <span className="aw-cdl">left for @VelvetQ's turn</span>
+                <span className="aw-cdl">left for Velvet Q's turn</span>
 
                 <div className="aw-toggle">
                     <span
