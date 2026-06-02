@@ -5,6 +5,7 @@ import {
     getMarathonLeaderboard,
     getArcadeSession,
     startRun,
+    mintDevGuestSession,
     type MarathonLeaderboardEntry,
 } from './marathonApi';
 import './screens.css';
@@ -59,11 +60,28 @@ export function Marathon() {
         return () => { cancelled = true; };
     }, []);
 
+    const handleGetGuestSession = async () => {
+        setStartError(null);
+        try {
+            const r = await mintDevGuestSession();
+            if (r.ok && r.session) {
+                sessionStorage.setItem('arcade_session', r.session);
+                setStartError(`Guest session minted — playing as ${r.identity?.handle}. Click Start Run.`);
+            } else {
+                setStartError(r.error === 'not_found'
+                    ? 'Guest sessions are not enabled on this server. Ask JJ to set ENABLE_POOL_GUEST_SESSIONS=true on Render.'
+                    : (r.error || 'Could not mint guest session.'));
+            }
+        } catch (e) {
+            setStartError(e instanceof Error ? e.message : 'Network error.');
+        }
+    };
+
     const handleStartRun = async () => {
         setStartError(null);
         const session = getArcadeSession();
         if (!session) {
-            setStartError('Sign in via Telegram bot first — open Side Pocket from @TheArcadeGG_Bot.');
+            setStartError('No session yet. Click "Get Guest Session" below first, or open Side Pocket from @TheArcadeGG_Bot.');
             return;
         }
         setStarting(true);
@@ -143,6 +161,29 @@ export function Marathon() {
                                 {startError}
                             </div>
                         )}
+
+                        {/* Dev-mode guest-session minter — gives early testers a
+                            session JWT without needing the bot. Server endpoint
+                            is env-guarded (ENABLE_POOL_GUEST_SESSIONS=true on
+                            Render); falls back to a clear message otherwise. */}
+                        <button
+                            onClick={handleGetGuestSession}
+                            style={{
+                                marginTop: 12,
+                                padding: '10px 16px',
+                                background: 'rgba(143, 201, 232, 0.08)',
+                                border: '1px solid rgba(143, 201, 232, 0.4)',
+                                color: '#8FC9E8',
+                                fontFamily: '"Space Mono", monospace',
+                                fontWeight: 700,
+                                fontSize: 11,
+                                letterSpacing: '0.12em',
+                                textTransform: 'uppercase',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            Get Guest Session (Dev)
+                        </button>
                     </div>
 
                     <div className="mar-aside">

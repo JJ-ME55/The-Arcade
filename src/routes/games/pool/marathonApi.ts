@@ -141,6 +141,27 @@ export async function getMarathonLeaderboard(
     return await r.json();
 }
 
+// ─── Dev-mode guest session minter ──────────────────────────────────
+//
+// Until production auth is wired (bot or hub Privy), this lets early
+// testers grab a guest JWT so they can play. Server endpoint is guarded
+// by the ENABLE_POOL_GUEST_SESSIONS env var — in prod-locked deploys
+// this returns 404.
+
+export async function mintDevGuestSession(handle?: string): Promise<{
+    ok: boolean;
+    session?: string;
+    identity?: { telegramUserId: number; handle: string };
+    error?: string;
+}> {
+    const r = await fetch(`${SERVER}/api/games/pool/dev-mint-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle }),
+    });
+    return await r.json();
+}
+
 // ─── Session helper ─────────────────────────────────────────────────
 
 /**
