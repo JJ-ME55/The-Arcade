@@ -366,7 +366,7 @@ class Canvas2D_Singleton {
     // Drawn in game-coords; Canvas2D wraps the scale + padding translate.
     // Each ball ≈ 38px diameter (matches GameConfig.ball.diameter).
     // ====================================================================
-    public drawAmericanBall(position: IVector2, ballId: number): void {
+    public drawAmericanBall(position: IVector2, ballId: number, rotation: number = 0): void {
         const ctx = this._context;
         const R = GameConfig.ball.diameter / 2;  // 19
         const isStripe = ballId >= 9 && ballId <= 15;
@@ -389,76 +389,108 @@ class Canvas2D_Singleton {
         ctx.scale(this._scale.x, this._scale.y);
         ctx.translate(RENDER_PADDING + position.x, RENDER_PADDING + position.y);
 
-        // Drop shadow (small ellipse below the ball)
-        const shadowGrad = ctx.createRadialGradient(0, R * 0.7, 0, 0, R * 0.7, R * 1.4);
-        shadowGrad.addColorStop(0, 'rgba(0,0,0,0.4)');
-        shadowGrad.addColorStop(0.6, 'rgba(0,0,0,0.15)');
+        // TOP-DOWN SHADOW (Miniclip-style) — soft circular vignette
+        // OUTSIDE the ball perimeter. No directional ellipse — that
+        // makes the ball look 3D-angled, wrong for top-down pool.
+        // The shadow is symmetric and sells "ball resting on felt"
+        // depth without implying a side-lit camera.
+        const shadowGrad = ctx.createRadialGradient(0, 0, R * 0.95, 0, 0, R * 1.4);
+        shadowGrad.addColorStop(0, 'rgba(0,0,0,0.35)');
+        shadowGrad.addColorStop(0.5, 'rgba(0,0,0,0.18)');
         shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = shadowGrad;
         ctx.beginPath();
-        ctx.ellipse(0, R * 0.85, R * 1.15, R * 0.5, 0, 0, Math.PI * 2);
+        ctx.arc(0, 0, R * 1.4, 0, Math.PI * 2);
         ctx.fill();
 
+        // ROLLING — apply the ball's rotation. The pattern (stripe band,
+        // number disc) rotates inside the perimeter; the specular and
+        // vignette stay fixed in screen space (light source is the
+        // overhead lamp, not the ball itself). Save/rotate/restore so
+        // only the pattern rolls.
         if (ballId === 0) {
-            // Cue ball — off-white with cream tint
-            this.drawSolidBallSurface(ctx, R, CUE_COLOR, '#FFFFFF');
+            // Cue ball — uniform off-white. Rotation invisible (symmetric).
+            this.drawBallBase(ctx, R, CUE_COLOR);
+            this.drawBallSpecular(ctx, R);
         } else if (ballId === 8) {
-            // 8-ball — near-black with white number dot
-            this.drawSolidBallSurface(ctx, R, EIGHT_COLOR, '#3A3A40');
-            this.drawNumberDot(ctx, R, 8, EIGHT_COLOR);
+            // 8-ball — black base with a rolling white number disc.
+            this.drawBallBase(ctx, R, EIGHT_COLOR);
+            ctx.save();
+            ctx.rotate(rotation);
+            this.drawNumberDot(ctx, R, 8);
+            ctx.restore();
+            this.drawBallSpecular(ctx, R);
         } else {
             const c = SOLID_COLORS[baseN] || '#999999';
             if (isStripe) {
-                // Stripe ball — top + bottom thirds white, middle third colored
-                this.drawStripedBallSurface(ctx, R, c);
+                // White base + rotated stripe band + rotated number disc.
+                this.drawBallBase(ctx, R, '#FAF6E4');
+                ctx.save();
+                ctx.rotate(rotation);
+                this.drawStripeBand(ctx, R, c);
+                this.drawNumberDot(ctx, R, ballId);
+                ctx.restore();
             } else {
-                this.drawSolidBallSurface(ctx, R, c, lightenColor(c));
+                this.drawBallBase(ctx, R, c);
+                ctx.save();
+                ctx.rotate(rotation);
+                this.drawNumberDot(ctx, R, ballId);
+                ctx.restore();
             }
-            this.drawNumberDot(ctx, R, ballId, c);
+            this.drawBallSpecular(ctx, R);
         }
+
+        // BALL RIM — thin dark outline grounds the ball on the felt.
+        ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(0, 0, R, 0, Math.PI * 2);
+        ctx.stroke();
 
         ctx.restore();
     }
 
-    // Solid resin ball — base color + specular highlight
-    private drawSolidBallSurface(
+    // Solid base disc — flat color with subtle inner shading for depth.
+    // No directional highlight here; the specular is a separate layer.
+    private drawBallBase(
         ctx: CanvasRenderingContext2D,
         R: number,
         baseColor: string,
-        highlightColor: string,
     ): void {
-        const grad = ctx.createRadialGradient(-R * 0.3, -R * 0.4, 0, 0, 0, R);
-        grad.addColorStop(0, highlightColor);
-        grad.addColorStop(0.45, baseColor);
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+        grad.addColorStop(0, lightenColor(baseColor));
+        grad.addColorStop(0.55, baseColor);
         grad.addColorStop(1, darkenColor(baseColor));
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(0, 0, R, 0, Math.PI * 2);
         ctx.fill();
-        // Tiny bright specular spot
-        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    }
+
+    // Specular highlight — fixed in screen space (light source is the
+    // overhead lamp at upper-left, doesn't rotate with the ball).
+    private drawBallSpecular(
+        ctx: CanvasRenderingContext2D,
+        R: number,
+    ): void {
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
         ctx.beginPath();
-        ctx.ellipse(-R * 0.3, -R * 0.45, R * 0.22, R * 0.14, 0, 0, Math.PI * 2);
+        ctx.ellipse(-R * 0.35, -R * 0.4, R * 0.28, R * 0.18, -Math.PI * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+        // Tighter inner bright spot
+        ctx.fillStyle = 'rgba(255,255,255,0.65)';
+        ctx.beginPath();
+        ctx.ellipse(-R * 0.4, -R * 0.45, R * 0.13, R * 0.08, -Math.PI * 0.18, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // Striped ball — white top + bottom, colored middle band
-    private drawStripedBallSurface(
+    // Striped band — colored horizontal stripe across the middle.
+    // Clipped to the ball circle. Rotates with the ball.
+    private drawStripeBand(
         ctx: CanvasRenderingContext2D,
         R: number,
         bandColor: string,
     ): void {
-        // White base
-        const whiteGrad = ctx.createRadialGradient(-R * 0.3, -R * 0.4, 0, 0, 0, R);
-        whiteGrad.addColorStop(0, '#FFFFFF');
-        whiteGrad.addColorStop(0.55, '#FAF6E4');
-        whiteGrad.addColorStop(1, '#D9CCA6');
-        ctx.fillStyle = whiteGrad;
-        ctx.beginPath();
-        ctx.arc(0, 0, R, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Colored middle band — clip to circle, draw rect
         ctx.save();
         ctx.beginPath();
         ctx.arc(0, 0, R, 0, Math.PI * 2);
@@ -470,29 +502,24 @@ class Canvas2D_Singleton {
         ctx.fillStyle = bandGrad;
         ctx.fillRect(-R, -R * 0.45, R * 2, R * 0.9);
         ctx.restore();
-
-        // Specular highlight
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.beginPath();
-        ctx.ellipse(-R * 0.3, -R * 0.45, R * 0.2, R * 0.13, 0, 0, Math.PI * 2);
-        ctx.fill();
     }
 
-    // The white circle with the ball number — drawn over the band
+    // White number disc — rotates with the ball (rolling effect).
     private drawNumberDot(
         ctx: CanvasRenderingContext2D,
         R: number,
         n: number,
-        ringColor: string,
     ): void {
         // White circle
         ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
         ctx.arc(0, 0, R * 0.42, 0, Math.PI * 2);
         ctx.fill();
-        // Number text
-        ctx.fillStyle = ringColor === '#0E0E10' ? '#FFFFFF' : '#14192A';
-        // 8-ball: white dot with black number; everyone else: white dot with dark number
+        // Tiny inner bevel
+        ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        // Number text — black for all balls (white disc is universal)
         ctx.fillStyle = '#14192A';
         ctx.font = `bold ${Math.round(R * 0.55)}px "Bitter", Georgia, serif`;
         ctx.textAlign = 'center';

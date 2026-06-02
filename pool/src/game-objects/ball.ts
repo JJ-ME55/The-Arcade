@@ -28,6 +28,12 @@ export class Ball {
     private _spinX: number = 0;
     private _spinY: number = 0;
 
+    // Visual rolling angle (radians). Advanced each frame proportional
+    // to velocity — gives the number disc + stripe a top-down "roll"
+    // appearance as the ball moves across the felt. No effect on the
+    // sim; purely render-side.
+    private _rollAngle: number = 0;
+
 
     //------Properties------//
 
@@ -160,6 +166,21 @@ export class Ball {
             this._spinX = decayed.spinX;
             this._spinY = decayed.spinY;
 
+            // Advance the visual roll angle. The ball's circumference is
+            // 2πR; one full rotation when the ball has rolled that far.
+            // Direction is perpendicular to velocity in screen space —
+            // for a top-down view, we just project velocity magnitude
+            // into rotation rate. Add the direction sign so left vs
+            // right motion rolls opposite ways.
+            const circumference = Math.PI * ballConfig.diameter;
+            const speed = this._velocity.length;
+            // Sign from velocity x (positive = moving right → roll forward).
+            // Pure-y motion still rolls (velocity x ~= 0) — fall back to y sign.
+            const dir = Math.abs(this._velocity.x) > 0.01
+                ? Math.sign(this._velocity.x)
+                : Math.sign(this._velocity.y) || 1;
+            this._rollAngle += (speed / circumference) * Math.PI * 2 * dir;
+
             if(this._velocity.length < ballConfig.minVelocityLength) {
                 this.velocity = Vector2.zero;
                 this._spinX = 0;
@@ -173,11 +194,10 @@ export class Ball {
         if(this._visible){
             // Side Pocket American 8-ball — procedural draw via Canvas2D
             // using the ball's stable _id (0 cue, 1-7 solids, 8 black,
-            // 9-15 stripes). game-world.initMatch() assigns these IDs in
-            // place of the UK red/yellow groups; Color.red maps to a
-            // solid, Color.yellow maps to a stripe, with the original
-            // positions preserved.
-            Canvas2D.drawAmericanBall(this._position, this._id);
+            // 9-15 stripes). _rollAngle is advanced in update() based
+            // on velocity; the renderer rotates the stripe band + number
+            // disc by that amount so the ball visually rolls.
+            Canvas2D.drawAmericanBall(this._position, this._id, this._rollAngle);
         }
     }
 }
