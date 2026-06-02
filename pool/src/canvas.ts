@@ -242,102 +242,209 @@ class Canvas2D_Singleton {
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
         ctx.fillRect(W - 2, 0, 2, H);
 
-        // ---- LAYER 2a: Cushion bumper strip ----------------------------
-        // The felt-wrapped raised cushion sits between the wood frame and
-        // the recessed play surface. Drawn first as a continuous strip
-        // covering FELT_INSET to CUSHION_INNER on all four sides. The
-        // cushion's INNER edge is where balls bounce.
-        //
-        // The cushion is the same cobalt felt material as the play
-        // surface but slightly brighter (it's "raised" toward the camera).
-        // The play surface (Layer 2b) is darker, implying the recession.
-        ctx.fillStyle = '#2870BD';  // cushion top color (raised)
-        // Top cushion strip
-        ctx.fillRect(FELT_INSET, FELT_INSET, W - 2 * FELT_INSET, CUSHION_INNER - FELT_INSET);
-        // Bottom cushion strip
-        ctx.fillRect(FELT_INSET, H - CUSHION_INNER, W - 2 * FELT_INSET, CUSHION_INNER - FELT_INSET);
-        // Left cushion strip
-        ctx.fillRect(FELT_INSET, FELT_INSET, CUSHION_INNER - FELT_INSET, H - 2 * FELT_INSET);
-        // Right cushion strip
-        ctx.fillRect(W - CUSHION_INNER, FELT_INSET, CUSHION_INNER - FELT_INSET, H - 2 * FELT_INSET);
-
-        // ---- LAYER 2b: Recessed play surface ---------------------------
-        // The actual playing felt — DARKER than the cushion bumper to
-        // imply the drop. Lamp glow centred on the surface gives the
-        // hot-spot of a real overhead-lit table.
-        const feltX = CUSHION_INNER;
-        const feltY = CUSHION_INNER;
-        const feltW = W - 2 * CUSHION_INNER;
-        const feltH = H - 2 * CUSHION_INNER;
+        // ---- LAYER 2: Recessed play surface (felt) ---------------------
+        // Drawn BEFORE cushions per designer Round 2 spec — the felt
+        // extends UNDER the cushion strip and behind the pockets. This
+        // way the cushion's edge reads as floating on top of the felt
+        // (giving the proper visual "drop" depth) rather than meeting
+        // the felt at a flat seam.
+        const feltX = FELT_INSET;
+        const feltY = FELT_INSET;
+        const feltW = W - 2 * FELT_INSET;
+        const feltH = H - 2 * FELT_INSET;
 
         const feltGrad = ctx.createRadialGradient(
             W / 2, H * 0.40, 0,
             W / 2, H * 0.40, Math.max(feltW, feltH) * 0.6
         );
-        feltGrad.addColorStop(0,    '#2070B5');   // slightly darker than cushion
-        feltGrad.addColorStop(0.55, '#175496');   // mid
-        feltGrad.addColorStop(1,    '#0B3068');   // deep edge
+        feltGrad.addColorStop(0,    '#2C7AC7');
+        feltGrad.addColorStop(0.55, '#1E5FA8');
+        feltGrad.addColorStop(1,    '#103E72');
         ctx.fillStyle = feltGrad;
         ctx.fillRect(feltX, feltY, feltW, feltH);
 
-        // Warm overhead lamp glow (additive cream tint)
+        // Warm overhead lamp glow (additive cream tint) — only over the
+        // play surface (where the lamp would actually illuminate)
         const lampGrad = ctx.createRadialGradient(
             W / 2, H * 0.38, 0,
             W / 2, H * 0.38, Math.max(feltW, feltH) * 0.55
         );
-        lampGrad.addColorStop(0,    'rgba(255,230,176,0.20)');
-        lampGrad.addColorStop(0.45, 'rgba(255,230,176,0.05)');
+        lampGrad.addColorStop(0,    'rgba(255,230,176,0.18)');
+        lampGrad.addColorStop(0.45, 'rgba(255,230,176,0.04)');
         lampGrad.addColorStop(1,    'rgba(255,230,176,0)');
         ctx.fillStyle = lampGrad;
         ctx.fillRect(feltX, feltY, feltW, feltH);
 
-        // ---- LAYER 2c: Cushion highlight + shadow seams ---------------
-        // The two visible seams JJ called out:
-        //   (a) OUTER seam — where cushion meets wood. Light catches the
-        //       cushion's top edge: bluish-white highlight line.
-        //   (b) INNER seam — where cushion drops to the play surface.
-        //       Dark shadow line implying the cushion overhangs the
-        //       recessed felt below.
-        // Drawn as inset rectangles inside the cushion strip.
+        // ---- LAYER 3: Cushion bumpers (6 chamfered polygons) -----------
+        // Port of designer's buildCushions() — replaces the flat-rectangle
+        // ring with 6 V-tipped polygons:
+        //   top   (split in 2 by top side pocket)
+        //   bottom (split in 2 by bottom side pocket)
+        //   left  (single piece between TL and BL)
+        //   right (single piece between TR and BR)
+        // Each cushion has chamfered ends pointing toward its adjacent
+        // pockets (CHAMFER = 30px miter). Endpoints land exactly where
+        // the pocket circle crosses the wood-seam line (Pythagoras).
+        const I = FELT_INSET;        // 48 — outer/wood seam
+        const J = CUSHION_INNER;     // 78 — inner/play-surface seam
+        const C = 30;                // chamfer miter (CHAMFER_T)
 
-        // OUTER seam — highlight on the wood side of the cushion (top edge
-        // of the bumper catching light)
-        ctx.strokeStyle = 'rgba(140, 200, 240, 0.45)';
-        ctx.lineWidth = 1.2;
-        ctx.strokeRect(FELT_INSET + 0.5, FELT_INSET + 0.5, W - 2 * FELT_INSET - 1, H - 2 * FELT_INSET - 1);
+        type CushSide = 'top' | 'bottom' | 'left' | 'right';
+        interface Cush {
+            side: CushSide;
+            poly: Array<[number, number]>;
+        }
 
-        // INNER seam — the dark "drop" line where the cushion overhangs
-        // the recessed play surface. Slightly thicker, drawn just inside
-        // the play-surface boundary.
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.72)';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(CUSHION_INNER, CUSHION_INNER, feltW, feltH);
+        // Pocket positions — OUR config order:
+        //   [0]=TL  [1]=top-side  [2]=TR  [3]=BL  [4]=bottom-side  [5]=BR
+        const cushions: Cush[] = [];
 
-        // Soft inset shadow into the play surface (gradient just inside
-        // the seam — sells the "drop down" depth)
-        const shadowInsetGrad = ctx.createLinearGradient(0, CUSHION_INNER, 0, CUSHION_INNER + 18);
-        shadowInsetGrad.addColorStop(0, 'rgba(0,0,0,0.45)');
-        shadowInsetGrad.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = shadowInsetGrad;
-        ctx.fillRect(feltX, feltY, feltW, 18);   // top inner shadow
+        // Helper: where pocket circle crosses the outer cushion line (y=I or x=I).
+        // For TOP cushions, atCoord = I; we solve for the x offset from the
+        // pocket centre at which the pocket circle reaches y = I.
+        const pocketOffsetX = (pCenter: { x: number; y: number }, atY: number): number => {
+            const d = atY - pCenter.y;
+            const r2 = POCKET_R * POCKET_R - d * d;
+            return Math.sqrt(Math.max(0, r2));
+        };
+        const pocketOffsetY = (pCenter: { x: number; y: number }, atX: number): number => {
+            const d = atX - pCenter.x;
+            const r2 = POCKET_R * POCKET_R - d * d;
+            return Math.sqrt(Math.max(0, r2));
+        };
 
-        const shadowInsetGradL = ctx.createLinearGradient(CUSHION_INNER, 0, CUSHION_INNER + 18, 0);
-        shadowInsetGradL.addColorStop(0, 'rgba(0,0,0,0.45)');
-        shadowInsetGradL.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = shadowInsetGradL;
-        ctx.fillRect(feltX, feltY, 18, feltH);   // left inner shadow
+        // TOP — two cushions split by the top side pocket
+        for (const half of [
+            { L: POCKETS[0], R: POCKETS[1] },   // TL → top-side
+            { L: POCKETS[1], R: POCKETS[2] },   // top-side → TR
+        ]) {
+            const xL = half.L.x + pocketOffsetX(half.L, I);
+            const xR = half.R.x - pocketOffsetX(half.R, I);
+            cushions.push({
+                side: 'top',
+                poly: [
+                    [xL,     I],
+                    [xR,     I],
+                    [xR - C, J],
+                    [xL + C, J],
+                ],
+            });
+        }
 
-        const shadowInsetGradR = ctx.createLinearGradient(W - CUSHION_INNER, 0, W - CUSHION_INNER - 18, 0);
-        shadowInsetGradR.addColorStop(0, 'rgba(0,0,0,0.45)');
-        shadowInsetGradR.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = shadowInsetGradR;
-        ctx.fillRect(W - CUSHION_INNER - 18, feltY, 18, feltH);   // right inner shadow
+        // BOTTOM
+        const Ibot = H - I;
+        const Jbot = H - J;
+        for (const half of [
+            { L: POCKETS[3], R: POCKETS[4] },   // BL → bottom-side
+            { L: POCKETS[4], R: POCKETS[5] },   // bottom-side → BR
+        ]) {
+            const xL = half.L.x + pocketOffsetX(half.L, Ibot);
+            const xR = half.R.x - pocketOffsetX(half.R, Ibot);
+            cushions.push({
+                side: 'bottom',
+                poly: [
+                    [xL + C, Jbot],
+                    [xR - C, Jbot],
+                    [xR,     Ibot],
+                    [xL,     Ibot],
+                ],
+            });
+        }
 
-        const shadowInsetGradB = ctx.createLinearGradient(0, H - CUSHION_INNER, 0, H - CUSHION_INNER - 18);
-        shadowInsetGradB.addColorStop(0, 'rgba(0,0,0,0.45)');
-        shadowInsetGradB.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = shadowInsetGradB;
-        ctx.fillRect(feltX, H - CUSHION_INNER - 18, feltW, 18);   // bottom inner shadow
+        // LEFT — single piece TL → BL
+        {
+            const yT = POCKETS[0].y + pocketOffsetY(POCKETS[0], I);
+            const yB = POCKETS[3].y - pocketOffsetY(POCKETS[3], I);
+            cushions.push({
+                side: 'left',
+                poly: [
+                    [I, yT],
+                    [J, yT + C],
+                    [J, yB - C],
+                    [I, yB],
+                ],
+            });
+        }
+
+        // RIGHT — single piece TR → BR
+        const Iright = W - I;
+        const Jright = W - J;
+        {
+            const yT = POCKETS[2].y + pocketOffsetY(POCKETS[2], Iright);
+            const yB = POCKETS[5].y - pocketOffsetY(POCKETS[5], Iright);
+            cushions.push({
+                side: 'right',
+                poly: [
+                    [Jright, yT + C],
+                    [Iright, yT],
+                    [Iright, yB],
+                    [Jright, yB - C],
+                ],
+            });
+        }
+
+        // Draw each cushion polygon with directional gradient + outline.
+        // Gradients per designer Round 2 spec — brightest at 68% along the
+        // wood→felt axis, darkest at the felt edge (the "drop shadow").
+        const drawCushion = (c: Cush) => {
+            let grad: CanvasGradient;
+            if (c.side === 'top') {
+                grad = ctx.createLinearGradient(0, I, 0, J);
+            } else if (c.side === 'bottom') {
+                grad = ctx.createLinearGradient(0, Jbot, 0, Ibot);
+            } else if (c.side === 'left') {
+                grad = ctx.createLinearGradient(I, 0, J, 0);
+            } else {
+                grad = ctx.createLinearGradient(Iright, 0, Jright, 0);
+            }
+            grad.addColorStop(0,    '#143E72');
+            grad.addColorStop(0.35, '#1E5FA8');
+            grad.addColorStop(0.68, '#2470BD');
+            grad.addColorStop(1,    '#08213F');
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            c.poly.forEach((p, i) => i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1]));
+            ctx.closePath();
+            ctx.fill();
+
+            // Wrap-fold seam outline — implies the felt fabric wrapping
+            // the rubber inside the cushion
+            ctx.strokeStyle = 'rgba(0,0,0,0.32)';
+            ctx.lineWidth = 0.9;
+            ctx.stroke();
+        };
+
+        cushions.forEach(drawCushion);
+
+        // Cushion bullnose highlights — small bright dots at each chamfer
+        // tip catching light on the rounded felt-wrap fold. Two per
+        // cushion (one at each pocket-facing tip).
+        const drawBullnose = (c: Cush) => {
+            // Outer-edge corners (the tips facing pockets) — first 2 verts
+            // for top/bottom in poly order; first+last for left/right.
+            const tipIdxs = c.side === 'top'    ? [0, 1]
+                          : c.side === 'bottom' ? [3, 2]
+                          : c.side === 'left'   ? [0, 3]
+                          :                       [1, 2];
+            // Centre of the polygon for nudging the highlight inward
+            const xs = c.poly.map(p => p[0]);
+            const ys = c.poly.map(p => p[1]);
+            const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+            const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+            for (const idx of tipIdxs) {
+                const [tx, ty] = c.poly[idx];
+                const dx = cx - tx, dy = cy - ty;
+                const len = Math.hypot(dx, dy) || 1;
+                const nx = tx + (dx / len) * 5;
+                const ny = ty + (dy / len) * 5;
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.beginPath();
+                ctx.arc(nx, ny, 2.4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        };
+        cushions.forEach(drawBullnose);
 
         // Head string line + foot spot (faint, on the play surface)
         ctx.strokeStyle = 'rgba(0,0,0,0.28)';
