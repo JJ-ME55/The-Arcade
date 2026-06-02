@@ -116,30 +116,38 @@ export class Game {
             this._poolGame = new GameWorld();
             this._poolGame.initMatch();
 
-            // Expose globals so the parent React MatchHUD can drive the
-            // iframe game (same-origin iframe → contentWindow direct
-            // access). JJ 2026-06: "duplicate controls everywhere" —
-            // fixed by hiding the iframe's #powerHud/#spinHud and routing
-            // React's widgets through these setters.
+            // Drain any buffered React→iframe calls that happened during
+            // the 5-15s asset-load gap (index.html script installed stub
+            // handlers that pushed to __SIDE_POCKET_BUFFER). Replay them
+            // in order so the iframe is in sync with the React HUD state.
+            const buffer: Array<[string, ...unknown[]]> =
+                (window as any).__SIDE_POCKET_BUFFER || [];
+            (window as any).__SIDE_POCKET_BUFFER = [];
+
+            // Install the REAL handlers (overwrite the stubs).
             (window as any).__SIDE_POCKET_FORCE_SHOOT = () => {
-                if (this._poolGame) {
-                    this._poolGame.forceShootFromHud();
-                }
+                this._poolGame?.forceShootFromHud();
             };
-            // React power slider: 0–100 (UI scale) → iframe stick power
-            // (0..stickConfig.maxPower).
             (window as any).__SIDE_POCKET_SET_POWER = (pct: number) => {
-                if (this._poolGame) {
-                    this._poolGame.setStickPowerFromHud(pct);
-                }
+                this._poolGame?.setStickPowerFromHud(pct);
             };
-            // React spin widget: {x,y} in [-1,+1] each axis → iframe
-            // SpinHud (cue-ball impact-point).
             (window as any).__SIDE_POCKET_SET_SPIN = (x: number, y: number) => {
-                if (this._poolGame) {
-                    this._poolGame.setSpinFromHud(x, y);
-                }
+                this._poolGame?.setSpinFromHud(x, y);
             };
+
+            // Now replay buffered actions (skip immediate shoots since
+            // the player would not have aimed yet — only the LAST power
+            // and spin states are interesting).
+            let lastPower: number | null = null;
+            let lastSpin: [number, number] | null = null;
+            for (const item of buffer) {
+                if (item[0] === 'power') lastPower = item[1] as number;
+                else if (item[0] === 'spin') lastSpin = [item[1] as number, item[2] as number];
+                // Note: buffered 'shoot' actions are discarded — firing
+                // a shot before the player has aimed would be confusing.
+            }
+            if (lastPower !== null) this._poolGame.setStickPowerFromHud(lastPower);
+            if (lastSpin !== null) this._poolGame.setSpinFromHud(lastSpin[0], lastSpin[1]);
         } else {
             this._menu.active = true;
             this._poolGame = new GameWorld();

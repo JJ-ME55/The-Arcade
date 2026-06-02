@@ -236,6 +236,13 @@ function PowerBar({ iframeRef }: { iframeRef: React.RefObject<HTMLIFrameElement>
         document.addEventListener('pointermove', onMove);
         document.addEventListener('pointerup', onUp);
         document.addEventListener('pointercancel', onUp);
+
+        // Send the initial slider value to the iframe so the iframe's
+        // PowerHud matches the React display from the start. If the
+        // iframe's init() hasn't run yet (asset load), this call is
+        // captured by the stub buffer in index.html and replayed.
+        apply(pct);
+
         return () => {
             el.removeEventListener('pointerdown', onDown);
             document.removeEventListener('pointermove', onMove);

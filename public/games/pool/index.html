@@ -35,14 +35,29 @@
             if (params.get('hud') === 'parent') {
                 window.__SIDE_POCKET_PARENT_HUD = true;
                 // Hide the iframe's DOM controls — React MatchHUD owns
-                // the chrome (power bar, spin widget, SHOOT). React calls
-                // back into the iframe via window.__SIDE_POCKET_FORCE_SHOOT,
-                // __SIDE_POCKET_SET_POWER, __SIDE_POCKET_SET_SPIN to drive
-                // the actual game. JJ test 2026-06: "duplicate controls
-                // everywhere" — fixed by suppressing the iframe's copy.
+                // the chrome. Inject CSS before stylesheet load so the
+                // widgets never flash visible.
                 var s = document.createElement('style');
                 s.textContent = '#powerHud,#spinHud{display:none !important;}';
                 document.head.appendChild(s);
+
+                // STUB-BUFFER for the React→iframe globals. game.init()
+                // takes 5-15 seconds to load assets; if React clicks
+                // SHOOT before init completes, the global is undefined
+                // and the click is a no-op (JJ 2026-06: "I cannot click
+                // the shoot button to get functionality?"). Solution:
+                // install stubs immediately that BUFFER calls. game.ts
+                // replays them after init completes.
+                window.__SIDE_POCKET_BUFFER = [];
+                window.__SIDE_POCKET_FORCE_SHOOT = function(){
+                    window.__SIDE_POCKET_BUFFER.push(['shoot']);
+                };
+                window.__SIDE_POCKET_SET_POWER = function(pct){
+                    window.__SIDE_POCKET_BUFFER.push(['power', pct]);
+                };
+                window.__SIDE_POCKET_SET_SPIN = function(x, y){
+                    window.__SIDE_POCKET_BUFFER.push(['spin', x, y]);
+                };
             }
         })();
     </script>
