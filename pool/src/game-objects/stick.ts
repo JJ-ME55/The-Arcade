@@ -27,6 +27,15 @@ export class Stick {
     private _power: number = 0;
     private _movable: boolean = true;
     private _visible: boolean = true;
+    // Click-to-aim state — JJ 2026-06: "click to lock cue, move the
+    // power slider, and then shoot." Critical for the React Shoot
+    // button: when the player moves the mouse from the table down to
+    // the gold SHOOT button, the cue should NOT rotate to follow.
+    // Locked state freezes the rotation so the shot fires at the
+    // direction the player aimed.
+    //   'follow' — cursor drives rotation continuously (default)
+    //   'locked' — rotation frozen at lock time
+    private _aimState: 'follow' | 'locked' = 'follow';
 
     //------Properties------//
 
@@ -69,6 +78,16 @@ export class Stick {
         // Mirror to the (hidden) DOM PowerHud so other code paths that
         // read PowerHud.value stay in sync.
         PowerHud.value = target;
+    }
+
+    public get aimState(): 'follow' | 'locked' {
+        return this._aimState;
+    }
+    public lockAim(): void {
+        this._aimState = 'locked';
+    }
+    public unlockAim(): void {
+        this._aimState = 'follow';
     }
 
     //------Constructor------//
@@ -126,6 +145,8 @@ export class Stick {
         this._origin = Vector2.copy(stickConfig.origin);
         this._movable = true;
         this._visible = true;
+        // New turn starts in follow mode (mouse drives cue rotation).
+        this._aimState = 'follow';
         PowerHud.reset();
         PowerHud.show();
         SpinHud.reset();
@@ -140,7 +161,12 @@ export class Stick {
 
     public update(): void {
         if(this._movable) {
-            this.updateRotation();
+            // Click-to-aim: only follow the mouse when in 'follow' state.
+            // Once the player clicks, rotation freezes until the shot
+            // fires (game-world.handleInput) or ESC unlocks.
+            if (this._aimState === 'follow') {
+                this.updateRotation();
+            }
             this.updatePower();
         }
         // Keep HUD synced with stick state every frame — covers the case where Stick is

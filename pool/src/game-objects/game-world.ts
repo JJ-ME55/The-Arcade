@@ -11,6 +11,7 @@ import { Assets } from '../assets';
 import { Canvas2D } from '../canvas';
 import { Ball } from './ball';
 import { Mouse } from '../input/mouse';
+import { Keyboard } from '../input/keyboard';
 import { SpinHud } from '../input/spin-hud';
 import { State } from './state';
 import { applySidespinToCushionBounce, applyTopBackSpinToBallCollision } from '../physics/spin';
@@ -98,16 +99,32 @@ export class GameWorld {
     }
 
     private handleInput(): void {
-        // Original Classic-8-Ball-Pool flow (working baseline):
-        //   - Mouse position drives cue rotation continuously (Stick.update)
-        //   - W / S keys adjust power
-        //   - Single left-click → fire at current rotation + power
-        // JJ initially asked for click-to-lock; that state machine
-        // introduced bugs we couldn't isolate. Reverted to the original
-        // simple flow 2026-06. Click-to-lock can return as an opt-in
-        // mode once the baseline is solid.
-        if (AI.finishedSession && Mouse.isPressed(inputConfig.mouseShootButton)) {
-            this.shootCueBall(this._stick.power, this._stick.rotation);
+        // Click-to-lock flow (JJ 2026-06 confirmed): the cue follows the
+        // mouse until the player CLICKS THE CANVAS, which locks the cue
+        // direction. Then the player adjusts power (slider or W/S) and
+        // either clicks the canvas again OR clicks the React SHOOT
+        // button to fire. The lock is critical because moving the mouse
+        // toward the React HUD's SHOOT button (which is below the
+        // iframe) would otherwise drag the cue with it and the shot
+        // would fire in the wrong direction.
+        //
+        // Inputs:
+        //   click in 'follow' → lock the cue at current rotation
+        //   click in 'locked' → fire the shot + unlock for next turn
+        //   ESC in 'locked' → unlock back to follow (re-aim)
+        if (!AI.finishedSession) return;
+
+        if (Keyboard.isPressed(inputConfig.toggleMenuKey) && this._stick.aimState === 'locked') {
+            this._stick.unlockAim();
+            return;
+        }
+        if (Mouse.isPressed(inputConfig.mouseShootButton)) {
+            if (this._stick.aimState === 'follow') {
+                this._stick.lockAim();
+            } else {
+                this.shootCueBall(this._stick.power, this._stick.rotation);
+                this._stick.unlockAim();
+            }
         }
     }
 

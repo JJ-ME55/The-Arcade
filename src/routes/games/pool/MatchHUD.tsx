@@ -237,6 +237,21 @@ function PowerBar({ iframeRef }: { iframeRef: React.RefObject<HTMLIFrameElement>
         document.addEventListener('pointerup', onUp);
         document.addEventListener('pointercancel', onUp);
 
+        // Listen for iframe → parent power messages — fires when the
+        // player presses W/S inside the iframe and the iframe's
+        // PowerHud.value setter posts up the new percentage. JJ
+        // 2026-06: "the power slider moves as they use the W."
+        const onMessage = (e: MessageEvent) => {
+            if (e.data && typeof e.data === 'object' &&
+                (e.data as { type?: string }).type === 'side-pocket-power' &&
+                typeof (e.data as { pct?: number }).pct === 'number') {
+                const newPct = Math.max(0, Math.min(100, (e.data as { pct: number }).pct));
+                // Don't echo back — only update React display state.
+                setPct(newPct);
+            }
+        };
+        window.addEventListener('message', onMessage);
+
         // Send the initial slider value to the iframe so the iframe's
         // PowerHud matches the React display from the start. If the
         // iframe's init() hasn't run yet (asset load), this call is
@@ -248,6 +263,7 @@ function PowerBar({ iframeRef }: { iframeRef: React.RefObject<HTMLIFrameElement>
             document.removeEventListener('pointermove', onMove);
             document.removeEventListener('pointerup', onUp);
             document.removeEventListener('pointercancel', onUp);
+            window.removeEventListener('message', onMessage);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

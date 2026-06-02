@@ -37,6 +37,19 @@ class PowerHud_Singleton {
         if (this._slider) {
             this._slider.value = String(v);
         }
+        // When the parent React MatchHUD is wrapping this iframe, post
+        // the new percentage up so the React PowerBar's visible slider
+        // mirrors W/S keyboard adjustments. JJ 2026-06: "the power
+        // slider moves as they use the W."
+        if ((window as any).__SIDE_POCKET_PARENT_HUD && window.parent !== window) {
+            try {
+                // Slider DOM has min=0 max=50; convert to 0-100 pct for React.
+                const pct = Math.round((v / 50) * 100);
+                window.parent.postMessage({ type: 'side-pocket-power', pct }, '*');
+            } catch {
+                /* cross-origin? — shouldn't happen, iframe is same-origin */
+            }
+        }
     }
 
     public reset(): void {
