@@ -15,6 +15,7 @@ import { FreeKicks } from '@/routes/games/FreeKicks';
 import { PoolLobby } from '@/routes/games/pool/Lobby';
 import { MatchHUD } from '@/routes/games/pool/MatchHUD';
 import { Marathon } from '@/routes/games/pool/Marathon';
+import { MarathonRun } from '@/routes/games/pool/MarathonRun';
 import { Tournament } from '@/routes/games/pool/Tournament';
 import { Wager } from '@/routes/games/pool/Wager';
 import { Async as PoolAsync } from '@/routes/games/pool/Async';
@@ -50,6 +51,7 @@ export function App() {
             follow-up slice per screen. */}
         <Route path="/play/pool/splash" element={<PoolSplash />} />
         <Route path="/play/pool/marathon" element={<Marathon />} />
+        <Route path="/play/pool/marathon/run/:runId" element={<MarathonRun />} />
         <Route path="/play/pool/tournament" element={<Tournament />} />
         <Route path="/play/pool/wager" element={<Wager />} />
         <Route path="/play/pool/async" element={<PoolAsync />} />
