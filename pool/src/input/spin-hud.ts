@@ -72,6 +72,18 @@ class SpinHud_Singleton {
         this.updateDotPosition();
     }
 
+    /**
+     * External spin setter — used when the React MatchHUD's spin widget
+     * drives the iframe (hud=parent mode). x,y are in [-1,+1] each
+     * axis (per the SpinHud sign convention). Mirrors the dot position
+     * so any debug-visible dot stays in sync.
+     */
+    public setFromExternal(x: number, y: number): void {
+        this._spinX = Math.max(-1, Math.min(1, x));
+        this._spinY = Math.max(-1, Math.min(1, y));
+        this.updateDotPosition();
+    }
+
     public show(): void {
         if (this._container) {
             this._container.classList.add('is-visible');

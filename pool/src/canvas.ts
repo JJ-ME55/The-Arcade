@@ -157,6 +157,56 @@ class Canvas2D_Singleton {
         this._canvas.style.cursor = cursor;
     }
 
+    /**
+     * Side Pocket aim guide — dotted line from cue ball in the aim
+     * direction, with a ghost-ball circle at the predicted contact /
+     * stop point. Miniclip-style. JJ 2026-06: "still no visible white
+     * guide line."
+     */
+    public drawAimGuide(startX: number, startY: number, endX: number, endY: number, ballR: number): void {
+        const ctx = this._context;
+        ctx.save();
+        ctx.scale(this._scale.x, this._scale.y);
+        ctx.translate(RENDER_PADDING, RENDER_PADDING);
+
+        // Skip drawing the line through the cue ball itself
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const len = Math.hypot(dx, dy);
+        if (len < ballR * 2) {
+            ctx.restore();
+            return;
+        }
+        const nx = dx / len, ny = dy / len;
+        const lineStartX = startX + nx * ballR;
+        const lineStartY = startY + ny * ballR;
+        const lineEndX = endX - nx * ballR;
+        const lineEndY = endY - ny * ballR;
+
+        // Dotted line — white with slight transparency, dash pattern
+        ctx.setLineDash([8, 8]);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(lineStartX, lineStartY);
+        ctx.lineTo(lineEndX, lineEndY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Ghost-ball circle at the contact / stop point
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(endX, endY, ballR, 0, Math.PI * 2);
+        ctx.stroke();
+        // Subtle inner fill so the ghost reads against the felt
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.fill();
+
+        ctx.restore();
+    }
+
     // ====================================================================
     // SIDE POCKET — procedural table chrome
     //
@@ -461,33 +511,60 @@ class Canvas2D_Singleton {
         ctx.arc(1125, 412, 3, 0, Math.PI * 2);
         ctx.fill();
 
-        // ---- LAYER 3: Pockets --------------------------------------------
+        // ---- LAYER 4: Pockets ------------------------------------------
+        // JJ 2026-06: "the pockets seem to eat into the wood" — Miniclip
+        // has the wood visibly carved around each pocket. We approximate
+        // by drawing the VISIBLE pocket at a slightly larger radius than
+        // the physics-capture POCKET_R (sim still uses POCKET_R for
+        // ball-in-pocket detection). The visible hole punches further
+        // into the wood frame, giving the "eaten into wood" look.
+        const VISIBLE_POCKET_R = POCKET_R + 6;   // 48 visible vs 42 capture
         POCKETS.forEach(p => {
-            // Outer rim shadow (dark collar)
-            const rimGrad = ctx.createRadialGradient(p.x, p.y, POCKET_R * 0.9, p.x, p.y, POCKET_R + 8);
+            // Outer rim shadow (soft dark collar extending beyond the
+            // hole — sells depth and "wood curving away" effect)
+            const rimGrad = ctx.createRadialGradient(p.x, p.y, VISIBLE_POCKET_R * 0.85, p.x, p.y, VISIBLE_POCKET_R + 10);
             rimGrad.addColorStop(0,    'rgba(0,0,0,0)');
-            rimGrad.addColorStop(0.6,  'rgba(0,0,0,0.55)');
+            rimGrad.addColorStop(0.55, 'rgba(0,0,0,0.65)');
             rimGrad.addColorStop(1,    'rgba(0,0,0,0)');
             ctx.fillStyle = rimGrad;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, POCKET_R + 8, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, VISIBLE_POCKET_R + 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Brass pocket rim — thin warm-metal ring at the visible
+            // pocket edge. Catches "rim light" before the hole drops.
+            const brassGrad = ctx.createRadialGradient(p.x, p.y, VISIBLE_POCKET_R - 4, p.x, p.y, VISIBLE_POCKET_R + 1);
+            brassGrad.addColorStop(0,    'rgba(201, 162, 74, 0)');
+            brassGrad.addColorStop(0.6,  'rgba(201, 162, 74, 0.55)');
+            brassGrad.addColorStop(1,    'rgba(110, 76, 22, 0.75)');
+            ctx.fillStyle = brassGrad;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, VISIBLE_POCKET_R + 1, 0, Math.PI * 2);
             ctx.fill();
 
             // Dark hole — cylinder with subtle inner shadow
-            const holeGrad = ctx.createRadialGradient(p.x, p.y - POCKET_R * 0.1, 0, p.x, p.y, POCKET_R);
+            const holeGrad = ctx.createRadialGradient(p.x, p.y - VISIBLE_POCKET_R * 0.1, 0, p.x, p.y, VISIBLE_POCKET_R);
             holeGrad.addColorStop(0,    '#1a1a1d');
             holeGrad.addColorStop(0.55, '#08080a');
             holeGrad.addColorStop(1,    '#000000');
             ctx.fillStyle = holeGrad;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, POCKET_R, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, VISIBLE_POCKET_R, 0, Math.PI * 2);
             ctx.fill();
 
             // Deep top-arc inner shadow (sells it as a hole, not a button)
             ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-            ctx.lineWidth = 4;
+            ctx.lineWidth = 5;
             ctx.beginPath();
-            ctx.arc(p.x, p.y - 3, POCKET_R - 4, Math.PI * 1.15, Math.PI * 1.85);
+            ctx.arc(p.x, p.y - 3, VISIBLE_POCKET_R - 4, Math.PI * 1.15, Math.PI * 1.85);
+            ctx.stroke();
+
+            // Subtle bottom-rim highlight — faint light catching the
+            // far inside lip of the pocket
+            ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y + 2, VISIBLE_POCKET_R - 3, Math.PI * 0.2, Math.PI * 0.8);
             ctx.stroke();
         });
 

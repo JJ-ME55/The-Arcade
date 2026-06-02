@@ -526,6 +526,29 @@ export class GameWorld {
         this.shootCueBall(power, this._stick.rotation);
     }
 
+    /**
+     * React MatchHUD calls this when the player drags the gold power
+     * slider. pct is the slider's percentage (0..100); we map it to
+     * stick power (0..stickConfig.maxPower).
+     */
+    public setStickPowerFromHud(pct: number): void {
+        if (!this._stick.visible || !this._stick.movable) return;
+        const clamped = Math.max(0, Math.min(100, pct));
+        const targetPower = Math.round((clamped / 100) * GameConfig.stick.maxPower);
+        this._stick.setPowerDirect(targetPower);
+    }
+
+    /**
+     * React MatchHUD's spin widget — sets the cue-ball impact point.
+     * x, y are in [-1, +1] each axis. Routed into SpinHud so the
+     * existing spin-trigger code path picks it up at shoot time.
+     */
+    public setSpinFromHud(x: number, y: number): void {
+        const cx = Math.max(-1, Math.min(1, x));
+        const cy = Math.max(-1, Math.min(1, y));
+        SpinHud.setFromExternal(cx, cy);
+    }
+
     public shootCueBall(power: number, rotation: number, spinX?: number, spinY?: number): void {
         if(power > 0) {
             this._stick.rotation = rotation;
@@ -632,6 +655,81 @@ export class GameWorld {
             this.drawOverallScores();
         }
         this._balls.forEach((ball: Ball) => ball.draw());
+        // Aim line + ghost ball preview — only when player is aiming
+        // (stick visible, not after the shot). JJ 2026-06: "still no
+        // visible white guide line" — Miniclip-style dotted projection
+        // from cue ball through the contact point with the first ball
+        // or cushion the cue will hit.
+        if (this._stick.visible && this._stick.movable && !this.isBallsMoving) {
+            this.drawAimLine();
+        }
         this._stick.draw();
+    }
+
+    /**
+     * Draw a dotted aim guide from the cue ball in the direction of the
+     * cue rotation, with a ghost-ball circle at the predicted contact
+     * point with the first object ball OR cushion ray-hit.
+     *
+     * Algorithm:
+     *   1. Cast a ray from cue-ball position in the cue rotation direction.
+     *   2. Find nearest hit:
+     *      - Object balls: closest sphere-ray intersection (centre at
+     *        offset_along_ray = (closest_point_on_ray - ball.pos) · dir,
+     *        perp_distance² = |ball.pos - closest_point|²; hit if
+     *        perp_distance < ball_diameter and offset > 0)
+     *      - Cushions: where the ray hits the play-surface boundary
+     *        (cushionWidth from each canvas edge)
+     *   3. Draw dotted line from cue ball to hit point.
+     *   4. Draw ghost ball circle at hit point (offset back along the
+     *      ray by ball-radius so it sits where the cue ball WOULD stop).
+     */
+    private drawAimLine(): void {
+        const cuePos = this._cueBall.position;
+        const angle = this._stick.rotation;
+        const dirX = Math.cos(angle);
+        const dirY = Math.sin(angle);
+        const ballR = ballConfig.diameter / 2;
+
+        // Find nearest object-ball intersection
+        let hitDist = Infinity;
+        for (const b of this._balls) {
+            if (b === this._cueBall || !b.visible) continue;
+            const dx = b.position.x - cuePos.x;
+            const dy = b.position.y - cuePos.y;
+            const t = dx * dirX + dy * dirY;
+            if (t < 0) continue;  // behind the cue
+            const perpSq = (dx * dx + dy * dy) - t * t;
+            const sumR = ballConfig.diameter;  // both balls' radii (cue + object)
+            if (perpSq > sumR * sumR) continue;
+            // Distance from cue centre to contact along ray
+            const back = Math.sqrt(sumR * sumR - perpSq);
+            const tHit = t - back;
+            if (tHit < hitDist) hitDist = tHit;
+        }
+
+        // Find cushion intersection — distance along ray until we hit a
+        // playable-boundary edge (cushion width inset from each side).
+        const cw = tableConfig.cushionWidth;
+        const cushionDistances: number[] = [];
+        // Hit the right cushion
+        if (dirX > 0.001) cushionDistances.push((gameSize.x - cw - ballR - cuePos.x) / dirX);
+        if (dirX < -0.001) cushionDistances.push((cw + ballR - cuePos.x) / dirX);
+        if (dirY > 0.001) cushionDistances.push((gameSize.y - cw - ballR - cuePos.y) / dirY);
+        if (dirY < -0.001) cushionDistances.push((cw + ballR - cuePos.y) / dirY);
+        for (const d of cushionDistances) {
+            if (d > 0 && d < hitDist) hitDist = d;
+        }
+
+        // Clamp the line length — if no hits, just draw a long ray
+        if (!isFinite(hitDist)) hitDist = 1000;
+
+        // Endpoint = cue position + dir * hitDist (where the cue ball
+        // would stop, NOT where the object ball is contacted)
+        const endX = cuePos.x + dirX * hitDist;
+        const endY = cuePos.y + dirY * hitDist;
+
+        // Draw dotted guide line
+        Canvas2D.drawAimGuide(cuePos.x, cuePos.y, endX, endY, ballR);
     }
 }

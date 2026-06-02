@@ -1,0 +1,193 @@
+/* =============================================================================
+   Side Pocket — page-level chrome
+   -----------------------------------------------------------------------------
+   Phase A identity lift. Brand fonts loaded, slate-deep page bg around the
+   canvas, brand-coloured power+spin HUDs. Tokens lifted from designer's
+   colors_and_type.css (Round 2 handoff). Keep this file in sync if the
+   designer ships token updates.
+   ========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Lilita+One&family=Bowlby+One&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap");
+
+:root {
+    /* HUD chrome — dark slate room around the table */
+    --sp-slate-deep:    #14192A;
+    --sp-slate:         #1B2236;
+    --sp-slate-hi:      #2A3450;
+    --sp-slate-edge:    #3A455F;
+
+    /* Paper — warm cream foreground */
+    --sp-paper:         #F4ECDB;
+    --sp-paper-bright:  #FFFFFF;
+    --sp-paper-dim:     #B7AE94;
+
+    /* Felt + wood — the table */
+    --sp-felt:          #1E5FA8;
+    --sp-felt-bright:   #2C7AC7;
+    --sp-felt-shadow:   #103E72;
+    --sp-wood:          #8C2A1F;
+    --sp-wood-hi:       #C04434;
+    --sp-wood-lo:       #4A140C;
+
+    /* Action / active */
+    --sp-action:        #F5A623;
+    --sp-action-bright: #FFB840;
+    --sp-active:        #7BD53A;
+    --sp-active-bright: #A8E66B;
+
+    /* Type */
+    --sp-font-display:  "Lilita One", "Bowlby One", "Impact", system-ui, sans-serif;
+    --sp-font-mono:     "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --sp-font-body:     "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    height: 100dvh;
+    background: radial-gradient(ellipse at center top, #1d2640 0%, var(--sp-slate-deep) 60%, #0B0F1B 100%);
+    overflow: hidden;
+    overscroll-behavior: none;
+    color: var(--sp-paper);
+    font-family: var(--sp-font-body);
+}
+
+body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#gameArea {
+    position: relative;
+    line-height: 0;
+    /* Cherry-stained drop shadow under the table — the "room lighting" effect */
+    filter: drop-shadow(0 14px 36px rgba(0,0,0,0.7)) drop-shadow(0 4px 0 rgba(0,0,0,0.5));
+}
+
+#screen {
+    display: block;
+}
+
+/* =============================================================================
+   POWER HUD — bottom-center mobile shooter shelf
+   Brass-on-slate, glowing fill, brand-matched. Spans Round 2 power-bar look.
+   ========================================================================== */
+#powerHud {
+    position: fixed;
+    bottom: max(env(safe-area-inset-bottom, 0px), 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(70vw, 520px);
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: linear-gradient(180deg, var(--sp-slate-hi) 0%, var(--sp-slate) 100%);
+    border: 1px solid var(--sp-slate-edge);
+    border-radius: 10px;
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.12),
+        inset 0 -2px 0 rgba(0,0,0,0.35),
+        0 3px 0 rgba(0,0,0,0.35),
+        0 6px 14px rgba(0,0,0,0.45);
+    z-index: 10;
+    pointer-events: auto;
+    font-family: var(--sp-font-display);
+    color: var(--sp-paper-bright);
+}
+
+#powerHud.is-visible {
+    display: flex;
+}
+
+#powerHudLabel {
+    font-size: 14px;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+    color: var(--sp-paper);
+    text-shadow: 0 1px 0 rgba(0,0,0,0.45);
+}
+
+#powerSlider {
+    flex: 1;
+    height: 44px;
+    accent-color: var(--sp-action);
+    touch-action: manipulation;
+    margin: 0;
+}
+
+/* =============================================================================
+   SPIN HUD — cue-ball impact-point picker
+   ========================================================================== */
+#spinHud {
+    position: fixed;
+    bottom: max(env(safe-area-inset-bottom, 0px), 12px);
+    left: max(env(safe-area-inset-left, 0px), 12px);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px;
+    background: linear-gradient(180deg, var(--sp-slate-hi) 0%, var(--sp-slate) 100%);
+    border: 1px solid var(--sp-slate-edge);
+    border-radius: 10px;
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.12),
+        inset 0 -2px 0 rgba(0,0,0,0.35),
+        0 3px 0 rgba(0,0,0,0.35),
+        0 6px 14px rgba(0,0,0,0.45);
+    z-index: 10;
+    pointer-events: auto;
+    font-family: var(--sp-font-display);
+    color: var(--sp-paper);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#spinHud.is-visible {
+    display: flex;
+}
+
+#spinHudLabel {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.45);
+}
+
+/* Pad — cue ball look (off-white with rim shadow) */
+#spinPad {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 28%, #FFFFFF 0%, #FAF6E4 45%, #B7AE94 100%);
+    border: 2px solid var(--sp-slate-deep);
+    box-shadow:
+        inset -6px -8px 14px rgba(0,0,0,0.35),
+        inset 5px 5px 10px rgba(255,255,255,0.42),
+        0 3px 6px rgba(0,0,0,0.6);
+    touch-action: none;
+    cursor: crosshair;
+}
+
+#spinDot {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--sp-action);
+    border: 1.5px solid var(--sp-slate-deep);
+    box-shadow: 0 0 8px rgba(245, 166, 35, 0.6);
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    transition: left 80ms ease-out, top 80ms ease-out;
+}

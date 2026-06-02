@@ -116,16 +116,28 @@ export class Game {
             this._poolGame = new GameWorld();
             this._poolGame.initMatch();
 
-            // Expose a forceShoot global so the parent React MatchHUD's
-            // gold Shoot button can fire the cue. Same-origin iframe so
-            // window.parent has direct access via iframe.contentWindow.
-            // JJ test feedback 2026-06: "still no shoot functionality" —
-            // because the React Shoot button had no handler and the
-            // iframe's slider/canvas were hidden behind the React HUD.
-            // This lets the React button drive the actual game.
+            // Expose globals so the parent React MatchHUD can drive the
+            // iframe game (same-origin iframe → contentWindow direct
+            // access). JJ 2026-06: "duplicate controls everywhere" —
+            // fixed by hiding the iframe's #powerHud/#spinHud and routing
+            // React's widgets through these setters.
             (window as any).__SIDE_POCKET_FORCE_SHOOT = () => {
                 if (this._poolGame) {
                     this._poolGame.forceShootFromHud();
+                }
+            };
+            // React power slider: 0–100 (UI scale) → iframe stick power
+            // (0..stickConfig.maxPower).
+            (window as any).__SIDE_POCKET_SET_POWER = (pct: number) => {
+                if (this._poolGame) {
+                    this._poolGame.setStickPowerFromHud(pct);
+                }
+            };
+            // React spin widget: {x,y} in [-1,+1] each axis → iframe
+            // SpinHud (cue-ball impact-point).
+            (window as any).__SIDE_POCKET_SET_SPIN = (x: number, y: number) => {
+                if (this._poolGame) {
+                    this._poolGame.setSpinFromHud(x, y);
                 }
             };
         } else {

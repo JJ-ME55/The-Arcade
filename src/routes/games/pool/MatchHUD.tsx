@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './match.css';
 
 /**
@@ -138,10 +138,12 @@ export function MatchHUD() {
                         className="spg-iframe"
                     />
                 </div>
-                <div className="spg-spin">
-                    <span className="dot" />
-                    <span className="lab">Spin</span>
-                </div>
+                {/* Spin widget removed from here in Phase B_pool_v5 — it
+                    was a static decoration overlapping the iframe and
+                    competing with the iframe's real spin widget (now
+                    hidden via hud=parent). A working React spin widget
+                    that drives __SIDE_POCKET_SET_SPIN can return as a
+                    separate slice. */}
             </main>
 
             {/* ============= ACTION SHELF — power + shoot ============= */}
@@ -157,16 +159,7 @@ export function MatchHUD() {
                     <button className="spg-tool" title="Menu">≡</button>
                 </div>
 
-                <div className="spg-power">
-                    <span className="lbl">POWER</span>
-                    <div className="barwrap">
-                        <span className="mark" style={{ left: '64%' }} />
-                        <div className="bar">
-                            <span className="fill" style={{ width: 'calc(64% - 4px)' }} />
-                        </div>
-                    </div>
-                    <span className="pct">64%</span>
-                </div>
+                <PowerBar iframeRef={iframeRef} />
 
                 {you
                     ? (
@@ -188,6 +181,57 @@ export function MatchHUD() {
                     : <button className="spg-shoot wait">Waiting…</button>
                 }
             </footer>
+        </div>
+    );
+}
+
+/**
+ * Functional power bar — drag to set, displays current %, writes
+ * through to the iframe game via __SIDE_POCKET_SET_POWER(pct).
+ *
+ * JJ 2026-06: "duplicate controls everywhere" — iframe's #powerHud is
+ * now hidden (hud=parent), so this is the only power control the
+ * player sees. The bar fill + small mark visually mirror Round 2's
+ * .spg-power look; the underlying <input type=range> is invisible but
+ * captures drag.
+ */
+function PowerBar({ iframeRef }: { iframeRef: React.RefObject<HTMLIFrameElement> }) {
+    const [pct, setPct] = useState(50);
+
+    const apply = (next: number) => {
+        const clamped = Math.max(0, Math.min(100, next));
+        setPct(clamped);
+        const win = iframeRef.current?.contentWindow as { __SIDE_POCKET_SET_POWER?: (p: number) => void } | null;
+        win?.__SIDE_POCKET_SET_POWER?.(clamped);
+    };
+
+    return (
+        <div className="spg-power" style={{ position: 'relative' }}>
+            <span className="lbl">POWER</span>
+            <div className="barwrap" style={{ position: 'relative', flex: 1 }}>
+                <span className="mark" style={{ left: pct + '%' }} />
+                <div className="bar">
+                    <span className="fill" style={{ width: `calc(${pct}% - 4px)` }} />
+                </div>
+                <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={pct}
+                    onChange={(e) => apply(parseInt(e.target.value, 10))}
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        width: '100%',
+                        height: '100%',
+                        opacity: 0,
+                        cursor: 'pointer',
+                        margin: 0,
+                    }}
+                    aria-label="Shot power"
+                />
+            </div>
+            <span className="pct">{pct}%</span>
         </div>
     );
 }

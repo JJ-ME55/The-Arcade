@@ -58,6 +58,19 @@ export class Stick {
         this._rotation = value;
     }
 
+    /**
+     * External power setter — used by GameWorld.setStickPowerFromHud
+     * when the React MatchHUD's power slider drives the iframe.
+     * Bypasses keyboard / PowerHud sync; the React side IS the source
+     * of truth in that mode.
+     */
+    public setPowerDirect(target: number): void {
+        this.setPower(target);
+        // Mirror to the (hidden) DOM PowerHud so other code paths that
+        // read PowerHud.value stay in sync.
+        PowerHud.value = target;
+    }
+
     //------Constructor------//
 
     constructor(private _position: Vector2) {}
