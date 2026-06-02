@@ -127,9 +127,12 @@ export function buildSimTableConfig(): TableConfig {
  */
 export function buildSimPhysicsConfig(): PhysicsConfig {
   return {
-    friction: GameConfig.physics.friction,
-    collisionLoss: GameConfig.physics.collisionLoss,
-    ballDiameter: GameConfig.ball.diameter,
+    friction:          GameConfig.physics.friction,
+    slidingDecel:      GameConfig.physics.slidingDecel,
+    rollingDecel:      GameConfig.physics.rollingDecel,
+    rollSlipThreshold: GameConfig.physics.rollSlipThreshold,
+    collisionLoss:     GameConfig.physics.collisionLoss,
+    ballDiameter:      GameConfig.ball.diameter,
     minVelocityLength: GameConfig.ball.minVelocityLength
   };
 }

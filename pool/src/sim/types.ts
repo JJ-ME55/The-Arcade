@@ -56,8 +56,45 @@ export interface TableConfig {
 }
 
 export interface PhysicsConfig {
-  /** Per-tick velocity multiplier loss (rolling friction). 0..1. */
+  /**
+   * LEGACY field — was the per-tick exponential-damping multiplier
+   * (velocity *= 1 - friction). The 2026-06 physics refactor replaced
+   * this with the two-regime constant-decel model (slidingDecel +
+   * rollingDecel). The field stays in the type for back-compat with
+   * tests that still construct PhysicsConfig literals; it is no longer
+   * read by stepWorld.
+   */
   friction: number;
+  /**
+   * Sliding deceleration in game-coord units per tick² (μ_s · g · dt² in
+   * pixel-per-tick units). Constant linear-in-time velocity loss while
+   * the ball is sliding/skidding. From Shepard / Han 2005:
+   *   μ_s ≈ 0.2 (cloth-on-resin sliding friction)
+   *   g  ≈ 9.81 m/s² → with our 528 px/m scale, ~5180 px/s²
+   *   At 60 fps (dt = 1/60), decel ≈ 0.2 · 5180 / 60 ≈ 17.3 px/tick
+   * The ball is in this regime until surface velocity reaches zero
+   * (slip-to-roll transition, v_final = 5/7 · v_initial for no-spin
+   * shots).
+   */
+  slidingDecel: number;
+  /**
+   * Rolling deceleration in game-coord units per tick². Same form as
+   * sliding, but with μ_r ≈ 0.01 (rolling resistance on Simonis cloth).
+   * Roughly 20× smaller than slidingDecel — gives the long, slow tail
+   * that "feels right" once the skid phase ends.
+   *   At 60 fps: decel ≈ 0.01 · 5180 / 60 ≈ 0.86 px/tick
+   * Replaces the previous exponential `friction` field for the rolling
+   * regime.
+   */
+  rollingDecel: number;
+  /**
+   * Surface-velocity magnitude below which the ball is considered to
+   * be in pure rolling (no slip). When |v + R · (up × ω)| < this, the
+   * sliding-friction kick stops and we switch to rolling resistance.
+   * Tuned per the tailuge/billiards reference (~0.05 in their units,
+   * scaled to our pixel-per-tick world).
+   */
+  rollSlipThreshold: number;
   /** Velocity multiplier loss applied on cushion + ball collisions. 0..1. */
   collisionLoss: number;
   /** Ball collision diameter. */
@@ -104,9 +141,25 @@ export interface SimulationResult {
   pocketedBallIds: number[];
 }
 
-/** Useful default for matching the existing browser game's physics tuning. */
+/**
+ * Default physics tuning — calibrated against the deep-research findings
+ * (workflow wghummavd, 2026-06): constants μ_s=0.20, μ_r=0.01 (Shepard /
+ * Han 2005 standard); world scale ≈ 528 px/m (regulation 2.84m table fits
+ * our 1500-px canvas width); 60 fps assumed.
+ *   slidingDecel = 0.20 · 9.81 · 528 / 60² = ~0.288 px/tick²
+ *     (but expressed per-tick — so velocity decrement per tick is
+ *      0.20 · 9.81 · 528 / 60 ≈ 17.3 px/tick at the start of each tick).
+ *   rollingDecel = 0.01 · 9.81 · 528 / 60 ≈ 0.86 px/tick.
+ *
+ * These values give a hard shot (~200 px/tick initial) ~3.4 ticks of
+ * skid before transitioning to roll, then ~166 ticks of rolling to
+ * stop — total ~2.8s. Matches the feel of regulation pool.
+ */
 export const DEFAULT_PHYSICS_CONFIG: PhysicsConfig = Object.freeze({
-  friction: 0.018,
+  friction: 0.018,            // legacy, unused by stepWorld
+  slidingDecel: 17.3,
+  rollingDecel: 0.86,
+  rollSlipThreshold: 1.2,     // tuned empirically — captures the surface-vel transition
   collisionLoss: 0.018,
   ballDiameter: 32,
   minVelocityLength: 0.05

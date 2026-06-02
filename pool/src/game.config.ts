@@ -121,9 +121,19 @@ export const GameConfig : IGameConfig = {
         }
     },
 
+    // Physics — two-regime model from deep-research workflow wghummavd
+    // (2026-06). Replaces the old single `friction` exponential damping
+    // with Han 2005 / Shepard constant-decel sliding + rolling. The
+    // `friction` field stays for legacy code paths but is no longer
+    // read; slidingDecel + rollingDecel + rollSlipThreshold drive the
+    // actual ball deceleration. See pool/src/sim/types.ts for the
+    // derivation: μ_s=0.20, μ_r=0.01, world scale ~528 px/m, 60 fps.
     physics: {
-        friction: 0.018,
-        collisionLoss: 0.018,
+        friction:           0.018,   // legacy, unused
+        slidingDecel:       17.3,    // μ_s·g·dt at 60 fps
+        rollingDecel:       0.86,    // μ_r·g·dt at 60 fps
+        rollSlipThreshold:  1.2,     // |v| below which ball is in pure rolling
+        collisionLoss:      0.018,
     },
 
     // Table geometry — aligned to designer Round 2 spec (asset/side_pocket_handoff/

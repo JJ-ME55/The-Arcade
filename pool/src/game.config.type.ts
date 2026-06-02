@@ -47,8 +47,16 @@ export interface IAssetsConfig {
 }
 
 export interface IPhysicsConfig {
-    friction:      number;
-    collisionLoss: number;
+    /** Legacy exponential-damping coefficient — unused as of 2026-06
+     *  two-regime physics refactor. Kept for back-compat. */
+    friction:           number;
+    /** Constant velocity decrement per tick during sliding (μ_s·g·dt). */
+    slidingDecel:       number;
+    /** Constant velocity decrement per tick during rolling (μ_r·g·dt). */
+    rollingDecel:       number;
+    /** Speed threshold below which the ball is in pure-rolling regime. */
+    rollSlipThreshold:  number;
+    collisionLoss:      number;
 }
 
 export interface ITableConfig {

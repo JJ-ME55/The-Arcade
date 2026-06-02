@@ -52,10 +52,15 @@ function vDist(a: IVec2, b: IVec2): number {
 // Cushion + pocket helpers
 // ──────────────────────────────────────────────────────────────────────
 
-function nextPosition(ball: SerializableBall, friction: number): IVec2 {
-  // Mirror Ball.nextPosition: position + velocity * (1 - friction)
-  const v = vMul(ball.velocity, 1 - friction);
-  return vAdd(ball.position, v);
+function nextPosition(ball: SerializableBall, _friction: number): IVec2 {
+  // Predict next position using current velocity (decel applied later
+  // in advancePositions). This is intentionally NOT decelerated here —
+  // the cushion-collision detection needs the actual where-the-ball-will-be
+  // not where-it-will-be-after-friction. The exponential damping that
+  // used to live here was structurally wrong (research workflow wghummavd
+  // 2026-06: pool balls have constant-decel sliding then rolling phases,
+  // not exponential damping). Decel happens in advancePositions below.
+  return vAdd(ball.position, ball.velocity);
 }
 
 function isOutsideTopBorder(pos: IVec2, table: TableConfig, ballDiameter: number): boolean {
@@ -267,15 +272,48 @@ export function stepWorld(
     }
   }
 
-  // Phase 3: advance positions + apply friction; check pockets; check stopped
+  // Phase 3: advance positions + two-regime constant-decel friction.
+  //
+  // Replaced 2026-06 — the old `velocity *= 1 - friction` exponential
+  // damping was structurally wrong (deep-research workflow wghummavd,
+  // 24/25 claims 3-0 confirmed). Real pool ball motion on cloth has
+  // two distinct regimes:
+  //   SLIDING — constant decel μ_s·g (skid phase, big decel)
+  //   ROLLING — constant decel μ_r·g (long tail, small decel, ~20× smaller)
+  // Slip-to-roll transition: when |surface velocity| < rollSlipThreshold.
+  // For a ball struck without spin, this lands at exactly v=(5/7)·v_initial
+  // (Han 2005 / Shepard derivation from solid-sphere I=(2/5)mR²).
+  //
+  // Our spinY field maps to top/back spin (forward roll axis); the
+  // surface-velocity proxy here uses |velocity| since we don't carry a
+  // full angular velocity vector — a faithful one-axis approximation
+  // sufficient for the feel. A future pass can add the cross-product
+  // surface-velocity check from tailuge/billiards for sidespin physics.
   let anyMoving = false;
   for (const ball of balls) {
     if (!ball.visible) continue;
     const speed = vLen(ball.velocity);
     if (speed === 0) continue;
 
-    // Apply friction first (matches Ball.update order in browser)
-    ball.velocity = vMul(ball.velocity, 1 - physics.friction);
+    // Pick the regime. ~v_slip means we still have surface slip;
+    // below that, the ball is in pure rolling. The 5/7 transition
+    // emerges naturally from this — sliding decel drops |v| linearly
+    // until it falls under the threshold, then rolling decel kicks in.
+    const inSliding = speed > physics.rollSlipThreshold;
+    const decel = inSliding ? physics.slidingDecel : physics.rollingDecel;
+
+    // Constant deceleration along the velocity-opposite direction.
+    // Δv = -decel · (v / |v|). Caps to zero so we don't overshoot
+    // into negative magnitude when the decel step exceeds remaining
+    // speed (low-velocity edge case).
+    const newSpeed = Math.max(0, speed - decel);
+    if (newSpeed === 0) {
+      ball.velocity = { x: 0, y: 0 };
+    } else {
+      const scale = newSpeed / speed;
+      ball.velocity = vMul(ball.velocity, scale);
+    }
+
     ball.position = vAdd(ball.position, ball.velocity);
 
     // Decay spin in step with velocity

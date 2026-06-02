@@ -156,7 +156,27 @@ export class Ball {
 
     public update(): void {
         if(this._moving) {
-            this._velocity.multBy(1 - physicsConfig.friction);
+            // Two-regime constant-decel friction (deep-research workflow
+            // wghummavd 2026-06 — Han 2005 / Shepard model). Replaces the
+            // old exponential `velocity *= (1 - 0.018)` damping which was
+            // structurally wrong for pool ball physics on cloth.
+            //
+            // Sliding: μ_s·g·dt deceleration (big — ~17 px/tick)
+            // Rolling: μ_r·g·dt deceleration (small — ~0.86 px/tick)
+            // Transition: when |v| drops below rollSlipThreshold (~1.2 px/tick)
+            //
+            // The 5/7-velocity slip-to-roll transition emerges naturally:
+            // sliding decel pulls v linearly until it crosses the threshold,
+            // then rolling decel takes over. Long, slow tail = natural feel.
+            const speed = this._velocity.length;
+            const inSliding = speed > physicsConfig.rollSlipThreshold;
+            const decel = inSliding ? physicsConfig.slidingDecel : physicsConfig.rollingDecel;
+            const newSpeed = Math.max(0, speed - decel);
+            if (newSpeed === 0) {
+                this._velocity = Vector2.zero;
+            } else {
+                this._velocity.multBy(newSpeed / speed);
+            }
             this._position.addTo(this._velocity);
 
             // Decay spin proportionally with velocity friction. When the ball
@@ -166,20 +186,18 @@ export class Ball {
             this._spinX = decayed.spinX;
             this._spinY = decayed.spinY;
 
-            // Advance the visual roll angle. The ball's circumference is
-            // 2πR; one full rotation when the ball has rolled that far.
-            // Direction is perpendicular to velocity in screen space —
-            // for a top-down view, we just project velocity magnitude
-            // into rotation rate. Add the direction sign so left vs
-            // right motion rolls opposite ways.
-            const circumference = Math.PI * ballConfig.diameter;
-            const speed = this._velocity.length;
+            // Advance the visual roll angle. Δθ = Δposition / R radians
+            // (rigid-body-on-surface rolling — research workflow wghummavd
+            // finding #6: distance-travelled / radius, direction from
+            // velocity vector). Uses the post-friction speed (newSpeed
+            // from the decel block above).
+            const ballR = ballConfig.diameter / 2;
             // Sign from velocity x (positive = moving right → roll forward).
             // Pure-y motion still rolls (velocity x ~= 0) — fall back to y sign.
             const dir = Math.abs(this._velocity.x) > 0.01
                 ? Math.sign(this._velocity.x)
                 : Math.sign(this._velocity.y) || 1;
-            this._rollAngle += (speed / circumference) * Math.PI * 2 * dir;
+            this._rollAngle += (newSpeed / ballR) * dir;
 
             if(this._velocity.length < ballConfig.minVelocityLength) {
                 this.velocity = Vector2.zero;
