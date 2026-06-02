@@ -101,6 +101,11 @@ export class Game {
 
     public async init(): Promise<void> {
         await Assets.loadGameAssets();
+        // 3D-baked sphere sprites for drawAmericanBall. Generated offline
+        // by pool/scripts/bake-ball-sprites.js (Three.js + headless
+        // Chromium). Soft-fails if any sphere is missing — falls back
+        // to procedural draw rather than blocking the game.
+        await Canvas2D.preloadSphereSprites();
 
         this.initMenuActions();
         this.initMainMenu();
