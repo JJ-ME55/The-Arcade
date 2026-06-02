@@ -52,7 +52,18 @@ export interface IPhysicsConfig {
 }
 
 export interface ITableConfig {
+    // Distance from canvas edge to the ball-bounce boundary (the inner
+    // face of the cushion bumper). Used by sim/world.ts for collision
+    // detection. Per designer Round 2: = feltInset + cushionThickness.
     cushionWidth:     number,
+    // Visible wood-frame thickness on each side of the canvas. The
+    // cushion bumper strip sits between feltInset and cushionWidth.
+    // Used by canvas drawSidePocketTable only — sim doesn't see it.
+    feltInset:        number,
+    // Cushion bumper thickness (the felt-wrapped strip between the wood
+    // frame and the play area). cushionWidth = feltInset + cushionThickness.
+    // Used by canvas only.
+    cushionThickness: number,
     pocketRadius:     number,
     pocketsPositions: IVector2[]
 }

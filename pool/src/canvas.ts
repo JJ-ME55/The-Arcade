@@ -178,7 +178,15 @@ class Canvas2D_Singleton {
         const ctx = this._context;
         const W = GameConfig.gameSize.x;
         const H = GameConfig.gameSize.y;
-        const FELT_INSET = GameConfig.table.cushionWidth;
+        // Three-layer table per designer Round 2 spec (JJ playtest 2026-06):
+        //   FELT_INSET (48)         = outer wood frame thickness
+        //   CUSHION_INNER (78)      = where balls bounce + where play surface starts
+        //                             (= feltInset + cushionThickness)
+        // Cushion bumper sits between FELT_INSET and CUSHION_INNER as a
+        // felt-wrapped strip with a light highlight on top and a shadow
+        // line dropping to the recessed play surface.
+        const FELT_INSET = GameConfig.table.feltInset;
+        const CUSHION_INNER = GameConfig.table.cushionWidth;
         const POCKETS = GameConfig.table.pocketsPositions;
         const POCKET_R = GameConfig.table.pocketRadius;
 
@@ -234,19 +242,41 @@ class Canvas2D_Singleton {
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
         ctx.fillRect(W - 2, 0, 2, H);
 
-        // ---- LAYER 2: Cobalt felt with lamp hot-spot --------------------
-        const feltX = FELT_INSET;
-        const feltY = FELT_INSET;
-        const feltW = W - 2 * FELT_INSET;
-        const feltH = H - 2 * FELT_INSET;
+        // ---- LAYER 2a: Cushion bumper strip ----------------------------
+        // The felt-wrapped raised cushion sits between the wood frame and
+        // the recessed play surface. Drawn first as a continuous strip
+        // covering FELT_INSET to CUSHION_INNER on all four sides. The
+        // cushion's INNER edge is where balls bounce.
+        //
+        // The cushion is the same cobalt felt material as the play
+        // surface but slightly brighter (it's "raised" toward the camera).
+        // The play surface (Layer 2b) is darker, implying the recession.
+        ctx.fillStyle = '#2870BD';  // cushion top color (raised)
+        // Top cushion strip
+        ctx.fillRect(FELT_INSET, FELT_INSET, W - 2 * FELT_INSET, CUSHION_INNER - FELT_INSET);
+        // Bottom cushion strip
+        ctx.fillRect(FELT_INSET, H - CUSHION_INNER, W - 2 * FELT_INSET, CUSHION_INNER - FELT_INSET);
+        // Left cushion strip
+        ctx.fillRect(FELT_INSET, FELT_INSET, CUSHION_INNER - FELT_INSET, H - 2 * FELT_INSET);
+        // Right cushion strip
+        ctx.fillRect(W - CUSHION_INNER, FELT_INSET, CUSHION_INNER - FELT_INSET, H - 2 * FELT_INSET);
+
+        // ---- LAYER 2b: Recessed play surface ---------------------------
+        // The actual playing felt — DARKER than the cushion bumper to
+        // imply the drop. Lamp glow centred on the surface gives the
+        // hot-spot of a real overhead-lit table.
+        const feltX = CUSHION_INNER;
+        const feltY = CUSHION_INNER;
+        const feltW = W - 2 * CUSHION_INNER;
+        const feltH = H - 2 * CUSHION_INNER;
 
         const feltGrad = ctx.createRadialGradient(
             W / 2, H * 0.40, 0,
             W / 2, H * 0.40, Math.max(feltW, feltH) * 0.6
         );
-        feltGrad.addColorStop(0,    '#2C7AC7');
-        feltGrad.addColorStop(0.55, '#1E5FA8');
-        feltGrad.addColorStop(1,    '#103E72');
+        feltGrad.addColorStop(0,    '#2070B5');   // slightly darker than cushion
+        feltGrad.addColorStop(0.55, '#175496');   // mid
+        feltGrad.addColorStop(1,    '#0B3068');   // deep edge
         ctx.fillStyle = feltGrad;
         ctx.fillRect(feltX, feltY, feltW, feltH);
 
@@ -255,23 +285,66 @@ class Canvas2D_Singleton {
             W / 2, H * 0.38, 0,
             W / 2, H * 0.38, Math.max(feltW, feltH) * 0.55
         );
-        lampGrad.addColorStop(0,    'rgba(255,230,176,0.18)');
-        lampGrad.addColorStop(0.45, 'rgba(255,230,176,0.04)');
+        lampGrad.addColorStop(0,    'rgba(255,230,176,0.20)');
+        lampGrad.addColorStop(0.45, 'rgba(255,230,176,0.05)');
         lampGrad.addColorStop(1,    'rgba(255,230,176,0)');
         ctx.fillStyle = lampGrad;
         ctx.fillRect(feltX, feltY, feltW, feltH);
 
-        // Felt edge inner shadow (sells the wood-to-felt drop)
-        ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-        ctx.lineWidth = 2.5;
-        ctx.strokeRect(feltX, feltY, feltW, feltH);
+        // ---- LAYER 2c: Cushion highlight + shadow seams ---------------
+        // The two visible seams JJ called out:
+        //   (a) OUTER seam — where cushion meets wood. Light catches the
+        //       cushion's top edge: bluish-white highlight line.
+        //   (b) INNER seam — where cushion drops to the play surface.
+        //       Dark shadow line implying the cushion overhangs the
+        //       recessed felt below.
+        // Drawn as inset rectangles inside the cushion strip.
 
-        // Head string line + foot spot (faint, on felt)
+        // OUTER seam — highlight on the wood side of the cushion (top edge
+        // of the bumper catching light)
+        ctx.strokeStyle = 'rgba(140, 200, 240, 0.45)';
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(FELT_INSET + 0.5, FELT_INSET + 0.5, W - 2 * FELT_INSET - 1, H - 2 * FELT_INSET - 1);
+
+        // INNER seam — the dark "drop" line where the cushion overhangs
+        // the recessed play surface. Slightly thicker, drawn just inside
+        // the play-surface boundary.
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.72)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(CUSHION_INNER, CUSHION_INNER, feltW, feltH);
+
+        // Soft inset shadow into the play surface (gradient just inside
+        // the seam — sells the "drop down" depth)
+        const shadowInsetGrad = ctx.createLinearGradient(0, CUSHION_INNER, 0, CUSHION_INNER + 18);
+        shadowInsetGrad.addColorStop(0, 'rgba(0,0,0,0.45)');
+        shadowInsetGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = shadowInsetGrad;
+        ctx.fillRect(feltX, feltY, feltW, 18);   // top inner shadow
+
+        const shadowInsetGradL = ctx.createLinearGradient(CUSHION_INNER, 0, CUSHION_INNER + 18, 0);
+        shadowInsetGradL.addColorStop(0, 'rgba(0,0,0,0.45)');
+        shadowInsetGradL.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = shadowInsetGradL;
+        ctx.fillRect(feltX, feltY, 18, feltH);   // left inner shadow
+
+        const shadowInsetGradR = ctx.createLinearGradient(W - CUSHION_INNER, 0, W - CUSHION_INNER - 18, 0);
+        shadowInsetGradR.addColorStop(0, 'rgba(0,0,0,0.45)');
+        shadowInsetGradR.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = shadowInsetGradR;
+        ctx.fillRect(W - CUSHION_INNER - 18, feltY, 18, feltH);   // right inner shadow
+
+        const shadowInsetGradB = ctx.createLinearGradient(0, H - CUSHION_INNER, 0, H - CUSHION_INNER - 18);
+        shadowInsetGradB.addColorStop(0, 'rgba(0,0,0,0.45)');
+        shadowInsetGradB.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = shadowInsetGradB;
+        ctx.fillRect(feltX, H - CUSHION_INNER - 18, feltW, 18);   // bottom inner shadow
+
+        // Head string line + foot spot (faint, on the play surface)
         ctx.strokeStyle = 'rgba(0,0,0,0.28)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(375, FELT_INSET + 6);
-        ctx.lineTo(375, H - FELT_INSET - 6);
+        ctx.moveTo(375, CUSHION_INNER + 6);
+        ctx.lineTo(375, H - CUSHION_INNER - 6);
         ctx.stroke();
         ctx.fillStyle = 'rgba(244,236,219,0.55)';
         ctx.beginPath();
