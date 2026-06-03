@@ -174,15 +174,19 @@ export class Ball {
         const dir = Math.abs(this._velocity.x) > 0.01
             ? Math.sign(this._velocity.x)
             : Math.sign(this._velocity.y) || 1;
-        // 0.14 damping — paired with the new orbital marking renderer
-        // in canvas.ts (the disc orbits the ball centre once per
-        // revolution). At v=35 px/tick this gives ~0.26 rad/frame ≈
-        // 2.5 rev/sec at 60fps — the orbit visibly sweeps once roughly
-        // every 24 frames, slow enough to track with the eye but fast
-        // enough that you can't miss it. JJ playtest 2026-06: "the dot
-        // whips around with each evolution" — this rate matches the
-        // "whip" cadence he described.
-        this._rollAngle += (speed / ballR) * dir * 0.14;
+        // Damping 0.5 — JJ playtest 2026-06: "the rotation is off and
+        // clearly separate from the ball rolling and the speed." The
+        // previous 0.14 made the disc rotate ~7× slower than the ball
+        // actually moves on screen, which read as the ball SKIDDING
+        // rather than rolling. 0.5 is closer to physically-correct no-
+        // slip rolling (1.0 = ω = v/R exactly).
+        //
+        // At v=30 px/tick: rollAngle += ~0.79 rad/tick = ~7.5 rev/sec
+        // at 60fps. At v=5 (slow rolling): ~1.25 rev/sec. The disc
+        // visibly tracks the ball's linear motion now. There's some
+        // strobing on extreme break shots (sprite frame skip exceeds
+        // 1 per tick) but it reads as "spinning fast" not as broken.
+        this._rollAngle += (speed / ballR) * dir * 0.5;
     }
 
     public update(): void {

@@ -175,30 +175,57 @@ function buildHTML() {
         c.fillRect(0, yTop, W, yBot - yTop);
       }
 
-      // White disc + digit at u=0.5, v=0.5 — exactly at the equator.
-      // Disc radius 140px on a 1024×512 canvas → ~25° of longitudinal
-      // arc. The disc gets pre-rotated by the bake's renderFrame to
-      // land at +Y (facing camera) at frame 0, then rolling rotates it
-      // through the visible hemisphere.
-      const discCx = W * 0.5;
-      const discCy = H * 0.5;  // v=0.5 → canvas y=0.5*H (equator)
-      // Disc radius 65px on a 1024-wide canvas → 23° of longitudinal
-      // arc. Big enough that the digit is legible at in-game scale,
-      // small enough that the disc reads as "painted on" rather than
-      // "this entire ball is white". Previously 140px → 49° of arc
-      // which was visually dominating the ball.
-      const discR  = 65;
+      // TWIN DISCS — one at u=0.5, mirror at u=0.0 (which wraps to
+      // u=1.0 along the seam). The two discs are 180° apart on the
+      // sphere, so as the ball rolls one disc is always on the front
+      // hemisphere. When the original disc rotates past the silhouette
+      // and fades, the mirror disc rotates in from the opposite edge.
+      // JJ playtest 2026-06: "the miniclip balls roll seamlessly" —
+      // this twin-disc trick is the standard arcade cheat for that
+      // visual: the number never fully disappears as the ball rolls.
+      //
+      // Real billiard balls have only one disc; this is a sympathetic
+      // departure from physical accuracy for game readability.
+      const discCy = H * 0.5;
+      const discR  = 60;  // slightly smaller so two discs don't crowd the visible ball
 
+      // Original disc at u=0.5 (canvas x=512)
+      const discCx1 = W * 0.5;
       c.fillStyle = '#FFFFFF';
       c.beginPath();
-      c.arc(discCx, discCy, discR, 0, Math.PI * 2);
+      c.arc(discCx1, discCy, discR, 0, Math.PI * 2);
       c.fill();
-
       c.fillStyle = '#14192A';
       c.font = 'bold ' + Math.round(discR * 1.1) + 'px "Bitter", Georgia, serif';
       c.textAlign = 'center';
       c.textBaseline = 'middle';
-      c.fillText(String(ballId === 8 ? 8 : ballId), discCx, discCy);
+      c.fillText(String(ballId === 8 ? 8 : ballId), discCx1, discCy);
+
+      // Mirror disc at u=0.0 (canvas x=0) AND u=1.0 (canvas x=W) — the
+      // texture wraps at the seam, so draw at both edges to cover the
+      // seam cleanly. When the sphere rotates 180° around the rolling
+      // axis (X), the mirror disc swings to the front. But the texture
+      // for that disc also flips, so a normally-drawn digit appears
+      // UPSIDE-DOWN when it becomes visible. We pre-rotate the digit
+      // 180° in the canvas (using ctx.rotate around the disc centre)
+      // so it lands upright when rolled to the visible position.
+      const drawMirror = (cx) => {
+        c.fillStyle = '#FFFFFF';
+        c.beginPath();
+        c.arc(cx, discCy, discR, 0, Math.PI * 2);
+        c.fill();
+        c.save();
+        c.translate(cx, discCy);
+        c.rotate(Math.PI);  // 180° pre-rotation cancels the rolling flip
+        c.fillStyle = '#14192A';
+        c.font = 'bold ' + Math.round(discR * 1.1) + 'px "Bitter", Georgia, serif';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(String(ballId === 8 ? 8 : ballId), 0, 0);
+        c.restore();
+      };
+      drawMirror(0);   // u=0
+      drawMirror(W);   // u=1 (same seam)
 
       return cv;
     }
