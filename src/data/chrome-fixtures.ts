@@ -1,12 +1,17 @@
 /**
- * Static placeholder data for the chrome (nav categories, floor
- * stats, ticker items, balances). Per JJ's call: TKT + stats stay
- * as placeholder numbers for v1 until real economy backend lands.
+ * Static data for the chrome (nav categories, floor stats, ticker
+ * items, balances, guest identity).
+ *
+ * Beta-honest pass (2026-06-03): every fictional name + fictional
+ * stat stripped. The ticker + floor stats now broadcast V1 truths
+ * (cabinet count, V2/V3 ETAs, beta status) so users arriving from
+ * Cryo / X / Discord aren't shown fake liquidity. When real-time
+ * data sources land (wager events, Tickets emission, prize restocks)
+ * they can replace the static V1-truth items here.
  *
  * Sources:
  *  - PORTAL_CATEGORIES from portal.jsx
- *  - Floor stats from portal-dashboard-v3.jsx TAFloorStats
- *  - Ticker items from portal-dashboard-v3.jsx TATicker2
+ *  - Floor stats / ticker structure from portal-dashboard-v3.jsx
  */
 
 export interface NavCategory {
@@ -34,18 +39,18 @@ export interface FloorStat {
 }
 
 export const FLOOR_STATS: FloorStat[] = [
-  { label: 'Online',             value: '412',       tone: 'ink' },
-  { label: 'In wagered match',   value: '38',        tone: 'blue' },
-  { label: 'Floor pot · 24h',    value: '12.4 SOL',  tone: 'brass' },
-  { label: 'Biggest win · 24h',  value: '1.84 SOL',  tone: 'win' },
-  { label: 'Tickets paid · wk',  value: '184,210',   tone: 'brass' },
+  { label: 'Cabinets',   value: '4 live',      tone: 'ink' },
+  { label: 'Soon',       value: 'Pool · Kart · Shootout', tone: 'ink' },
+  { label: 'Wager',      value: 'V1 · SolShot',          tone: 'brass' },
+  { label: 'Tickets',    value: 'V3',                    tone: 'brass' },
+  { label: 'Status',     value: 'Beta',                  tone: 'blue' },
 ];
 
 export const FLOOR_STATS_MOBILE: FloorStat[] = [
-  { label: 'Online',    value: '412',       tone: 'ink' },
-  { label: 'In match',  value: '38',        tone: 'blue' },
-  { label: 'Pot 24h',   value: '12.4 SOL',  tone: 'brass' },
-  { label: 'Biggest',   value: '1.84 SOL',  tone: 'win' },
+  { label: 'Cabinets', value: '4 live',         tone: 'ink' },
+  { label: 'Wager',    value: 'V1 SolShot',     tone: 'brass' },
+  { label: 'Tickets',  value: 'V3',             tone: 'brass' },
+  { label: 'Status',   value: 'Beta',           tone: 'blue' },
 ];
 
 export interface TickerItem {
@@ -55,23 +60,24 @@ export interface TickerItem {
 }
 
 export const TICKER_ITEMS: TickerItem[] = [
-  { dot: 'var(--win)',        text: 'val3ntin0 won 0.12 SOL on SolShot' },
-  { dot: 'var(--brass)',      text: '+220 Tickets earned across the floor this hour' },
-  { dot: 'var(--win)',        text: 'mona.sol won 0.04 SOL on Basketball' },
-  { dot: 'var(--blue)',       text: '412 players online · 38 in wagered matches' },
-  { dot: 'var(--brass)',      text: 'Prize Counter restocked: Tank Hull · Crimson Ridge' },
-  { dot: 'var(--win)',        text: 'low.eth won 0.12 SOL on SolShot' },
+  { dot: 'var(--blue)',  text: 'Beta · The Arcade · The Floor is open' },
+  { dot: 'var(--brass)', text: 'Wager Mainnet · SolShot · V1' },
+  { dot: 'var(--ink)',   text: 'Solo skill mode · Basketball · Free Kicks · Keepie Uppies' },
+  { dot: 'var(--brass)', text: 'Tickets economy · V3 · no tradeable token, closed in-game currency' },
+  { dot: 'var(--ink)',   text: 'Coming soon · 8-Ball Pool · Critter Kart · Shootout' },
+  { dot: 'var(--blue)',  text: 'Sign in · V2 · Privy login returns shortly' },
 ];
 
-/** Placeholder balances. Wired to real data when the TKT economy ships. */
+/** Placeholder balances. Render "—" until a real wallet is connected. */
 export const PLACEHOLDER_BALANCES = {
-  sol: { value: '4.21', delta: '+0.34' },
-  tkt: { value: '1,840', delta: '+220' },
+  sol: { value: '—', delta: '' },
+  tkt: { value: '—', delta: '' },
 };
 
-/** Placeholder user identity. Replaced by real Privy session data. */
+/** Guest-mode identity. Replaced by real Privy session data when login
+ *  is re-enabled (V2). Until then, the masthead signet reads "guest". */
 export const PLACEHOLDER_IDENTITY = {
-  callsign: 'val3ntin0',
-  tier: 'Tier 02 · Floor Member',
-  initial: 'V',
+  callsign: 'guest',
+  tier: 'Sign in · V2',
+  initial: 'G',
 };

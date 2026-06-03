@@ -28,18 +28,12 @@ export interface StandingRow {
   prestigeTier?: number;
 }
 
-export const LEADERBOARD_STANDINGS: StandingRow[] = [
-  { rank: 1,  name: 'val3ntin0',  handle: 'V', color: 'var(--blue)',       score: '142,089', plays: 84, prize: '0.36 SOL', delta: '—',  you: true },
-  { rank: 2,  name: 'mona.sol',   handle: 'M', color: 'var(--brass)',      score: '137,402', plays: 72, prize: '0.22 SOL', delta: '+2' },
-  { rank: 3,  name: 'low.eth',    handle: 'L', color: 'var(--win)',        score: '129,815', plays: 91, prize: '0.14 SOL', delta: '+1' },
-  { rank: 4,  name: 'cryptopig',  handle: 'C', color: 'var(--lose)',       score: '124,200', plays: 56, prize: '0.08 SOL', delta: '-2' },
-  { rank: 5,  name: 'pixie',      handle: 'P', color: '#5A8F4F',           score: '118,775', plays: 64, prize: '0.05 SOL', delta: '—'  },
-  { rank: 6,  name: '7z9b…a4',    handle: '7', color: 'var(--blue)',       score: '112,640', plays: 38, prize: '0.03 SOL', delta: '+4' },
-  { rank: 7,  name: 'cookie.sol', handle: 'C', color: 'var(--brass-deep)', score: '108,200', plays: 51, prize: '0.02 SOL', delta: '-1' },
-  { rank: 8,  name: 'nyx',        handle: 'N', color: 'var(--ink)',        score: '104,917', plays: 47, prize: '0.02 SOL', delta: '+3' },
-  { rank: 9,  name: 'wave.eth',   handle: 'W', color: '#1E5B4A',           score: '99,608',  plays: 42, prize: '—',        delta: '-3' },
-  { rank: 10, name: 'glassbox',   handle: 'G', color: 'var(--lose)',       score: '94,120',  plays: 33, prize: '—',        delta: '+1' },
-];
+// Empty for V1. The Leaderboard page wires real data per cabinet from
+// the SolShot server (basketball / free-kicks / keepie-uppies / solshot
+// K/D / overall). For the "Overall" placeholder mode pre-wire, the
+// Standings component renders an empty state with the "Pick a cabinet
+// to see live rankings" framing.
+export const LEADERBOARD_STANDINGS: StandingRow[] = [];
 
 export interface FriendStanding {
   rank: number;
@@ -50,13 +44,9 @@ export interface FriendStanding {
   you?: boolean;
 }
 
-export const FRIENDS_BOARD: FriendStanding[] = [
-  { rank: 1,  name: 'val3ntin0',  handle: 'V', color: 'var(--blue)',       score: '142,089', you: true },
-  { rank: 2,  name: 'mona.sol',   handle: 'M', color: 'var(--brass)',      score: '137,402' },
-  { rank: 3,  name: 'low.eth',    handle: 'L', color: 'var(--win)',        score: '129,815' },
-  { rank: 5,  name: 'pixie',      handle: 'P', color: '#5A8F4F',           score: '118,775' },
-  { rank: 14, name: 'cookie.sol', handle: 'C', color: 'var(--brass-deep)', score: '78,200'  },
-];
+// Empty until a social graph ships (V2). Component renders an empty
+// state with "Sign in + add friends · V2" framing.
+export const FRIENDS_BOARD: FriendStanding[] = [];
 
 export interface PrizeTier {
   range: string;
@@ -64,14 +54,10 @@ export interface PrizeTier {
   tone: 'brass' | 'ink' | 'ink-70';
 }
 
-export const PRIZE_TIERS: PrizeTier[] = [
-  { range: '01',       prize: '0.36 SOL', tone: 'brass' },
-  { range: '02',       prize: '0.22 SOL', tone: 'ink'   },
-  { range: '03',       prize: '0.14 SOL', tone: 'ink'   },
-  { range: '04 – 10',  prize: '0.05 SOL', tone: 'ink-70' },
-  { range: '11 – 50',  prize: '0.02 SOL', tone: 'ink-70' },
-  { range: '51 – 200', prize: '+200 TKT', tone: 'brass' },
-];
+// Empty for V1. The Prize Pot rail renders an empty state with
+// "Prize ladder · V3 economy" framing. The visual stays; numbers
+// don't appear until the real prize ledger ships.
+export const PRIZE_TIERS: PrizeTier[] = [];
 
 export interface CabinetTab {
   id: string;
@@ -103,18 +89,22 @@ export const TIME_WINDOWS: TimeWindow[] = [
   { id: 'all', label: 'All Time' },
 ];
 
-/** Leaderboard hero stats — placeholder per JJ. */
+/** Leaderboard hero stats. Player count is live (server-driven); the
+ *  prize pot + resets-in clock are V3 economy items. Em-dashes when
+ *  not real. */
 export const LEADERBOARD_HEADER_STATS = {
-  players: '412',
-  prizePot: '3.84 SOL',
-  resetsIn: '04:21:18',
+  players: '—',
+  prizePot: 'V3',
+  resetsIn: 'V3',
 };
 
-/** "Your Standing" callout — placeholder. */
+/** "Your Standing" empty state when no live identity. Component shows
+ *  this prompt until Privy is re-enabled (V2) or a bot session JWT
+ *  resolves identity. */
 export const YOUR_STANDING = {
-  rank: '01',
-  trend: 'HOLDING ▲',
-  trendColor: 'win' as const,
-  body: "You're +4,687 ahead of mona.sol.",
-  bonus: 'Hold for +0.36 SOL in 4h 21m.',
+  rank: '—',
+  trend: 'SIGN IN · V2',
+  trendColor: 'ink' as const,
+  body: 'Sign in to track your standing.',
+  bonus: '',
 };

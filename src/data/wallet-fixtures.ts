@@ -1,6 +1,10 @@
 /**
- * Wallet page placeholder data per ed-wallet.jsx.
- * All numbers static for v1 per JJ.
+ * Wallet page data.
+ *
+ * Beta-honest pass (2026-06-03): every fictional transaction stripped.
+ * The ledger renders an empty state until Privy is back on (V2) +
+ * wallet activity (V1 wagers + V3 Tickets) wires through. Hero stats
+ * read "—" until a real wallet connects.
  */
 
 export interface WalletTx {
@@ -12,20 +16,9 @@ export interface WalletTx {
   balance: string;
 }
 
-export const WALLET_TXS: WalletTx[] = [
-  { date: '26·05 14:22', kind: 'wager-win',  detail: 'SolShot · Bullseye',           asset: 'SOL', amount: '+0.12',  balance: '4.21' },
-  { date: '26·05 14:18', kind: 'wager-loss', detail: 'SolShot · Miss',               asset: 'SOL', amount: '-0.05',  balance: '4.09' },
-  { date: '26·05 13:51', kind: 'tickets',    detail: 'Free Play · Basketball ×6',    asset: 'TKT', amount: '+180',   balance: '1,840' },
-  { date: '26·05 12:08', kind: 'wager-win',  detail: 'Basketball · Hot Zone',        asset: 'SOL', amount: '+0.06',  balance: '4.14' },
-  { date: '26·05 11:42', kind: 'deposit',    detail: 'Top Up · Phantom Wallet',      asset: 'SOL', amount: '+2.00',  balance: '4.08' },
-  { date: '25·05 22:14', kind: 'claim',      detail: 'Prize Counter · Tank Bramble', asset: 'TKT', amount: '-480',   balance: '1,660' },
-  { date: '25·05 21:50', kind: 'wager-loss', detail: 'Free Kicks · Miss',            asset: 'SOL', amount: '-0.02',  balance: '2.08' },
-  { date: '25·05 21:42', kind: 'tickets',    detail: 'Free Play · SolShot ×3',       asset: 'TKT', amount: '+150',   balance: '2,140' },
-  { date: '24·05 19:30', kind: 'wager-win',  detail: 'SolShot · Splash',             asset: 'SOL', amount: '+0.048', balance: '2.10' },
-  { date: '24·05 19:24', kind: 'wager-win',  detail: 'SolShot · Bullseye',           asset: 'SOL', amount: '+0.12',  balance: '2.05' },
-  { date: '24·05 19:08', kind: 'tickets',    detail: 'Free Play · Keepie Uppies ×8', asset: 'TKT', amount: '+160',   balance: '1,990' },
-  { date: '23·05 15:12', kind: 'withdraw',   detail: 'Withdraw · 0xa8f3…b2c1',       asset: 'SOL', amount: '-1.50',  balance: '1.93' },
-];
+// Empty until Privy returns (V2) + real wallet activity flows through.
+// Ledger component renders an empty state with the "Sign in · V2" prompt.
+export const WALLET_TXS: WalletTx[] = [];
 
 export const KIND_LABELS: Record<WalletTx['kind'], { label: string; dot: string }> = {
   'wager-win':  { label: 'Wager · Win',  dot: 'var(--win)' },
@@ -65,21 +58,22 @@ export interface LinkedWallet {
   active?: boolean;
 }
 
-export const LINKED_WALLETS: LinkedWallet[] = [
-  { name: 'Phantom',  detail: '7F3B…A91K', active: true },
-  { name: 'Backpack', detail: '8z2a…cd14' },
-];
+// Empty until users connect a wallet (V2 Privy return).
+export const LINKED_WALLETS: LinkedWallet[] = [];
 
+// Em-dash defaults — honest "no wallet yet" reading. Real values wire
+// when a Privy session resolves (V2) and the SolShot server's wallet +
+// activity endpoints land.
 export const WALLET_HERO = {
-  account: '7F3B-A91K',
-  sol: '4.21',
-  solUsd: '≈ $612',
-  solDelta: '+0.34 this week',
-  tkt: '1,840',
-  tktSub: '≈ 4 prizes claimable',
-  tktDelta: '+220 earned this week',
-  netWagers7d: '+0.42 SOL',
-  winRate: '58%',
-  biggestHit: '0.36 SOL',
-  cabinetsPlayed: '4 / 4',
+  account: '—',
+  sol: '—',
+  solUsd: '',
+  solDelta: '',
+  tkt: '—',
+  tktSub: '',
+  tktDelta: '',
+  netWagers7d: '—',
+  winRate: '—',
+  biggestHit: '—',
+  cabinetsPlayed: '4 live',
 };

@@ -1,16 +1,22 @@
 // @ts-nocheck — placeholder.
 import { Section } from '@/components/brand';
 import { FRIENDS_ONLINE } from '@/data/games-fixtures';
+import { RailEmpty } from '@/components/brand/RailEmpty';
 
 /**
  * WhosPlaying — left rail · circular avatars with online dots +
  * current-game caption. Per handoff dashboard §Left Rail.
  *
- * Placeholder list until friends-system + presence backend lands.
- * Avatars are colored discs with initials; will swap to real PFPs
- * when the friend system ships.
+ * Empty until the friend system + presence backend ship (V2).
  */
 export function WhosPlaying() {
+  if (FRIENDS_ONLINE.length === 0) {
+    return (
+      <Section title="Who's Playing" sub="V2">
+        <RailEmpty text="· Friends graph · V2 ·" />
+      </Section>
+    );
+  }
   return (
     <Section title="Who's Playing" sub={`${FRIENDS_ONLINE.length} online`}>
       <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
