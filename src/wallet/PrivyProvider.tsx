@@ -42,11 +42,24 @@ export function ArcadePrivyProvider({ children }: Props) {
     <PrivyProvider
       appId={PRIVY_APP_ID}
       config={{
-        loginMethods: ['email', 'google', 'telegram'],
+        // TG first — the bot is our primary distribution funnel, and
+        // users arriving from the arcade bot already have an active TG
+        // session. One-tap claim. Email + Google + wallet are alternate
+        // methods that bind into the same Privy account.
+        loginMethods: ['telegram', 'email', 'google', 'wallet'],
         appearance: {
-          theme: 'dark',
-          accentColor: '#FFD23A',
-          logo: undefined,
+          // Light theme matches the v2 cream-paper editorial register.
+          // Dark would clash with every surface around it.
+          theme: 'light',
+          // --blue from tokens.css. The v1 fire-yellow (#FFD23A) was
+          // superseded by v2.
+          accentColor: '#3866C8',
+          // The brass logo variant reads ceremonial — right register
+          // for the sign-in moment. Brand pack §Logo.
+          logo: '/assets/brand/arcade-logo-blue.png',
+          landingHeader: 'The Arcade',
+          loginMessage: 'Telegram preferred — your scores carry instantly.',
+          walletList: ['detected_wallets', 'phantom', 'solflare', 'backpack'],
         },
         embeddedWallets: {
           solana: { createOnLogin: 'users-without-wallets' },

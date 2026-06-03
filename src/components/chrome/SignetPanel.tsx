@@ -18,13 +18,36 @@ import { PLACEHOLDER_IDENTITY } from '@/data/chrome-fixtures';
  */
 export function SignetPanel() {
   const auth = useArcadeAuth();
-  const callsign = auth.callsign || PLACEHOLDER_IDENTITY.callsign;
-  const initial = (callsign[0] || PLACEHOLDER_IDENTITY.initial).toUpperCase();
+  // Real auth state when signed in; placeholder "guest" copy otherwise.
+  // Tier line reads honestly: TG-linked + signed in → "Floor Member",
+  // signed in without TG → "Link Telegram", not signed in → "Sign in · V2".
+  const isAuthed = auth.authenticated;
+  const callsign = isAuthed ? (auth.callsign ?? 'arcade member') : PLACEHOLDER_IDENTITY.callsign;
+  const initial = isAuthed
+    ? (auth.initial ?? callsign[0].toUpperCase())
+    : PLACEHOLDER_IDENTITY.initial;
+  const tier = isAuthed
+    ? auth.hasTelegram ? 'Floor Member' : 'Link Telegram'
+    : PLACEHOLDER_IDENTITY.tier;
+
+  // Click → if signed in, future profile sheet (not built yet, no-op);
+  // if not, open the Privy sign-in modal.
+  const handleClick = () => {
+    if (!isAuthed && auth.ready) auth.login();
+  };
 
   return (
     <div
       role="button"
       tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+      aria-label={isAuthed ? `Account · ${callsign}` : 'Sign in'}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -111,7 +134,7 @@ export function SignetPanel() {
             textTransform: 'uppercase',
           }}
         >
-          {PLACEHOLDER_IDENTITY.tier}
+          {tier}
         </span>
       </div>
 
@@ -135,12 +158,26 @@ export function SignetPanel() {
  */
 export function SignetPanelMobile() {
   const auth = useArcadeAuth();
-  const initial = (auth.callsign?.[0] || PLACEHOLDER_IDENTITY.initial).toUpperCase();
+  const isAuthed = auth.authenticated;
+  const initial = isAuthed
+    ? (auth.initial ?? auth.callsign?.[0]?.toUpperCase() ?? 'A')
+    : PLACEHOLDER_IDENTITY.initial;
+
+  const handleClick = () => {
+    if (!isAuthed && auth.ready) auth.login();
+  };
 
   return (
     <div
       role="button"
       tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
       style={{
         position: 'relative',
         width: 32,
@@ -148,7 +185,7 @@ export function SignetPanelMobile() {
         flexShrink: 0,
         cursor: 'pointer',
       }}
-      aria-label="Profile"
+      aria-label={isAuthed ? `Account · ${auth.callsign}` : 'Sign in'}
     >
       <div
         style={{
