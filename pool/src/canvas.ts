@@ -113,7 +113,8 @@ class Canvas2D_Singleton {
      * marking path (preloadSphereSprites).
      */
     public preloadBallAtlas(): Promise<void> {
-        const FRAMES = 32;
+        // Must match FRAMES_PER_BALL in scripts/bake-ball-atlas.js.
+        const FRAMES = 128;
         const BALL_IDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
         const promises: Promise<void>[] = [];
         for (const ballId of BALL_IDS) {
@@ -130,7 +131,9 @@ class Canvas2D_Singleton {
                         console.warn(`[canvas] ball atlas missing: ball ${ballId} frame ${f} — atlas disabled`);
                         resolve();
                     };
-                    const frameStr = String(f).padStart(2, '0');
+                    // 3-digit pad — frame count went 32 (2-digit) → 128
+                    // (3-digit) in JJ's "more frames" pass 2026-06.
+                    const frameStr = String(f).padStart(3, '0');
                     img.src = `assets/sprites/balls/ball_${ballId}_frame_${frameStr}.png`;
                 }));
             }
@@ -774,7 +777,12 @@ class Canvas2D_Singleton {
         // specific 2D direction) lines up with the ball's actual velocity
         // direction on screen.
         if (this._ballAtlasReady && this._ballAtlas[ballId]) {
-            const FRAMES = 32;
+            // 128 frames per ball, must match FRAMES_PER_BALL in
+            // scripts/bake-ball-atlas.js. Bumped 32→128 per JJ playtest
+            // 2026-06: "it's clinky, increase to as many as possible so
+            // it looks smooth." 128 gives 2.8°/frame — visually
+            // continuous at every roll speed we see in-game.
+            const FRAMES = 128;
             // Wrap rollAngle into [0, 2π) and pick the frame.
             const twoPi = Math.PI * 2;
             const wrapped = ((rotation % twoPi) + twoPi) % twoPi;

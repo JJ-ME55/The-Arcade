@@ -43,7 +43,7 @@ const puppeteer = require('puppeteer');
 // ──────────────────────────────────────────────────────────────────────
 
 const SPRITE_SIZE = 256;   // px per frame (in iframe ball is ~38px, so 256² gives generous downscaling resolution)
-const FRAMES_PER_BALL = 32;
+const FRAMES_PER_BALL = 128;  // bumped 32→128 per JJ playtest 2026-06: "it's clinky, increase to as many as possible so it looks smooth". 128 frames = 2.8°/frame, below the human eye's discrete-frame threshold even at high rolling speeds.
 const BALL_IDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 const OUT_DIR = path.join(__dirname, '..', 'public', 'assets', 'sprites', 'balls');
 const TMP_DIR = path.join(__dirname, '..', '.bake-tmp');
@@ -307,7 +307,9 @@ function buildHTML() {
 
       const canvas = await page.$('#c');
       const buf = await canvas.screenshot({ omitBackground: true, type: 'png' });
-      const frameStr = String(i).padStart(2, '0');
+      // 3-digit pad — 128 frames goes 000-127. Was 2-digit when frame
+      // count was 32 (00-31); kept 3 to leave headroom for future bumps.
+      const frameStr = String(i).padStart(3, '0');
       const outPath = path.join(OUT_DIR, `ball_${ballId}_frame_${frameStr}.png`);
       fs.writeFileSync(outPath, buf);
       totalBytes += buf.length;
