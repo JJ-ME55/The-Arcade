@@ -43,7 +43,7 @@ const puppeteer = require('puppeteer');
 // ──────────────────────────────────────────────────────────────────────
 
 const SPRITE_SIZE = 256;   // px per frame (in iframe ball is ~38px, so 256² gives generous downscaling resolution)
-const FRAMES_PER_BALL = 128;  // bumped 32→128 per JJ playtest 2026-06: "it's clinky, increase to as many as possible so it looks smooth". 128 frames = 2.8°/frame, below the human eye's discrete-frame threshold even at high rolling speeds.
+const FRAMES_PER_BALL = 128;
 const BALL_IDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 const OUT_DIR = path.join(__dirname, '..', 'public', 'assets', 'sprites', 'balls');
 const TMP_DIR = path.join(__dirname, '..', '.bake-tmp');
@@ -101,7 +101,17 @@ function buildHTML() {
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(-1.05, 1.05, 1.05, -1.05, 0.1, 10);
+    // Explicit camera.up so the projection is deterministic — without
+    // this, Three.js falls back to a degenerate up vector when lookAt
+    // direction is parallel to default up=(0,1,0). The previous bake
+    // had this ambiguity which is why the disc landed at the wrong
+    // screen position (JJ 2026-06: "rotation seems to happen in the
+    // wrong direction"). With up=(0,0,-1) the screen +Y axis maps to
+    // 3D -Z, so disc moving from +Y to +Z (rolling) appears to move
+    // UP on screen — the natural visual for a ball rolling away from
+    // the viewer in the bake's canonical orientation.
     camera.position.set(0, 5, 0);
+    camera.up.set(0, 0, -1);
     camera.lookAt(0, 0, 0);
 
     // Lighting — single overhead-left key + hemisphere fill. Same setup
@@ -120,17 +130,22 @@ function buildHTML() {
     let currentTexture = null;
 
     /**
-     * Build a 1024×512 equirectangular texture canvas for one ball variant.
-     * Layout: base colour fill, optional stripe band, white disc with digit
-     * at v≈0.9 (close to the +Y north pole so it ends up "on top" when
-     * the ball is at rest in canonical orientation).
+     * Build the UV-mapped sphere texture for one ball variant.
+     * Disc is placed at the EQUATOR (v=0.5) where equirectangular
+     * stretching is minimal — at v=0.5, a horizontal canvas pixel
+     * maps 1:1 to longitude on the sphere. Disc near the pole (v=0.97)
+     * is the bug JJ caught — the texture got stretched and the digit
+     * rendered as a sideways smear.
      *
-     * UV convention in Three.js SphereGeometry:
-     *   u: longitude (0..1 wraps around)
-     *   v: latitude (0 = south pole, 1 = north pole)
-     * Canvas y is flipped — y=0 at top of canvas corresponds to v=1.
+     * Layout:
+     *   Stripe band: v=0.30..0.70 (for stripe balls), wraps the sphere
+     *     around the equator
+     *   Number disc: centered at u=0.5, v=0.5 — a circular patch
+     *     containing the digit. The sphere is then pre-rotated in the
+     *     bake's renderFrame so this disc ends up facing the camera at
+     *     frame 0.
      */
-    function buildBallTexture(ballId) {
+    function buildBodyTexture(ballId) {
       const W = 1024, H = 512;
       const cv = document.createElement('canvas');
       cv.width = W; cv.height = H;
@@ -139,7 +154,6 @@ function buildHTML() {
       const isStripe = ballId >= 9 && ballId <= 15;
       const baseN = isStripe ? ballId - 8 : ballId;
 
-      // Base colour fill.
       let baseColour;
       if (ballId === 0)        baseColour = '${CUE_COLOR}';
       else if (ballId === 8)   baseColour = '${EIGHT_COLOR}';
@@ -152,64 +166,56 @@ function buildHTML() {
       // Cue ball: no markings, just the off-white sphere. Return early.
       if (ballId === 0) return cv;
 
-      // Stripe band for 9-15 — horizontal band at the equator that
-      // wraps around the ball perpendicular to the disc axis. v=0.30
-      // to v=0.70 means the band covers ~40% of the latitude range
-      // centred on the equator. Canvas y inverted, so:
-      //   v=0.30 → y = (1 - 0.30) * H = 358
-      //   v=0.70 → y = (1 - 0.70) * H = 154
+      // Stripe band — equator band, v=0.30..0.70.
       if (isStripe) {
         const stripeColour = ${JSON.stringify(SOLID_COLORS)}[baseN];
-        const yTop    = H * (1 - 0.70);  // 154
-        const yBot    = H * (1 - 0.30);  // 358
+        const yTop = H * (1 - 0.70);
+        const yBot = H * (1 - 0.30);
         c.fillStyle = stripeColour;
         c.fillRect(0, yTop, W, yBot - yTop);
       }
 
-      // White number disc at the north pole region. Centred at u=0.5,
-      // v=0.88 (close to top, but not so high that the equirectangular
-      // stretch makes it grotesque). Disc radius 110px on a 1024-wide
-      // canvas → about 10° of arc.
+      // White disc + digit at u=0.5, v=0.5 — exactly at the equator.
+      // Disc radius 140px on a 1024×512 canvas → ~25° of longitudinal
+      // arc. The disc gets pre-rotated by the bake's renderFrame to
+      // land at +Y (facing camera) at frame 0, then rolling rotates it
+      // through the visible hemisphere.
       const discCx = W * 0.5;
-      const discCy = H * (1 - 0.88);  // y = 0.12 * 512 = ~62
-      const discR  = 110;
+      const discCy = H * 0.5;  // v=0.5 → canvas y=0.5*H (equator)
+      // Disc radius 65px on a 1024-wide canvas → 23° of longitudinal
+      // arc. Big enough that the digit is legible at in-game scale,
+      // small enough that the disc reads as "painted on" rather than
+      // "this entire ball is white". Previously 140px → 49° of arc
+      // which was visually dominating the ball.
+      const discR  = 65;
 
       c.fillStyle = '#FFFFFF';
       c.beginPath();
       c.arc(discCx, discCy, discR, 0, Math.PI * 2);
       c.fill();
 
-      // Number digit on the disc. Dark navy for legibility on white,
-      // same colour our procedural drawNumberDot used. Bold weight,
-      // proportional to disc radius.
       c.fillStyle = '#14192A';
-      c.font = 'bold ' + Math.round(discR * 1.05) + 'px "Bitter", Georgia, serif';
+      c.font = 'bold ' + Math.round(discR * 1.1) + 'px "Bitter", Georgia, serif';
       c.textAlign = 'center';
       c.textBaseline = 'middle';
       c.fillText(String(ballId === 8 ? 8 : ballId), discCx, discCy);
-
-      // (Earlier draft put a second mirrored disc at the south pole so
-      // the back of the ball wouldn't look uniform. That created a
-      // visible mirrored digit when the ball rolled past 180° —
-      // confusing. Real billiard balls DO have white at both poles,
-      // but the digit only goes on one. The plain-colour back is fine
-      // — at speed nobody can read it anyway, and at rest the disc is
-      // visible on the top.)
 
       return cv;
     }
 
     /**
-     * Set up the sphere for a given ball variant.
+     * Set up the textured sphere for a given ball variant.
+     * Single UV-mapped texture — disc IS part of the sphere surface,
+     * curves with it, never goes edge-on (the bug with the flat-disc
+     * child mesh approach).
      */
     window.__setBall = (ballId) => {
-      // Dispose previous if any.
-      if (currentTexture) { currentTexture.dispose(); currentTexture = null; }
+      if (currentTexture)  { currentTexture.dispose();  currentTexture = null; }
       if (currentMaterial) { currentMaterial.dispose(); currentMaterial = null; }
-      if (currentMesh) { scene.remove(currentMesh); currentMesh = null; }
+      if (currentMesh)     { scene.remove(currentMesh); currentMesh = null; }
 
-      const texCanvas = buildBallTexture(ballId);
-      currentTexture = new THREE.CanvasTexture(texCanvas);
+      const bodyCanvas = buildBodyTexture(ballId);
+      currentTexture = new THREE.CanvasTexture(bodyCanvas);
       currentTexture.colorSpace = THREE.SRGBColorSpace;
       currentTexture.anisotropy = 8;
       currentTexture.needsUpdate = true;
@@ -227,20 +233,55 @@ function buildHTML() {
     };
 
     /**
-     * Render one frame at the given rotation. We pre-rotate the sphere
-     * by π/2 around X so the disc axis (originally UV north pole at +Y)
-     * sits along +Z instead — this makes the stripe (a latitude band
-     * on the texture) wrap perpendicular to the camera axis, appearing
-     * as a HORIZONTAL BAND across the middle of the visible ball from
-     * above (rather than the ring-at-edge you'd get without the
-     * pre-rotation). The rolling rotation is applied on top of this
-     * pre-rotation, still around X — so as rotationRad increases the
-     * disc moves around the visible ball (front edge → bottom →
-     * back edge → top centre → front edge).
+     * Render one frame at the given rotation.
+     *
+     * The texture has the disc painted at UV (0.5, 0.5) — the equator.
+     * In Three.js SphereGeometry default UV mapping, UV (0.5, 0.5)
+     * maps to 3D -X direction (longitude 180°, equator).
+     *
+     * To put the disc at +Y (facing camera) at frame 0, we pre-rotate
+     * the sphere by -π/2 around the Z axis (-X → +Y). Then we apply
+     * the rolling rotation around X — this rotates the +Y point to
+     * +Z (screen DOWN), then to -Y (back, invisible), then to -Z
+     * (screen UP), back to +Y.
+     *
+     * Rotation order is 'ZYX' so the Z pre-rotation is applied FIRST
+     * (to native orientation), then X is applied to the result. With
+     * the default 'XYZ' order, X would be applied first and wouldn't
+     * affect the -X disc position (rotation around its own axis), so
+     * no rolling would be visible.
+     *
+     * Visibility cycle (with disc covering ~25° angular extent on the
+     * sphere surface):
+     *   - 0°:        disc fully visible at centre
+     *   - 90°:       disc at screen DOWN edge, partial visible
+     *   - 180°:      disc on back hemisphere, INVISIBLE
+     *   - 270°:      disc at screen UP edge, partial visible
+     *   - 360°:      back to centre
+     *
+     *   Disc is fully visible ~64% of the cycle (any rotation where
+     *   the disc CENTRE is within ±115° of +Y, since disc extends
+     *   25° from its centre).
      */
     window.__renderFrame = (rotationRad) => {
       if (!currentMesh) return;
-      currentMesh.rotation.set(Math.PI / 2 + rotationRad, 0, 0);
+      // Three.js SphereGeometry default UV: u=0.5, v=0.5 → 3D +X.
+      // Z=+π/2 takes +X → +Y (disc faces camera). But the digit's
+      // "up" direction (originally sphere +Y on the texture) ends up
+      // at world -X, which means the digit prints SIDEWAYS in the
+      // rendered image. An additional Y=-π/2 rotation spins the digit
+      // around the disc-axis (+Y) so its "up" ends at world -Z which
+      // is screen UP — digit appears upright. Y rotation around +Y
+      // doesn't move the disc itself (it's on the rotation axis).
+      // Then X=rotationRad rolls the disc around the X axis: +Y →
+      // +Z → -Y → -Z → +Y as rotationRad goes 0 → 2π.
+      // Three.js rotation 'XYZ' order applies Z FIRST, then Y, then X
+      // (matrix = R_x * R_y * R_z, evaluated right-to-left). So:
+      //   Z=+π/2 applied first  → disc at +X moves to +Y (faces camera)
+      //   Y=-π/2 applied second → spins disc-axis to align digit upright
+      //   X=rotationRad last    → rolling rotation
+      currentMesh.rotation.order = 'XYZ';
+      currentMesh.rotation.set(rotationRad, -Math.PI / 2, Math.PI / 2);
       renderer.render(scene, camera);
     };
 
