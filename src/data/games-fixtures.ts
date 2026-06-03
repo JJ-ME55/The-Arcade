@@ -58,6 +58,8 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     yield: 30,
     hi: '38',
     heroSrc: '/assets/games/hero/basketball.webp',
+    tileSrc: '/assets/games/hero/basketball-tile.webp',
+    splashSrc: '/assets/games/hero/basketball-splash.webp',
     heroFocus: 'center',
   },
   {
@@ -71,6 +73,8 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     yield: 25,
     hi: '11',
     heroSrc: '/assets/games/hero/free-kicks.webp',
+    tileSrc: '/assets/games/hero/free-kicks-tile.webp',
+    splashSrc: '/assets/games/hero/free-kicks-splash.webp',
     heroFocus: 'center',
   },
   {
@@ -84,6 +88,8 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     yield: 20,
     hi: '208',
     heroSrc: '/assets/games/hero/keepie-uppies.webp',
+    tileSrc: '/assets/games/hero/keepie-uppies-tile.webp',
+    splashSrc: '/assets/games/hero/keepie-uppies-splash.webp',
     heroFocus: 'center',
   },
   {
