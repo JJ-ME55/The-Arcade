@@ -126,15 +126,24 @@ export function FeaturedCabinet({ activeIndex, setActiveIndex }: FeaturedCabinet
           {featured.genre}
         </p>
 
+        {/* Font cap conditional on name length — "8-BALL POOL" + "KEEPIE
+            UPPIES" hit the 80px ceiling and wrap unkindly across the
+            58%-width content panel. Tightening the cap when the name is
+            > 9 chars keeps long titles on one or two clean lines. */}
         <h2
           style={{
             fontFamily: 'var(--font-display)',
-            fontSize: 'clamp(2.5rem, 6vw, 5rem)',
+            fontSize:
+              featured.name.length > 9
+                ? 'clamp(2.25rem, 4.6vw, 3.75rem)'
+                : 'clamp(2.5rem, 6vw, 5rem)',
             letterSpacing: '0.005em',
             lineHeight: 0.92,
             textTransform: 'uppercase',
             color: 'var(--paper)',
             margin: 0,
+            hyphens: 'none',
+            wordBreak: 'normal',
           }}
         >
           {featured.name}

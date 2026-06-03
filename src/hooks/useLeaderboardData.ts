@@ -11,6 +11,14 @@ interface ServerRow {
   bestScore: number;
   totalSubmissions?: number;
   telegramUserId?: number;
+  // SolShot-only fields (present on /api/games/solshot/leaderboard rows).
+  // The service file emits them; absence is normal for all other games.
+  kdRatio?: number;
+  winRate?: number;
+  matchesPlayed?: number;
+  wins?: number;
+  losses?: number;
+  prestigeTier?: number;
 }
 
 interface ServerResponse {
@@ -52,8 +60,9 @@ function estimatePrize(rank: number): string {
 
 export interface UseLeaderboardOptions {
   /** API slug, or null to use placeholder.
-   *  `overall` hits the cross-game aggregator endpoint. */
-  api?: 'basketball' | 'keepieuppies' | 'freekicks' | 'overall';
+   *  `overall` hits the cross-game aggregator endpoint. `solshot` hits
+   *  the K/D + W% scorecard endpoint (PvP, not single-score). */
+  api?: 'basketball' | 'keepieuppies' | 'freekicks' | 'overall' | 'solshot';
   /** Time window. `24h` / `7d` send a `?since=<iso>` param; the server
    *  filters to users whose all-time best was achieved in that window
    *  (semantic note documented in standaloneLeaderboard.js). */
@@ -137,6 +146,7 @@ export function useLeaderboardData({
           return;
         }
         setTotalPlayers(typeof data.totalPlayers === 'number' ? data.totalPlayers : null);
+        const isSolShot = api === 'solshot';
         const mapped: StandingRow[] = data.leaderboard.map((r, i) => {
           const name =
             r.displayName?.trim() ||
@@ -145,16 +155,33 @@ export function useLeaderboardData({
             'anon';
           const isMe =
             myName && name.toLowerCase() === myName.toLowerCase() ? true : undefined;
+          // For SolShot the headline "score" is the K/D ratio formatted to 2dp.
+          // For everything else it's the best score with thousands separators.
+          const scoreDisplay = isSolShot && typeof r.kdRatio === 'number'
+            ? r.kdRatio.toFixed(2)
+            : r.bestScore.toLocaleString();
           return {
             rank: r.rank ?? i + 1,
             name,
             handle: (name[0] || '?').toUpperCase(),
             color: colorFor(name),
-            score: r.bestScore.toLocaleString(),
+            score: scoreDisplay,
             plays: r.totalSubmissions ?? 0,
             prize: estimatePrize(r.rank ?? i + 1),
             delta: '—',
             you: isMe,
+            // SolShot rows carry the structured stats so the Standings
+            // table can render K/D + W% as labelled columns.
+            ...(isSolShot
+              ? {
+                  kdRatio: r.kdRatio,
+                  winRate: r.winRate,
+                  matchesPlayed: r.matchesPlayed,
+                  wins: r.wins,
+                  losses: r.losses,
+                  prestigeTier: r.prestigeTier,
+                }
+              : {}),
           };
         });
         setRows(mapped);

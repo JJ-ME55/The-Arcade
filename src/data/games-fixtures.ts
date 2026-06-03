@@ -58,6 +58,8 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     yield: 30,
     hi: '38',
     heroSrc: '/assets/games/hero/basketball.webp',
+    tileSrc: '/assets/games/hero/basketball-tile.webp',
+    splashSrc: '/assets/games/hero/basketball-splash.webp',
     heroFocus: 'center',
   },
   {
@@ -71,6 +73,8 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     yield: 25,
     hi: '11',
     heroSrc: '/assets/games/hero/free-kicks.webp',
+    tileSrc: '/assets/games/hero/free-kicks-tile.webp',
+    splashSrc: '/assets/games/hero/free-kicks-splash.webp',
     heroFocus: 'center',
   },
   {
@@ -84,6 +88,8 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     yield: 20,
     hi: '208',
     heroSrc: '/assets/games/hero/keepie-uppies.webp',
+    tileSrc: '/assets/games/hero/keepie-uppies-tile.webp',
+    splashSrc: '/assets/games/hero/keepie-uppies-splash.webp',
     heroFocus: 'center',
   },
   {
@@ -92,6 +98,9 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     // on arcade/8-ball-pool branch (Webpack + TS standalone) — lift into
     // src/games/pool/ pending. /play/pool routes resolve; /launch shows
     // a backend-ready placeholder until the lift lands.
+    //
+    // Hero art is a brand-styled placeholder (ink-deep bg + 8-ball motif
+    // + "COMING ART" subtitle) until studio art ships.
     slug: 'pool',
     name: '8-Ball Pool',
     tag: 'NEW',
@@ -102,6 +111,8 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     yield: 40,
     hi: '—',
     heroSrc: '/assets/games/hero/pool.webp',
+    tileSrc: '/assets/games/hero/pool-tile.webp',
+    splashSrc: '/assets/games/hero/pool-splash.webp',
     heroFocus: 'center',
   },
 ];
