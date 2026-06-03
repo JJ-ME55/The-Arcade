@@ -320,18 +320,28 @@ function Filters({ isMobile, activeCabinet, activeWindow, onCabinet, onWindow }:
 }
 
 /* ============================================================
-   PODIUM
+   PODIUM — stepped olympic-style platforms (gold / silver / bronze)
    ============================================================ */
+
+/**
+ * Per-rank platform chrome. The three platforms align to the bottom
+ * (`alignItems: 'flex-end'`) so the height differential creates the
+ * stepped olympic-podium silhouette: gold tallest in the centre,
+ * silver mid on the left, bronze shortest on the right.
+ *
+ * Mobile collapses the stack: #01 full-width on top, #02 + #03 side-
+ * by-side below — same data hierarchy, single-column friendly.
+ */
 function Podium({ top3, isMobile }: { top3: StandingRow[]; isMobile: boolean }) {
   if (top3.length < 3) return null;
 
   if (isMobile) {
     return (
-      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
-        <PodiumSlot rank={1} row={top3[0]} size="lg" winner />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <PodiumSlot rank={2} row={top3[1]} size="sm" />
-          <PodiumSlot rank={3} row={top3[2]} size="sm" />
+      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <PodiumPlatform rank={1} row={top3[0]} height={260} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <PodiumPlatform rank={2} row={top3[1]} height={220} />
+          <PodiumPlatform rank={3} row={top3[2]} height={200} />
         </div>
       </div>
     );
@@ -342,140 +352,276 @@ function Podium({ top3, isMobile }: { top3: StandingRow[]; isMobile: boolean }) 
       style={{
         marginTop: 28,
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr 1fr',
-        gap: 24,
+        gridTemplateColumns: '1fr 1.1fr 1fr',
+        gap: 14,
         alignItems: 'end',
       }}
     >
-      <PodiumSlot rank={2} row={top3[1]} size="md" />
-      <PodiumSlot rank={1} row={top3[0]} size="lg" winner />
-      <PodiumSlot rank={3} row={top3[2]} size="sm" />
+      <PodiumPlatform rank={2} row={top3[1]} height={300} />
+      <PodiumPlatform rank={1} row={top3[0]} height={380} />
+      <PodiumPlatform rank={3} row={top3[2]} height={260} />
     </div>
   );
 }
 
-function PodiumSlot({ rank, row, size, winner }: any) {
-  const sizes = {
-    sm: { num: 96, name: 24, score: 22 },
-    md: { num: 128, name: 28, score: 26 },
-    lg: { num: 180, name: 38, score: 32 },
-  }[size];
-  const lineColor = winner ? 'var(--brass)' : 'var(--ink)';
+/** Brass laurel branch — used flanking the champion's #01 rank number.
+ *  `side` = 'left' renders pointing outward to the left; 'right' mirrors.
+ *  Small + decorative; brand-toned. Not a real wreath, just a flourish. */
+function LaurelBranch({ side }: { side: 'left' | 'right' }) {
+  return (
+    <svg
+      width={48}
+      height={88}
+      viewBox="0 0 48 88"
+      style={{
+        transform: side === 'left' ? 'scaleX(-1)' : 'none',
+        flexShrink: 0,
+      }}
+      aria-hidden
+    >
+      <path
+        d="M 6 6 Q 30 30 30 80"
+        stroke="var(--brass-deep)"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        fill="none"
+      />
+      <ellipse cx={18} cy={16} rx={6} ry={2.8} fill="var(--brass)" transform="rotate(-35 18 16)" />
+      <ellipse cx={24} cy={28} rx={6.5} ry={2.8} fill="var(--brass-glint)" transform="rotate(-50 24 28)" />
+      <ellipse cx={28} cy={42} rx={6.5} ry={2.8} fill="var(--brass)" transform="rotate(-65 28 42)" />
+      <ellipse cx={30} cy={56} rx={6} ry={2.8} fill="var(--brass-glint)" transform="rotate(-80 30 56)" />
+      <ellipse cx={31} cy={70} rx={5.5} ry={2.6} fill="var(--brass)" transform="rotate(-90 31 70)" />
+    </svg>
+  );
+}
+
+/** Stepped podium platform — single column with the rank chrome.
+ *  Heights are passed by parent so the stepped silhouette comes from
+ *  the layout, not from the slot itself.
+ *
+ *  Each platform draws three vertical zones:
+ *    1. Label band at the top (CHAMPION / RANK 02 / RANK 03)
+ *    2. Hero rank number flanked by laurels (only on #01)
+ *    3. Player block (handle disc + name + score + meta)
+ *
+ *  Colour scheme:
+ *    rank 1 → paper bg → brass-glint vertical gradient, brass-deep top rule, 5px brass underline
+ *    rank 2 → paper bg → cool grey top rule (ink), 3px ink underline
+ *    rank 3 → paper bg → warm bronze top rule (brass-deep), 3px brass-deep underline
+ */
+function PodiumPlatform({
+  rank,
+  row,
+  height,
+}: {
+  rank: number;
+  row: StandingRow;
+  height: number;
+}) {
+  const isChamp = rank === 1;
+  const isSilver = rank === 2;
+
+  const accent = isChamp
+    ? 'var(--brass)'
+    : isSilver
+    ? 'var(--ink)'
+    : 'var(--brass-deep)';
+  const accentSoft = isChamp
+    ? 'var(--brass-glint)'
+    : isSilver
+    ? 'var(--ink-70)'
+    : 'var(--brass)';
+  const labelColor = isChamp ? 'var(--brass-deep)' : 'var(--ink-45)';
+  const labelText = isChamp ? 'CHAMPION' : `RANK ${String(rank).padStart(2, '0')}`;
+
+  const isKdRow = typeof row.kdRatio === 'number';
+
   return (
     <div
       style={{
         position: 'relative',
-        paddingTop: 14,
-        borderTop: `${winner ? 4 : 2}px solid ${lineColor}`,
+        height,
+        background: isChamp
+          ? 'linear-gradient(180deg, rgba(232,200,121,0.18) 0%, var(--paper) 55%, var(--paper) 100%)'
+          : isSilver
+          ? 'linear-gradient(180deg, rgba(21,32,58,0.06) 0%, var(--paper) 55%, var(--paper) 100%)'
+          : 'linear-gradient(180deg, rgba(200,160,99,0.16) 0%, var(--paper) 55%, var(--paper) 100%)',
+        border: '1.5px solid var(--ink)',
+        borderTop: `${isChamp ? 4 : 2}px solid ${accent}`,
+        borderBottom: `${isChamp ? 6 : 4}px solid ${accent}`,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
       }}
     >
+      {/* Champion banner — only renders on #01 platform */}
+      {isChamp && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 8,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '3px 14px',
+            background: 'var(--brass-deep)',
+            color: 'var(--paper)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 9,
+            letterSpacing: '0.28em',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+          }}
+        >
+          Champion
+        </div>
+      )}
+
+      {/* Label band */}
       <div
         style={{
           fontFamily: 'var(--font-mono)',
           fontSize: 9.5,
           letterSpacing: '0.22em',
-          color: winner ? 'var(--brass-deep)' : 'var(--ink-45)',
+          color: labelColor,
           textTransform: 'uppercase',
           fontWeight: 700,
-          marginBottom: 4,
+          textAlign: 'center',
+          paddingTop: isChamp ? 32 : 16,
+          paddingBottom: 8,
         }}
       >
-        {winner ? 'Champion' : `Rank ${String(rank).padStart(2, '0')}`}
+        {labelText}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+      {/* Hero rank number — flanked by laurels for the champion */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: isChamp ? 6 : 0,
+          padding: isChamp ? '4px 0 14px' : '6px 0 12px',
+        }}
+      >
+        {isChamp && <LaurelBranch side="left" />}
         <span
           style={{
             fontFamily: 'var(--font-display)',
-            fontSize: sizes.num,
-            color: winner ? 'var(--brass)' : 'var(--ink)',
-            lineHeight: 0.86,
+            fontSize: isChamp ? 132 : 96,
+            color: accent,
+            lineHeight: 0.82,
             letterSpacing: '0.01em',
           }}
         >
           {String(rank).padStart(2, '0')}
         </span>
-        <div style={{ flex: 1, minWidth: 0, paddingTop: 6 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <div
-              style={{
-                width: 26, height: 26, borderRadius: '50%',
-                background: row.color,
-                border: '1.5px solid var(--ink)',
-                color: 'var(--paper)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'var(--font-display)',
-                fontSize: 12,
-                flexShrink: 0,
-              }}
-            >
-              {row.handle}
-            </div>
-            <div
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: sizes.name,
-                color: 'var(--ink)',
-                lineHeight: 1,
-                textTransform: 'uppercase',
-                letterSpacing: '0.02em',
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                minWidth: 0,
-              }}
-            >
-              {row.name}
-            </div>
-          </div>
-          <div
+        {isChamp && <LaurelBranch side="right" />}
+      </div>
+
+      {/* Player block — handle disc + name */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          padding: '0 12px',
+          marginBottom: 4,
+        }}
+      >
+        <div
+          style={{
+            width: isChamp ? 26 : 22,
+            height: isChamp ? 26 : 22,
+            borderRadius: '50%',
+            background: row.color,
+            border: `1.5px solid ${accentSoft}`,
+            color: 'var(--paper)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: 'var(--font-display)',
+            fontSize: isChamp ? 12 : 10,
+            flexShrink: 0,
+          }}
+        >
+          {row.handle}
+        </div>
+        <div
+          style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: isChamp ? 18 : 15,
+            fontWeight: 700,
+            color: 'var(--ink)',
+            lineHeight: 1,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            minWidth: 0,
+            maxWidth: '85%',
+          }}
+        >
+          {row.name}
+        </div>
+      </div>
+
+      {/* Score — large mono number */}
+      <div
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: isChamp ? 30 : 24,
+          fontWeight: 700,
+          color: 'var(--ink)',
+          letterSpacing: '0.01em',
+          textAlign: 'center',
+          marginTop: 2,
+          marginBottom: 4,
+        }}
+      >
+        {row.score}
+        {isKdRow && (
+          <span
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: sizes.score, fontWeight: 700,
-              color: 'var(--ink)',
-              letterSpacing: '0.01em',
-              marginBottom: 4,
-            }}
-          >
-            {row.score}
-            {typeof row.kdRatio === 'number' && (
-              <span
-                style={{
-                  fontSize: sizes.score * 0.55,
-                  color: 'var(--ink-45)',
-                  marginLeft: 8,
-                  letterSpacing: '0.04em',
-                }}
-              >
-                K/D
-              </span>
-            )}
-          </div>
-          <div
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 10, color: 'var(--ink-45)',
+              fontSize: isChamp ? 14 : 11,
+              color: 'var(--ink-45)',
+              marginLeft: 6,
               letterSpacing: '0.06em',
             }}
           >
-            {typeof row.kdRatio === 'number' ? (
-              <>
-                {row.matchesPlayed ?? row.plays} matches ·{' '}
-                <span
-                  style={{
-                    color: (row.winRate ?? 0) >= 50 ? 'var(--win)' : 'var(--brass-deep)',
-                    fontWeight: 700,
-                  }}
-                >
-                  {row.winRate ?? '—'}% W
-                </span>
-              </>
-            ) : (
-              <>
-                {row.plays} plays ·{' '}
-                <span style={{ color: 'var(--win)', fontWeight: 700 }}>{row.prize}</span>
-              </>
-            )}
-          </div>
-        </div>
+            K/D
+          </span>
+        )}
+      </div>
+
+      {/* Meta — plays · prize (or matches · W% on SolShot) */}
+      <div
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 10,
+          color: 'var(--ink-45)',
+          letterSpacing: '0.06em',
+          textAlign: 'center',
+          paddingBottom: 12,
+        }}
+      >
+        {isKdRow ? (
+          <>
+            {row.matchesPlayed ?? row.plays} matches ·{' '}
+            <span
+              style={{
+                color: (row.winRate ?? 0) >= 50 ? 'var(--win)' : 'var(--brass-deep)',
+                fontWeight: 700,
+              }}
+            >
+              {row.winRate ?? '—'}% W
+            </span>
+          </>
+        ) : (
+          <>
+            {row.plays} plays ·{' '}
+            <span style={{ color: 'var(--win)', fontWeight: 700 }}>{row.prize}</span>
+          </>
+        )}
       </div>
     </div>
   );
@@ -516,7 +662,9 @@ function Standings({ rows, placeholder, cabinetLabel, window: timeWindow }: any)
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: isMobile ? '36px 1fr 80px 50px' : '48px 1fr 110px 110px 80px',
+            gridTemplateColumns: isMobile
+              ? '36px 1fr 64px 50px'
+              : '48px 1fr 80px 100px 100px 70px',
             padding: '10px 16px',
             background: 'var(--ink)',
             color: 'var(--paper)',
@@ -529,6 +677,7 @@ function Standings({ rows, placeholder, cabinetLabel, window: timeWindow }: any)
         >
           <span>#</span>
           <span>Player</span>
+          {!isMobile && <span style={{ textAlign: 'right' }}>Plays</span>}
           <span style={{ textAlign: 'right' }}>{scoreColumnLabel}</span>
           {!isMobile && <span style={{ textAlign: 'right' }}>{secondColumnLabel}</span>}
           <span style={{ textAlign: 'right' }}>Δ</span>
@@ -554,12 +703,6 @@ function StandingsRow({ row, isLast, isMobile, isSolShotMode }: any) {
       : row.delta.startsWith('-')
       ? 'var(--lose)'
       : 'var(--ink-45)';
-  // SolShot: the plays-meta label changes from "X plays" to "X matches"
-  // and we lean on the structured fields (matchesPlayed, winRate) instead
-  // of the formatted strings.
-  const metaLabel = isSolShotMode
-    ? `· ${row.matchesPlayed ?? row.plays} matches`
-    : `· ${row.plays} plays`;
   // For the SolShot mode the "prize" column becomes the W% value styled
   // brass-deep to read as a percentage, not as a money value.
   const secondCellValue = isSolShotMode
@@ -581,7 +724,9 @@ function StandingsRow({ row, isLast, isMobile, isSolShotMode }: any) {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '36px 1fr 80px 50px' : '48px 1fr 110px 110px 80px',
+        gridTemplateColumns: isMobile
+          ? '36px 1fr 64px 50px'
+          : '48px 1fr 80px 100px 100px 70px',
         padding: '11px 16px',
         alignItems: 'center',
         borderBottom: isLast ? 'none' : '1px dotted var(--hair)',
@@ -645,19 +790,24 @@ function StandingsRow({ row, isLast, isMobile, isSolShotMode }: any) {
             </span>
           )}
         </span>
-        {!isMobile && (
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 10, color: 'var(--ink-45)',
-              letterSpacing: '0.04em',
-              marginLeft: 'auto', flexShrink: 0,
-            }}
-          >
-            {metaLabel}
-          </span>
-        )}
       </div>
+      {/* Plays column — count of attempts / matches. Lives between
+          Player and Score per the v2 spec, was previously surfaced as
+          an inline meta on the player name. */}
+      {!isMobile && (
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 12,
+            fontWeight: 700,
+            color: 'var(--ink-70)',
+            textAlign: 'right',
+            letterSpacing: '0.02em',
+          }}
+        >
+          {isSolShotMode ? row.matchesPlayed ?? row.plays : row.plays}
+        </span>
+      )}
       <span
         style={{
           fontFamily: 'var(--font-mono)',
