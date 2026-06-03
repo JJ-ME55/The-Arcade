@@ -4,7 +4,7 @@ import { Dashboard } from '@/routes/Dashboard';
 import { Leaderboards } from '@/routes/Leaderboards';
 import { Prizes } from '@/routes/Prizes';
 import { Wallet } from '@/routes/Wallet';
-import { SolShotRedirect } from '@/routes/SolShotRedirect';
+import { SolShotDetail } from '@/routes/SolShotDetail';
 import { RequireAuth } from '@/routes/RequireAuth';
 import { AppShell } from '@/components/chrome/AppShell';
 import { GameDetail } from '@/routes/games/GameDetail';
@@ -56,12 +56,17 @@ export function App() {
         <Route path="/play/pool/wager" element={<Wager />} />
         <Route path="/play/pool/async" element={<PoolAsync />} />
         <Route path="/play/pool/settings" element={<PoolSettings />} />
-        <Route path="/play/solshot" element={<SolShotRedirect />} />
+        {/* SolShot editorial detail page — replaces the old raw redirect.
+            Mounts inside AppShell below so the v2 brand chrome wraps it. */}
 
         {/* Everything else wraps in the v2 brand chrome
             (Masthead, FloorStats, Ticker, MobileTabBar). */}
         <Route element={<AppShell />}>
           <Route path="/play" element={<Dashboard />} />
+          {/* SolShot has its own editorial detail (K/D + W% scorecard +
+              session-handoff CTA) since the canvas lives off-site. Must
+              come before the generic /play/:slug catch-all. */}
+          <Route path="/play/solshot" element={<SolShotDetail />} />
           <Route path="/play/:slug" element={<GameDetail />} />
           <Route path="/leaderboard" element={<Leaderboards />} />
           <Route path="/leaderboard/:game" element={<Leaderboards />} />

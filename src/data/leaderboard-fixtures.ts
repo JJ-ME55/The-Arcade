@@ -17,6 +17,15 @@ export interface StandingRow {
   prize: string;
   delta: string;
   you?: boolean;
+  /** SolShot-only fields. Populated by useLeaderboardData when api='solshot'.
+   *  When present, the Standings table swaps Score/Prize column headers
+   *  for K/D and W% and renders these values. */
+  kdRatio?: number;
+  winRate?: number;
+  matchesPlayed?: number;
+  wins?: number;
+  losses?: number;
+  prestigeTier?: number;
 }
 
 export const LEADERBOARD_STANDINGS: StandingRow[] = [
@@ -69,16 +78,15 @@ export interface CabinetTab {
   label: string;
   /** API slug for the leaderboard hook. `overall` hits the cross-game
    *  aggregator endpoint (`/api/games/leaderboard`). Per-game slugs map
-   *  to `/api/games/<slug>/leaderboard`. Tabs without an `api` value
-   *  fall back to placeholder data — currently `solshot`, which uses
-   *  gold/prestige instead of a single score and lives at solshot.gg. */
-  api?: 'basketball' | 'keepieuppies' | 'freekicks' | 'overall';
+   *  to `/api/games/<slug>/leaderboard`. SolShot uses K/D + W% (PvP
+   *  artillery, no single-score model) — same hook handles the wire. */
+  api?: 'basketball' | 'keepieuppies' | 'freekicks' | 'overall' | 'solshot';
   to?: string;
 }
 
 export const CABINET_TABS: CabinetTab[] = [
   { id: 'overall',       label: 'Overall',       api: 'overall' },
-  { id: 'solshot',       label: 'SolShot' },
+  { id: 'solshot',       label: 'SolShot',       api: 'solshot' },
   { id: 'basketball',    label: 'Basketball',    api: 'basketball' },
   { id: 'free-kicks',    label: 'Free Kicks',    api: 'freekicks' },
   { id: 'keepie-uppies', label: 'Keepie Uppies', api: 'keepieuppies' },

@@ -98,6 +98,9 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     // on arcade/8-ball-pool branch (Webpack + TS standalone) — lift into
     // src/games/pool/ pending. /play/pool routes resolve; /launch shows
     // a backend-ready placeholder until the lift lands.
+    //
+    // Hero art is a brand-styled placeholder (ink-deep bg + 8-ball motif
+    // + "COMING ART" subtitle) until studio art ships.
     slug: 'pool',
     name: '8-Ball Pool',
     tag: 'NEW',
@@ -108,6 +111,8 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     yield: 40,
     hi: '—',
     heroSrc: '/assets/games/hero/pool.webp',
+    tileSrc: '/assets/games/hero/pool-tile.webp',
+    splashSrc: '/assets/games/hero/pool-splash.webp',
     heroFocus: 'center',
   },
 ];

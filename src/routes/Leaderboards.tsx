@@ -127,11 +127,13 @@ function LeaderboardHero({
   totalPlayers: number | null;
   cabinetLabel?: string;
 }) {
-  // `totalPlayers` is live data from the server. Prize Pot + Resets In
-  // stay placeholder for V1 — they need the economy ruled in (prize
-  // ledger) and a decision on whether all-time boards reset at all.
+  // `totalPlayers` is live data from the server. Show `—` while loading
+  // (was falling back to the 412 fixture placeholder, which caused a
+  // jarring flash from 412 → real count). Prize Pot + Resets In stay
+  // as `—` for V1 — they need the economy ruled in (prize ledger) and
+  // a decision on whether all-time boards reset at all.
   const playersValue =
-    typeof totalPlayers === 'number' ? totalPlayers.toLocaleString() : LEADERBOARD_HEADER_STATS.players;
+    typeof totalPlayers === 'number' ? totalPlayers.toLocaleString() : '—';
   const eyebrow = cabinetLabel
     ? `Standings · The Floor · ${cabinetLabel}`
     : 'Standings · The Floor';
@@ -179,16 +181,16 @@ function LeaderboardHero({
       {!isMobile && (
         <>
           <HeaderStat label="Players" value={playersValue} tone="var(--ink)" />
-          <HeaderStat label="Prize Pot" value={LEADERBOARD_HEADER_STATS.prizePot} tone="var(--win)" />
-          <HeaderStat label="Resets In" value={LEADERBOARD_HEADER_STATS.resetsIn} tone="var(--brass-deep)" />
+          <HeaderStat label="Prize Pot" value="—" tone="var(--ink-45)" />
+          <HeaderStat label="Resets In" value="—" tone="var(--ink-45)" />
         </>
       )}
 
       {isMobile && (
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
           <HeaderStat label="Players" value={playersValue} tone="var(--ink)" small />
-          <HeaderStat label="Prize Pot" value={LEADERBOARD_HEADER_STATS.prizePot} tone="var(--win)" small />
-          <HeaderStat label="Resets In" value={LEADERBOARD_HEADER_STATS.resetsIn} tone="var(--brass-deep)" small />
+          <HeaderStat label="Prize Pot" value="—" tone="var(--ink-45)" small />
+          <HeaderStat label="Resets In" value="—" tone="var(--ink-45)" small />
         </div>
       )}
     </div>
@@ -434,6 +436,18 @@ function PodiumSlot({ rank, row, size, winner }: any) {
             }}
           >
             {row.score}
+            {typeof row.kdRatio === 'number' && (
+              <span
+                style={{
+                  fontSize: sizes.score * 0.55,
+                  color: 'var(--ink-45)',
+                  marginLeft: 8,
+                  letterSpacing: '0.04em',
+                }}
+              >
+                K/D
+              </span>
+            )}
           </div>
           <div
             style={{
@@ -442,8 +456,24 @@ function PodiumSlot({ rank, row, size, winner }: any) {
               letterSpacing: '0.06em',
             }}
           >
-            {row.plays} plays ·{' '}
-            <span style={{ color: 'var(--win)', fontWeight: 700 }}>{row.prize}</span>
+            {typeof row.kdRatio === 'number' ? (
+              <>
+                {row.matchesPlayed ?? row.plays} matches ·{' '}
+                <span
+                  style={{
+                    color: (row.winRate ?? 0) >= 50 ? 'var(--win)' : 'var(--brass-deep)',
+                    fontWeight: 700,
+                  }}
+                >
+                  {row.winRate ?? '—'}% W
+                </span>
+              </>
+            ) : (
+              <>
+                {row.plays} plays ·{' '}
+                <span style={{ color: 'var(--win)', fontWeight: 700 }}>{row.prize}</span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -458,12 +488,22 @@ function Standings({ rows, placeholder, cabinetLabel, window: timeWindow }: any)
   const isMobile = useIsMobile();
   const windowLabel =
     timeWindow === '24h' ? '24h' : timeWindow === '7d' ? '7d' : 'all-time';
+  // SolShot rows arrive with kdRatio populated — that's how the Standings
+  // component detects the K/D + W% column mode without a parent prop.
+  const isSolShotMode = !placeholder && rows.length > 0 && typeof rows[0]?.kdRatio === 'number';
   const sub = placeholder
     ? `${rows.length} ranked · ${cabinetLabel || 'Overall'} — placeholder data`
     : `${rows.length} ranked · ${cabinetLabel} · ${windowLabel}`;
-  // Overall ranks players by total plays across all cabinets; the value in
-  // `score` is a play-count, so re-label the column to match.
-  const scoreColumnLabel = cabinetLabel === 'Overall' && !placeholder ? 'Plays' : 'Score';
+  // Column header labels swap by cabinet:
+  //   Overall   → score column = "Plays" (value is plays-across-cabinets)
+  //   SolShot   → score = "K/D",  prize = "W %" (PvP scorecard)
+  //   per-game  → score = "Score", prize = "Prize" (default)
+  const scoreColumnLabel = isSolShotMode
+    ? 'K/D'
+    : cabinetLabel === 'Overall' && !placeholder
+    ? 'Plays'
+    : 'Score';
+  const secondColumnLabel = isSolShotMode ? 'W %' : 'Prize';
   return (
     <Section title="Standings" sub={sub}>
       <div
@@ -490,24 +530,52 @@ function Standings({ rows, placeholder, cabinetLabel, window: timeWindow }: any)
           <span>#</span>
           <span>Player</span>
           <span style={{ textAlign: 'right' }}>{scoreColumnLabel}</span>
-          {!isMobile && <span style={{ textAlign: 'right' }}>Prize</span>}
+          {!isMobile && <span style={{ textAlign: 'right' }}>{secondColumnLabel}</span>}
           <span style={{ textAlign: 'right' }}>Δ</span>
         </div>
         {rows.map((r, i) => (
-          <StandingsRow key={r.rank} row={r} isLast={i === rows.length - 1} isMobile={isMobile} />
+          <StandingsRow
+            key={r.rank}
+            row={r}
+            isLast={i === rows.length - 1}
+            isMobile={isMobile}
+            isSolShotMode={isSolShotMode}
+          />
         ))}
       </div>
     </Section>
   );
 }
 
-function StandingsRow({ row, isLast, isMobile }: any) {
+function StandingsRow({ row, isLast, isMobile, isSolShotMode }: any) {
   const deltaColor =
     row.delta.startsWith('+')
       ? 'var(--win)'
       : row.delta.startsWith('-')
       ? 'var(--lose)'
       : 'var(--ink-45)';
+  // SolShot: the plays-meta label changes from "X plays" to "X matches"
+  // and we lean on the structured fields (matchesPlayed, winRate) instead
+  // of the formatted strings.
+  const metaLabel = isSolShotMode
+    ? `· ${row.matchesPlayed ?? row.plays} matches`
+    : `· ${row.plays} plays`;
+  // For the SolShot mode the "prize" column becomes the W% value styled
+  // brass-deep to read as a percentage, not as a money value.
+  const secondCellValue = isSolShotMode
+    ? typeof row.winRate === 'number'
+      ? `${row.winRate}%`
+      : '—'
+    : row.prize;
+  const secondCellColor = isSolShotMode
+    ? typeof row.winRate === 'number'
+      ? row.winRate >= 50
+        ? 'var(--win)'
+        : 'var(--brass-deep)'
+      : 'var(--ink-45)'
+    : row.prize === '—'
+    ? 'var(--ink-45)'
+    : 'var(--win)';
 
   return (
     <div
@@ -586,7 +654,7 @@ function StandingsRow({ row, isLast, isMobile }: any) {
               marginLeft: 'auto', flexShrink: 0,
             }}
           >
-            · {row.plays} plays
+            {metaLabel}
           </span>
         )}
       </div>
@@ -604,11 +672,11 @@ function StandingsRow({ row, isLast, isMobile }: any) {
           style={{
             fontFamily: 'var(--font-mono)',
             fontSize: 12, fontWeight: 700,
-            color: row.prize === '—' ? 'var(--ink-45)' : 'var(--win)',
+            color: secondCellColor,
             textAlign: 'right',
           }}
         >
-          {row.prize}
+          {secondCellValue}
         </span>
       )}
       <span
