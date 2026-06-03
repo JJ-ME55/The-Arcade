@@ -76,9 +76,18 @@ function isOutsideBottomBorder(pos: IVec2, table: TableConfig, ballDiameter: num
   return pos.y + ballDiameter / 2 >= table.height - table.cushionWidth;
 }
 
-function isInsidePocket(pos: IVec2, table: TableConfig): { hit: boolean; pocketIdx: number } {
+function isInsidePocket(pos: IVec2, table: TableConfig, ballDiameter: number = 0): { hit: boolean; pocketIdx: number } {
+  // Detection radius = pocketRadius + (ballDiameter / 2).
+  // JJ playtest 2026-06 spotted a ball stuck inside a pocket throat in
+  // the BL corner — it had coasted within the cushion-suppressed zone
+  // (pocketRadius + ballDiameter) but not into the drop zone (just
+  // pocketRadius), and came to rest in an impossible-looking position.
+  // Adding ballRadius to the drop check means the ball drops the moment
+  // its EDGE crosses into the pocket footprint, not when its centre
+  // does. Closes the gap between cushion-suppress and pocket-drop.
+  const detectR = table.pocketRadius + ballDiameter / 2;
   for (let i = 0; i < table.pocketsPositions.length; i++) {
-    if (vDist(pos, table.pocketsPositions[i]) <= table.pocketRadius) {
+    if (vDist(pos, table.pocketsPositions[i]) <= detectR) {
       return { hit: true, pocketIdx: i };
     }
   }
@@ -360,8 +369,9 @@ export function stepWorld(
     ball.spinX = decayed.spinX;
     ball.spinY = decayed.spinY;
 
-    // Pocket check
-    const pocketHit = isInsidePocket(ball.position, table);
+    // Pocket check — pass ballDiameter so the detection includes the
+    // ball-radius generosity (drops when ball edge enters pocket).
+    const pocketHit = isInsidePocket(ball.position, table, physics.ballDiameter);
     if (pocketHit.hit) {
       ball.visible = false;
       ball.velocity = { x: 0, y: 0 };
@@ -381,11 +391,43 @@ export function stepWorld(
       continue;
     }
 
-    // Dead-zone snap
+    // Dead-zone snap — AND pocket-throat rescue. JJ playtest 2026-06
+    // spotted a ball stuck in the BL corner pocket throat: it had
+    // coasted into the cushion-suppressed zone (within pocketRadius +
+    // ballDiameter of a pocket centre) but stopped before reaching the
+    // pocket-drop zone. With no cushion to bounce off and no drop to
+    // capture it, it sat at an impossible-looking position straddling
+    // the pocket. If a ball comes to rest anywhere inside the throat,
+    // treat it as potted — the ball physically can't sit there in
+    // real pool, so this matches player expectation.
     if (vLen(ball.velocity) < physics.minVelocityLength) {
       ball.velocity = { x: 0, y: 0 };
       ball.spinX = 0;
       ball.spinY = 0;
+
+      // Pocket-throat rescue
+      let throatPocketIdx = -1;
+      const throatR = table.pocketRadius + physics.ballDiameter;
+      for (let i = 0; i < table.pocketsPositions.length; i++) {
+        if (vDist(ball.position, table.pocketsPositions[i]) <= throatR) {
+          throatPocketIdx = i;
+          break;
+        }
+      }
+      if (throatPocketIdx >= 0) {
+        ball.visible = false;
+        events.push({
+          type: 'pocket_drop',
+          atTick: tick,
+          ballId: ball.id,
+          pocketIdx: throatPocketIdx
+        });
+        if (ball.color === 'white') {
+          events.push({ type: 'cue_ball_potted', atTick: tick, ballId: ball.id });
+        } else if (ball.color === 'black') {
+          events.push({ type: 'eight_ball_potted', atTick: tick, ballId: ball.id });
+        }
+      }
     } else {
       anyMoving = true;
     }
