@@ -283,9 +283,20 @@ export function bootFreeKicks(container) {
       runOverInfoEl.textContent =
         '⚠ Score not yet saved — will retry automatically next time';
       runOverInfoEl.style.display = 'block';
+    } else if (result?.reason === 'no_session') {
+      // Guest played without auth — stash so the React ClaimScoreOverlay
+      // can surface "Sign in to claim" CTA. After sign-in, the overlay
+      // auto-fires the submit with the buffered score.
+      try {
+        sessionStorage.setItem('claimable_score', JSON.stringify({
+          game: 'free-kicks',
+          score,
+          ts: Date.now(),
+        }));
+      } catch { /* sessionStorage unavailable — claim flow no-op */ }
+      // Run-over UI still shows the score; the overlay handles the
+      // sign-in prompt above it.
     }
-    // result.reason === 'no_session' stays silent — direct web visitors
-    // played without intending to submit (no bot session minted).
   }
 
   const onReplay = () => {

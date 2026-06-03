@@ -4,6 +4,7 @@ import { makeBasketballGameConfig } from './scene.js';
 import { BasketballHUD } from './hud.jsx';
 import { GameChrome } from '@/components/GameChrome.jsx';
 import { TelegramLinkBanner } from '@/components/TelegramLinkBanner.jsx';
+import { ClaimScoreOverlay } from '@/components/ClaimScoreOverlay';
 import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
 
 /**
@@ -53,6 +54,7 @@ export function BasketballScreen() {
             <BasketballHUD />
             <GameChrome onMute={handleMute} />
             {sessionStatus === 'tg_not_linked' && <TelegramLinkBanner />}
+            <ClaimScoreOverlay game="basketball" />
         </div>
     );
 }

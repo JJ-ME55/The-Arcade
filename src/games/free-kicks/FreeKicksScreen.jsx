@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { GameChrome } from '@/components/GameChrome.jsx';
 import { TelegramLinkBanner } from '@/components/TelegramLinkBanner.jsx';
+import { ClaimScoreOverlay } from '@/components/ClaimScoreOverlay';
 import { bootFreeKicks } from './boot.js';
 import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
 
@@ -67,6 +68,7 @@ export function FreeKicksScreen() {
             </div>
             <GameChrome onMute={handleMute} />
             {sessionStatus === 'tg_not_linked' && <TelegramLinkBanner />}
+            <ClaimScoreOverlay game="free-kicks" />
         </div>
     );
 }

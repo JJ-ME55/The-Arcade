@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { createScene } from './scene.js';
 import { GameChrome } from '@/components/GameChrome.jsx';
 import { TelegramLinkBanner } from '@/components/TelegramLinkBanner.jsx';
+import { ClaimScoreOverlay } from '@/components/ClaimScoreOverlay';
 import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
 
 /**
@@ -57,6 +58,7 @@ export function KeepieUppiesScreen() {
             <div ref={phaserHostRef} style={styles.phaserHost} />
             <GameChrome onMute={handleMute} />
             {sessionStatus === 'tg_not_linked' && <TelegramLinkBanner />}
+            <ClaimScoreOverlay game="keepie-uppies" />
         </div>
     );
 }
