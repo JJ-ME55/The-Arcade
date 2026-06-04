@@ -92,29 +92,14 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     splashSrc: '/assets/games/hero/keepie-uppies-splash.webp',
     heroFocus: 'center',
   },
-  {
-    // 8-Ball Pool — backend on SolShot server is live (ELO, matchmaking,
-    // tournaments, marathon, Gold + TKT ledgers). The canvas itself lives
-    // on arcade/8-ball-pool branch (Webpack + TS standalone) — lift into
-    // src/games/pool/ pending. /play/pool routes resolve; /launch shows
-    // a backend-ready placeholder until the lift lands.
-    //
-    // Hero art is a brand-styled placeholder (ink-deep bg + 8-ball motif
-    // + "COMING ART" subtitle) until studio art ships.
-    slug: 'pool',
-    name: '8-Ball Pool',
-    tag: 'NEW',
-    genre: 'Skill',
-    tagline: 'Skill-based 1v1. Async 12h turns.',
-    players: 0,
-    stake: '0.01+',
-    yield: 40,
-    hi: '—',
-    heroSrc: '/assets/games/hero/pool.webp',
-    tileSrc: '/assets/games/hero/pool-tile.webp',
-    splashSrc: '/assets/games/hero/pool-splash.webp',
-    heroFocus: 'center',
-  },
+  // 8-Ball Pool removed from the public PORTAL_GAMES floor 2026-06-04.
+  // The canvas lift from arcade/8-ball-pool isn't done; tile would
+  // route to a stub MatchHUD wrapper with no playable game inside.
+  // /play/pool/* routes stay in App.tsx (direct URLs still resolve)
+  // but pool is no longer in the Featured Cabinet rotation or the
+  // Floor grid. Pool returns when Fish lifts the canvas into
+  // src/games/pool/. Placeholder art still on disk under
+  // public/assets/games/hero/pool{,-tile,-splash}.webp.
 ];
 
 export interface LiveWager {
@@ -176,6 +161,9 @@ export interface ComingUpItem {
 }
 
 export const COMING_UP: ComingUpItem[] = [
+  { label: '8-Ball Pool',   when: 'Q3 2026' },
+  { label: 'Critter Kart',  when: 'Q3 2026' },
+  { label: 'Shootout',      when: 'Q3 2026' },
   { label: 'Tournaments',   when: 'Q3 2026' },
   { label: 'Trophy Case',   when: 'Q3 2026' },
   { label: 'Loadout',       when: 'Q4 2026' },
@@ -191,9 +179,9 @@ export interface BrowseCategory {
 }
 
 export const BROWSE_CATEGORIES: BrowseCategory[] = [
-  { id: 'all',     label: 'All',          count: 5 },
+  { id: 'all',     label: 'All',          count: 4 },
   { id: 'sports',  label: 'Sports',       count: 2 },
-  { id: 'skill',   label: 'Skill',        count: 2 },
+  { id: 'skill',   label: 'Skill',        count: 1 },
   { id: 'action',  label: 'Action',       count: 1 },
   { id: 'multi',   label: 'Multiplayer',  count: 0, soon: true },
   { id: 'tourny',  label: 'Tournaments',  count: 0, soon: true },
