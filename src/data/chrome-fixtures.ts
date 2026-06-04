@@ -39,15 +39,15 @@ export interface FloorStat {
 }
 
 export const FLOOR_STATS: FloorStat[] = [
-  { label: 'Cabinets',   value: '5 live',                tone: 'ink' },
-  { label: 'Soon',       value: 'Kart · Shootout',       tone: 'ink' },
-  { label: 'Wager',      value: 'V2 · Q3',               tone: 'brass' },
-  { label: 'Tickets',    value: 'V3',                    tone: 'brass' },
-  { label: 'Status',     value: 'Beta',                  tone: 'blue' },
+  { label: 'Cabinets',   value: '4 live',                  tone: 'ink' },
+  { label: 'Soon',       value: 'Pool · Kart · Shootout',  tone: 'ink' },
+  { label: 'Wager',      value: 'V2 · Q3',                 tone: 'brass' },
+  { label: 'Tickets',    value: 'V3',                      tone: 'brass' },
+  { label: 'Status',     value: 'Beta',                    tone: 'blue' },
 ];
 
 export const FLOOR_STATS_MOBILE: FloorStat[] = [
-  { label: 'Cabinets', value: '5 live',         tone: 'ink' },
+  { label: 'Cabinets', value: '4 live',         tone: 'ink' },
   { label: 'Wager',    value: 'V2 · Q3',        tone: 'brass' },
   { label: 'Tickets',  value: 'V3',             tone: 'brass' },
   { label: 'Status',   value: 'Beta',           tone: 'blue' },
