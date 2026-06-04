@@ -3,6 +3,10 @@ import App from './App';
 import { GameChrome } from '@/components/GameChrome.jsx';
 import { TelegramLinkBanner } from '@/components/TelegramLinkBanner.jsx';
 import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
+<<<<<<< Updated upstream
+=======
+import { MultiplayerLayer } from './MultiplayerLayer';
+>>>>>>> Stashed changes
 
 /**
  * CritterKartScreen — mounts the Critter Kart game (a self-contained React +
@@ -89,7 +93,19 @@ export function CritterKartScreen() {
 
   return (
     <div style={styles.root}>
+<<<<<<< Updated upstream
       <App onRaceFinish={handleRaceFinish} />
+=======
+      {/*
+        MultiplayerLayer detects ?queue=1 / ?race=<id> in URL and either
+        passes through (single-player, no behaviour change) or wraps
+        <App/> in MultiplayerProvider so GameCanvas can drive remote
+        karts from server snapshots. No-op when URL has neither param.
+      */}
+      <MultiplayerLayer>
+        <App onRaceFinish={handleRaceFinish} />
+      </MultiplayerLayer>
+>>>>>>> Stashed changes
       <GameChrome onMute={handleMute} />
       {submitError && (
         <div style={styles.submitWarning}>
