@@ -9,4 +9,4 @@ Allow: /
 Disallow: /play/*/launch
 
 # Sitemap
-Sitemap: https://the-arcade-eta.vercel.app/sitemap.xml
+Sitemap: https://thearcade.gg/sitemap.xml

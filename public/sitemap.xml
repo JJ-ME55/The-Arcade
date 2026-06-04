@@ -1,87 +1,87 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://the-arcade-eta.vercel.app/</loc>
+    <loc>https://thearcade.gg/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/play</loc>
+    <loc>https://thearcade.gg/play</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/play/basketball</loc>
+    <loc>https://thearcade.gg/play/basketball</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/play/free-kicks</loc>
+    <loc>https://thearcade.gg/play/free-kicks</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/play/keepie-uppies</loc>
+    <loc>https://thearcade.gg/play/keepie-uppies</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/play/solshot</loc>
+    <loc>https://thearcade.gg/play/solshot</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/play/pool</loc>
+    <loc>https://thearcade.gg/play/pool</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/leaderboard</loc>
+    <loc>https://thearcade.gg/leaderboard</loc>
     <changefreq>hourly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/leaderboard/basketball</loc>
+    <loc>https://thearcade.gg/leaderboard/basketball</loc>
     <changefreq>hourly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/leaderboard/free-kicks</loc>
+    <loc>https://thearcade.gg/leaderboard/free-kicks</loc>
     <changefreq>hourly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/leaderboard/keepie-uppies</loc>
+    <loc>https://thearcade.gg/leaderboard/keepie-uppies</loc>
     <changefreq>hourly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/leaderboard/solshot</loc>
+    <loc>https://thearcade.gg/leaderboard/solshot</loc>
     <changefreq>hourly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/prizes</loc>
+    <loc>https://thearcade.gg/prizes</loc>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/wallet</loc>
+    <loc>https://thearcade.gg/wallet</loc>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/wager</loc>
+    <loc>https://thearcade.gg/wager</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/privacy</loc>
+    <loc>https://thearcade.gg/privacy</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://the-arcade-eta.vercel.app/terms</loc>
+    <loc>https://thearcade.gg/terms</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
