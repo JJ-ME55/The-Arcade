@@ -14,31 +14,36 @@ export interface HowToStep {
   desc: string;
 }
 
+// V1-honest copy. Was full of wagering references ("2.4× your wager",
+// "Beat the daily median to win 2.0× your wager", "Cash out anytime
+// — or risk it for the 3.0× tier") — none of which apply because
+// wagering is V2. Rewritten for the free-play-only state: tells the
+// user what to do, what the scoring rule is, how to climb the board.
 export const HOW_TO_PLAY: Record<ArcadeGame['slug'], HowToStep[]> = {
   solshot: [
     { n: '01', title: 'Aim',      desc: 'Drag to set angle. Watch the wind indicator at the top.' },
     { n: '02', title: 'Power',    desc: 'Tap or hold to charge. Release at the right moment.' },
-    { n: '03', title: 'Detonate', desc: 'Direct hit pays 2.4× your wager. Splash pays 1.2×.' },
+    { n: '03', title: 'Climb',    desc: 'Win matches, earn gold, prestige up. K/D ratio ranks you on the board.' },
   ],
   basketball: [
-    { n: '01', title: 'Tap to shoot', desc: '30 seconds on the clock. Every made bucket is on-chain.' },
-    { n: '02', title: 'Hot zone',     desc: 'Three made in a row enters Hot Zone — 1.6× multiplier.' },
-    { n: '03', title: 'Payout',       desc: 'Beat the daily median to win 2.0× your wager.' },
+    { n: '01', title: 'Tap to shoot', desc: '30 seconds on the clock. Sink as many as you can.' },
+    { n: '02', title: 'Hot zone',     desc: 'Three made in a row enters Hot Zone — bonus points stack.' },
+    { n: '03', title: 'Climb',        desc: 'Beat your best, climb the all-time board. Sign in to save scores.' },
   ],
   'free-kicks': [
     { n: '01', title: 'Curl',  desc: 'Swipe to set the curve. The wall reacts.' },
-    { n: '02', title: 'Aim',   desc: 'Top corners pay highest. Bottom safe but lower yield.' },
-    { n: '03', title: 'Score', desc: 'Score in 5 tries to win 1.8× your wager.' },
+    { n: '02', title: 'Aim',   desc: 'Top corners reward highest. Targets and bonus boards add multipliers.' },
+    { n: '03', title: 'Climb', desc: 'Lives drop when you miss; finish runs with the highest total.' },
   ],
   'keepie-uppies': [
-    { n: '01', title: 'Tap',      desc: 'One tap per touch. Rhythm matters.' },
-    { n: '02', title: 'Combo',    desc: 'Each 10 kups raises your payout tier.' },
-    { n: '03', title: 'Cash out', desc: "Cash out anytime — or risk it for the 3.0× tier." },
+    { n: '01', title: 'Tap',   desc: 'One tap per touch. Rhythm matters — late taps cost height.' },
+    { n: '02', title: 'Combo', desc: 'Each 10 keep-ups stacks the streak. Drop the ball = run over.' },
+    { n: '03', title: 'Climb', desc: 'Sign in to track your best. Beat @saudweb3 at 208 if you can.' },
   ],
   pool: [
-    { n: '01', title: 'Aim',         desc: 'Drag the cue. Sink your colour (stripes or solids), then the 8-ball.' },
+    { n: '01', title: 'Aim',           desc: 'Drag the cue. Sink your colour (stripes or solids), then the 8-ball.' },
     { n: '02', title: 'Ready & shoot', desc: 'Think as long as you want, then tap READY — 45 seconds to commit.' },
-    { n: '03', title: 'Async turns', desc: '12 hours to take your turn. Play across days. ELO climbs with every win.' },
+    { n: '03', title: 'Async turns',   desc: '12 hours to take your turn. Play across days. ELO climbs with every win.' },
   ],
 };
 
