@@ -1,13 +1,7 @@
 // @ts-nocheck
-<<<<<<< Updated upstream
-import { createContext, useContext, type ReactNode } from 'react';
-import type { Member } from '../../net/protocol';
-import type { NetClient } from '../../net/client';
-=======
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import type { Member, RaceSnapshot } from '../../net/protocol';
 import type { CritterKartNet } from '../../net/client';
->>>>>>> Stashed changes
 
 /**
  * Multiplayer race context. The race screen reads this to decide whether it's
@@ -15,25 +9,11 @@ import type { CritterKartNet } from '../../net/client';
  * present → all the joined humans + slot assignments + the server-driven
  * `startAtMs` that synchronises the 3-2-1 countdown across clients).
  *
-<<<<<<< Updated upstream
- * GameCanvas hooks into this in a later pass:
- *   - `selfSlot` decides which states[i] consumes the keyboard
- *   - `startAtMs` replaces `elapsed = -COUNTDOWN` so beeps land in unison
- *   - `members` defines who's a human (interpolated remote kart) vs a bot slot
- *   - `net` is used to emit race:state @ 20Hz and to subscribe to incoming events
- */
-export interface MultiplayerRace {
-  roomId: string;
-  selfSlot: number;          // which slot the local kart occupies (0..3)
-  startAtMs: number;         // wall-clock the server picked for race start
-  members: Member[];         // all human participants; bots fill the rest
-  net: NetClient;
-=======
  * Updated Session 2c: now also carries the live `net` client + a per-tick
  * helper for GameCanvas to consume snapshots and send inputs in one place.
  *
  * GameCanvas integration (SINGLE ~20-line edit; see
- * Docs/CRITTER_KART_MULTIPLAYER_GAMECANVAS_INTEGRATION.md):
+ * docs/CRITTER_KART_MULTIPLAYER_GAMECANVAS_INTEGRATION.md):
  *   - if useMultiplayer() returns null → render solo (no change)
  *   - if non-null → on each rAF tick:
  *       1. Read local input from controller (Fish's existing logic)
@@ -57,7 +37,6 @@ export interface MultiplayerRace {
   // Map kartId → slot index — used by GameCanvas to apply snapshots to
   // the correct states[] entry.
   kartIdToSlot: Record<string, number>;
->>>>>>> Stashed changes
 }
 
 const Ctx = createContext<MultiplayerRace | null>(null);
@@ -66,12 +45,6 @@ export function MultiplayerProvider({ value, children }: { value: MultiplayerRac
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-<<<<<<< Updated upstream
-/** Returns the active multiplayer race info, or null in single-player. */
-export function useMultiplayerRace(): MultiplayerRace | null {
-  return useContext(Ctx);
-}
-=======
 export function useMultiplayer(): MultiplayerRace | null {
   return useContext(Ctx);
 }
@@ -160,4 +133,3 @@ export function useMultiplayerSync() {
     };
   }, [ctx]);
 }
->>>>>>> Stashed changes
