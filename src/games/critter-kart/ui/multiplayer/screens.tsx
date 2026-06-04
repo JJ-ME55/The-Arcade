@@ -290,7 +290,12 @@ export function LobbyScreen({ lobbyId, onLeave, onRaceStart }: {
     const offState = net.on('lobby:state', ({ lobby: l }) => { if (l.id === lobbyId) setLobby(l); });
     const offJoined = net.on('lobby:joined', ({ lobby: l }) => { if (l.id === lobbyId) setLobby(l); });
     const offClosed = net.on('lobby:closed', ({ lobbyId: id }) => { if (id === lobbyId) onLeave(); });
-    const offStart = net.on('race:start', ({ roomId, startAtMs, members }) => { if (roomId === lobbyId) onRaceStart(roomId, startAtMs, members); });
+    // Server emits race:start with roomId = race.raceId (NOT the lobby
+    // id), so the prior `if (roomId === lobbyId)` filter was always
+    // false and the race transition never fired. The socket room scope
+    // already guarantees this event is for the current lobby — server
+    // only emits race:start to lobby-room members. Trust the scope.
+    const offStart = net.on('race:start', ({ roomId, startAtMs, members }) => { onRaceStart(roomId, startAtMs, members); });
     return () => { offState(); offJoined(); offClosed(); offStart(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lobbyId]);
