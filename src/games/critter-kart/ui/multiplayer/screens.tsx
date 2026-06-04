@@ -385,8 +385,6 @@ export function LobbyScreen({ lobbyId, onLeave, onRaceStart }: {
               <button
                 className="ck-btn"
                 onClick={startRace}
-                disabled={!everyoneReady}
-                style={!everyoneReady ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
               >Start race ›</button>
             )}
           </div>
