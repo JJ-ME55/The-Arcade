@@ -637,8 +637,35 @@ function Standings({ rows, placeholder, cabinetLabel, window: timeWindow }: any)
   // SolShot rows arrive with kdRatio populated — that's how the Standings
   // component detects the K/D + W% column mode without a parent prop.
   const isSolShotMode = !placeholder && rows.length > 0 && typeof rows[0]?.kdRatio === 'number';
+
+  // Empty state — no live data + no fallback fixture (V1 honesty pass
+  // emptied LEADERBOARD_STANDINGS so Overall placeholder mode no longer
+  // shows fake rows). Honest prompt instead.
+  if (rows.length === 0) {
+    return (
+      <Section title="Standings" sub={cabinetLabel || 'Overall'}>
+        <div
+          style={{
+            background: 'var(--paper)',
+            border: '1.5px solid var(--ink)',
+            padding: '36px 16px',
+            textAlign: 'center',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            letterSpacing: '0.18em',
+            color: 'var(--ink-45)',
+            textTransform: 'uppercase',
+            fontWeight: 700,
+          }}
+        >
+          · Pick a cabinet to see live rankings ·
+        </div>
+      </Section>
+    );
+  }
+
   const sub = placeholder
-    ? `${rows.length} ranked · ${cabinetLabel || 'Overall'} — placeholder data`
+    ? `${rows.length} ranked · ${cabinetLabel || 'Overall'}`
     : `${rows.length} ranked · ${cabinetLabel} · ${windowLabel}`;
   // Column header labels swap by cabinet:
   //   Overall   → score column = "Plays" (value is plays-across-cabinets)
@@ -954,6 +981,26 @@ function YouCard({
 }
 
 function FriendsBoard() {
+  if (FRIENDS_BOARD.length === 0) {
+    return (
+      <Section title="Friends Only" sub="V2">
+        <div
+          style={{
+            padding: '20px 0',
+            textAlign: 'center',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 10,
+            letterSpacing: '0.18em',
+            color: 'var(--ink-45)',
+            textTransform: 'uppercase',
+            fontWeight: 700,
+          }}
+        >
+          · Friends graph · V2 ·
+        </div>
+      </Section>
+    );
+  }
   return (
     <Section title="Friends Only" sub={`${FRIENDS_BOARD.length} playing`}>
       <div>
@@ -1013,6 +1060,26 @@ function FriendsBoard() {
 }
 
 function PrizeStructure() {
+  if (PRIZE_TIERS.length === 0) {
+    return (
+      <Section title="Prize Pot" sub="V3 economy">
+        <div
+          style={{
+            padding: '20px 0',
+            textAlign: 'center',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 10,
+            letterSpacing: '0.18em',
+            color: 'var(--ink-45)',
+            textTransform: 'uppercase',
+            fontWeight: 700,
+          }}
+        >
+          · Prize ladder · V3 ·
+        </div>
+      </Section>
+    );
+  }
   return (
     <Section title="Prize Pot" sub="3.84 SOL · 24h">
       <div>

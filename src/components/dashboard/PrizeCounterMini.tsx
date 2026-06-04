@@ -8,10 +8,32 @@ import { PRIZES_MINI } from '@/data/games-fixtures';
  * compressed for the right-column width. Per handoff dashboard
  * §Prize Counter.
  *
- * Full prize counter (with hang-tags, multiple shelves, etc.) lives
- * on the dedicated /prizes route — built in Phase 5.
+ * Empty until the V3 economy ships with real inventory + Ticket
+ * pricing. The vitrine chrome stays so the brand reads, but the
+ * shelf shows an honest "inventory drops V3" empty state.
  */
 export function PrizeCounterMini() {
+  if (PRIZES_MINI.length === 0) {
+    return (
+      <Section title="Prize Counter" sub="V3 economy">
+        <Vitrine caseLabel="· INVENTORY · COMING V3 ·" padding="32px 14px 28px">
+          <div
+            style={{
+              textAlign: 'center',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              letterSpacing: '0.18em',
+              color: 'var(--ink-45)',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+            }}
+          >
+            · Inventory drops V3 ·
+          </div>
+        </Vitrine>
+      </Section>
+    );
+  }
   return (
     <Section title="Prize Counter" sub="Featured">
       <Vitrine caseLabel="· SOLSHOT · DISPLAY ·" padding="20px 14px 16px">

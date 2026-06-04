@@ -52,8 +52,31 @@ export function TopScores({ activeGame }: TopScoresProps) {
   const rows = liveRows ?? TOP_SCORES;
   const isLive = liveRows !== null;
   const subText = activeGame
-    ? `${activeGame.name} · ${isLive ? 'All-time' : 'Hi Scores'}`
-    : 'SolShot · Hi Scores';
+    ? `${activeGame.name} · ${isLive ? 'All-time' : 'Loading'}`
+    : 'Loading';
+
+  // Empty state — no live rows and no fallback fixture. Surfaces
+  // honest "be the first" framing instead of a stale placeholder.
+  if (rows.length === 0) {
+    return (
+      <Section title="Top Scores" sub={subText}>
+        <div
+          style={{
+            padding: '20px 8px',
+            textAlign: 'center',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 10,
+            letterSpacing: '0.18em',
+            color: 'var(--ink-45)',
+            textTransform: 'uppercase',
+            fontWeight: 700,
+          }}
+        >
+          · {live.loading ? 'Loading scores' : 'No scores yet · Be the first'} ·
+        </div>
+      </Section>
+    );
+  }
 
   return (
     <Section title="Top Scores" sub={subText}>

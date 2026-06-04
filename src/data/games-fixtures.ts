@@ -92,29 +92,14 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     splashSrc: '/assets/games/hero/keepie-uppies-splash.webp',
     heroFocus: 'center',
   },
-  {
-    // 8-Ball Pool — backend on SolShot server is live (ELO, matchmaking,
-    // tournaments, marathon, Gold + TKT ledgers). The canvas itself lives
-    // on arcade/8-ball-pool branch (Webpack + TS standalone) — lift into
-    // src/games/pool/ pending. /play/pool routes resolve; /launch shows
-    // a backend-ready placeholder until the lift lands.
-    //
-    // Hero art is a brand-styled placeholder (ink-deep bg + 8-ball motif
-    // + "COMING ART" subtitle) until studio art ships.
-    slug: 'pool',
-    name: '8-Ball Pool',
-    tag: 'NEW',
-    genre: 'Skill',
-    tagline: 'Skill-based 1v1. Async 12h turns.',
-    players: 0,
-    stake: '0.01+',
-    yield: 40,
-    hi: '—',
-    heroSrc: '/assets/games/hero/pool.webp',
-    tileSrc: '/assets/games/hero/pool-tile.webp',
-    splashSrc: '/assets/games/hero/pool-splash.webp',
-    heroFocus: 'center',
-  },
+  // 8-Ball Pool removed from the public PORTAL_GAMES floor 2026-06-04.
+  // The canvas lift from arcade/8-ball-pool isn't done; tile would
+  // route to a stub MatchHUD wrapper with no playable game inside.
+  // /play/pool/* routes stay in App.tsx (direct URLs still resolve)
+  // but pool is no longer in the Featured Cabinet rotation or the
+  // Floor grid. Pool returns when Fish lifts the canvas into
+  // src/games/pool/. Placeholder art still on disk under
+  // public/assets/games/hero/pool{,-tile,-splash}.webp.
 ];
 
 export interface LiveWager {
@@ -126,13 +111,11 @@ export interface LiveWager {
   ago: string;
 }
 
-export const LIVE_WAGERS: LiveWager[] = [
-  { name: 'val3ntin0', game: 'solshot',       stake: '0.05', payout: '+0.12', outcome: 'win',  ago: '14s' },
-  { name: 'mona.sol',  game: 'basketball',    stake: '0.02', payout: '+0.04', outcome: 'win',  ago: '38s' },
-  { name: '7z9b…',     game: 'keepie-uppies', stake: '0.01', payout: '-0.01', outcome: 'loss', ago: '1m'  },
-  { name: 'low.eth',   game: 'solshot',       stake: '0.05', payout: '+0.12', outcome: 'win',  ago: '2m'  },
-  { name: 'pixie',     game: 'free-kicks',    stake: '0.04', payout: '+0.10', outcome: 'win',  ago: '3m'  },
-];
+// Empty for V1 — wagering only ships V1-mainnet for SolShot, and the
+// live feed wires when the wagering event stream lands. Component
+// renders an empty state with the "Wager mode · V1 mainnet · SolShot"
+// framing.
+export const LIVE_WAGERS: LiveWager[] = [];
 
 export interface TopScore {
   rank: number;
@@ -141,13 +124,12 @@ export interface TopScore {
   delta: string;
 }
 
-export const TOP_SCORES: TopScore[] = [
-  { rank: 1, name: 'val3ntin0', score: '142,089', delta: '—' },
-  { rank: 2, name: 'mona.sol',  score: '137,402', delta: '+2' },
-  { rank: 3, name: 'low.eth',   score: '129,815', delta: '+1' },
-  { rank: 4, name: 'cryptopig', score: '124,200', delta: '-2' },
-  { rank: 5, name: 'pixie',     score: '118,775', delta: '—' },
-];
+// Empty for V1. The dashboard TopScores widget pulls real data per
+// active cabinet (basketball, free-kicks, keepie-uppies, solshot K/D)
+// from the SolShot server. SolShot's tab is now real K/D scorecard;
+// no static fallback needed. Component renders an empty state when
+// neither real data nor this fixture is available.
+export const TOP_SCORES: TopScore[] = [];
 
 export interface OnlineFriend {
   name: string;
@@ -155,11 +137,9 @@ export interface OnlineFriend {
   color: string;
 }
 
-export const FRIENDS_ONLINE: OnlineFriend[] = [
-  { name: 'mona.sol', playing: 'Basketball', color: 'var(--blue)' },
-  { name: 'low.eth',  playing: 'SolShot',    color: 'var(--brass)' },
-  { name: 'pixie',    playing: 'Free Kicks', color: 'var(--win)' },
-];
+// Empty until a social graph lands (V2). Component renders an empty
+// state with "Sign in + add friends · V2" framing.
+export const FRIENDS_ONLINE: OnlineFriend[] = [];
 
 export interface MiniPrize {
   kind: 'hull' | 'ball' | 'cue';
@@ -170,12 +150,10 @@ export interface MiniPrize {
   soon?: boolean;
 }
 
-export const PRIZES_MINI: MiniPrize[] = [
-  { kind: 'hull', name: 'Tank Hull · Bramble',      game: 'SolShot',    price: 480,  rarity: 'common'    },
-  { kind: 'ball', name: 'Basketball · Sunset',      game: 'Basketball', price: 960,  rarity: 'uncommon'  },
-  { kind: 'cue',  name: 'Cue · Mahogany',           game: '8-Ball',     price: 1800, rarity: 'rare',   soon: true },
-  { kind: 'hull', name: 'Tank Hull · Crimson Ridge',game: 'SolShot',    price: 4800, rarity: 'legend'   },
-];
+// Empty until the V3 economy ships with real inventory + Ticket pricing.
+// The prize counter renders an empty state with "Inventory drops V3"
+// framing rather than mocked items.
+export const PRIZES_MINI: MiniPrize[] = [];
 
 export interface ComingUpItem {
   label: string;
@@ -183,6 +161,9 @@ export interface ComingUpItem {
 }
 
 export const COMING_UP: ComingUpItem[] = [
+  { label: '8-Ball Pool',   when: 'Q3 2026' },
+  { label: 'Critter Kart',  when: 'Q3 2026' },
+  { label: 'Shootout',      when: 'Q3 2026' },
   { label: 'Tournaments',   when: 'Q3 2026' },
   { label: 'Trophy Case',   when: 'Q3 2026' },
   { label: 'Loadout',       when: 'Q4 2026' },
@@ -198,9 +179,9 @@ export interface BrowseCategory {
 }
 
 export const BROWSE_CATEGORIES: BrowseCategory[] = [
-  { id: 'all',     label: 'All',          count: 5 },
+  { id: 'all',     label: 'All',          count: 4 },
   { id: 'sports',  label: 'Sports',       count: 2 },
-  { id: 'skill',   label: 'Skill',        count: 2 },
+  { id: 'skill',   label: 'Skill',        count: 1 },
   { id: 'action',  label: 'Action',       count: 1 },
   { id: 'multi',   label: 'Multiplayer',  count: 0, soon: true },
   { id: 'tourny',  label: 'Tournaments',  count: 0, soon: true },

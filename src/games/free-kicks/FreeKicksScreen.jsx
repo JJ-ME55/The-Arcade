@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { GameChrome } from '@/components/GameChrome.jsx';
 import { TelegramLinkBanner } from '@/components/TelegramLinkBanner.jsx';
+import { ClaimScoreOverlay } from '@/components/ClaimScoreOverlay';
+import { HowToPlayIntro } from '@/components/HowToPlayIntro';
 import { bootFreeKicks } from './boot.js';
 import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
 
@@ -66,7 +68,9 @@ export function FreeKicksScreen() {
                 <button id="replay" style={styles.replay}>Tap to play again</button>
             </div>
             <GameChrome onMute={handleMute} />
+            <HowToPlayIntro slug="free-kicks" gameName="Free Kicks" />
             {sessionStatus === 'tg_not_linked' && <TelegramLinkBanner />}
+            <ClaimScoreOverlay game="free-kicks" />
         </div>
     );
 }

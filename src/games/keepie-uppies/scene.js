@@ -286,6 +286,12 @@ class KeepieUppiesScene extends Phaser.Scene {
         if (newBest) {
             this.bestScore = this.score;
             localStorage.setItem('keepie:best', String(this.bestScore));
+            // Celebration burst — confetti + haptic + audio on local
+            // new-best detection. Fires before the server confirms so
+            // the user feels the win instantly. Throttled inside the
+            // listener so it can't fire twice if the server-side
+            // confirmation also dispatches.
+            try { window.dispatchEvent(new CustomEvent('arcade:celebrate')); } catch {}
             this.bestText.setText(`BEST ${this.bestScore}`);
         }
         this.overlayScore.setText(`Score ${this.score}`);
@@ -309,8 +315,16 @@ class KeepieUppiesScene extends Phaser.Scene {
             return;
         }
         if (result?.reason === 'no_session') {
-            // Free-play mode — user has no JWT, nothing to submit. Stay
-            // silent (existing overlay text already reflects local best).
+            // Guest played without auth — stash so the ClaimScoreOverlay
+            // can surface "Sign in to claim" CTA. After sign-in, the
+            // overlay auto-fires the submit with the buffered score.
+            try {
+                sessionStorage.setItem('claimable_score', JSON.stringify({
+                    game: 'keepie-uppies',
+                    score: finalScore,
+                    ts: Date.now(),
+                }));
+            } catch { /* sessionStorage unavailable — claim flow no-op */ }
             return;
         }
         const warnLine = result?.reason === 'session_expired'

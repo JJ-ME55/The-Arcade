@@ -1,12 +1,24 @@
 // @ts-nocheck — placeholder data.
 import { Section } from '@/components/brand';
 import { LIVE_WAGERS } from '@/data/games-fixtures';
+import { RailEmpty } from '@/components/brand/RailEmpty';
 
 /**
  * LiveWagers — right column · last 5 wagers with win/loss-colored
  * payouts. Per handoff dashboard §Live Wagers.
+ *
+ * Empty by default — the wagering event feed wires when V1 SolShot
+ * mainnet wagering ships. Component renders an honest empty state
+ * rather than mocked liquidity.
  */
 export function LiveWagers() {
+  if (LIVE_WAGERS.length === 0) {
+    return (
+      <Section title="Live Wagers" sub="V1 mainnet · SolShot">
+        <RailEmpty text="· Wager feed · V1 SolShot ·" />
+      </Section>
+    );
+  }
   return (
     <Section title="Live Wagers" sub="Last 5">
       <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>

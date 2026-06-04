@@ -42,6 +42,7 @@ export function Prizes() {
       }}
     >
       <PrizeHero isMobile={isMobile} />
+      <V3PreviewBanner isMobile={isMobile} />
       <PrizeFilters
         isMobile={isMobile}
         activeTab={activeTab}
@@ -65,6 +66,50 @@ export function Prizes() {
 
       <PrizeFooter isMobile={isMobile} />
     </main>
+  );
+}
+
+/* ============================================================
+   V3 PREVIEW BANNER — honest about what's live
+   ============================================================ */
+function V3PreviewBanner({ isMobile }: { isMobile: boolean }) {
+  return (
+    <div
+      role="status"
+      style={{
+        marginBottom: 24,
+        padding: isMobile ? '14px 16px' : '14px 20px',
+        background: 'var(--paper)',
+        border: '1.5px solid var(--ink)',
+        borderTop: '4px solid var(--brass)',
+        display: 'flex',
+        alignItems: isMobile ? 'flex-start' : 'center',
+        gap: 16,
+        flexDirection: isMobile ? 'column' : 'row',
+      }}
+    >
+      <div style={{ flex: 1 }}>
+        <div
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 9.5,
+            letterSpacing: '0.22em',
+            color: 'var(--brass-deep)',
+            textTransform: 'uppercase',
+            fontWeight: 700,
+            marginBottom: 4,
+          }}
+        >
+          · V3 Preview · Coming Q3 ·
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--ink-70)', lineHeight: 1.5 }}>
+          The Prize Counter is V3 economy work. Inventory below is{' '}
+          <b>illustrative</b> — Tickets emission, prize stock, and claim
+          flow ship together when the Ticket ledger lands. Claim buttons
+          don't dispense anything yet.
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -120,8 +165,8 @@ function PrizeHero({ isMobile }: { isMobile: boolean }) {
             lineHeight: 1.5,
           }}
         >
-          Tickets earned on the floor spend here. Cabinet skins, balls, hulls.{' '}
-          <i>One-way valve — tickets in, never back to SOL.</i> That's the deal.
+          Tickets earned on the floor spend here. Cabinet skins, balls,
+          hulls, avatars. Curated weekly.
         </p>
       </div>
 
@@ -657,19 +702,19 @@ function PrizeCard({ prize }: { prize: ShopPrize }) {
 function PrizeFooter({ isMobile }: { isMobile: boolean }) {
   const notes = [
     {
-      title: 'One-Way Valve',
+      title: 'Earn by playing',
       body:
-        'Tickets earned by playing on the Floor. Spend on the counter — never convert back to SOL. Keeps the prize counter honest.',
+        'Every cabinet pays Tickets. Skill placement pays more. Sign in to track your balance.',
     },
     {
-      title: 'Restock',
+      title: 'Curated weekly',
       body:
-        'New skins land weekly. Legendaries restock monthly. Stock counters update live as players claim.',
+        'New skins land each Friday. Limited drops on themed weekends. Tournament-prize items are one-of-a-kind.',
     },
     {
-      title: 'Ownership',
+      title: 'Avatar + Items (V3)',
       body:
-        'Claimed prizes mint on Solana to your linked wallet. Tradeable on secondary markets. Yours.',
+        'Equip what you claim. Mix and match across cabinets. Trade items in the arcade marketplace.',
     },
   ];
   return (

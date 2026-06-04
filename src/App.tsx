@@ -5,6 +5,11 @@ import { Leaderboards } from '@/routes/Leaderboards';
 import { Prizes } from '@/routes/Prizes';
 import { Wallet } from '@/routes/Wallet';
 import { SolShotDetail } from '@/routes/SolShotDetail';
+import { Privacy } from '@/routes/Privacy';
+import { Terms } from '@/routes/Terms';
+import { NotFound } from '@/routes/NotFound';
+import { Me } from '@/routes/Me';
+import { Status } from '@/routes/Status';
 import { RequireAuth } from '@/routes/RequireAuth';
 import { AppShell } from '@/components/chrome/AppShell';
 import { GameDetail } from '@/routes/games/GameDetail';
@@ -80,13 +85,19 @@ export function App() {
         <Route path="/leaderboards" element={<Navigate to="/leaderboard" replace />} />
         <Route path="/leaderboards/:game" element={<Navigate to="/leaderboard" replace />} />
         <Route path="/wager" element={<Navigate to="/wallet" replace />} />
-        <Route path="/me" element={<Navigate to="/play" replace />} />
+        <Route path="/me" element={<Me />} />
         <Route path="/profile/:callsign" element={<Navigate to="/play" replace />} />
         <Route path="/about" element={<Navigate to="/" replace />} />
       </Route>
 
-      {/* Catch-all → cabinet landing */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* Public legal + ops — no auth, no chrome (own editorial layout). */}
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/status" element={<Status />} />
+
+      {/* Catch-all → branded 404 instead of silent redirect-to-landing.
+          Surface broken links honestly + give a path back. */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

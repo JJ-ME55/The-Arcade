@@ -1,19 +1,42 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/brand';
+import { useArcadeAuth } from '@/wallet/useAuth';
 
 /**
  * CabinetLanding — pre-auth `/` route.
  *
- * Privy login is currently DISABLED — Insert Coin bypasses auth and
- * navigates straight to /play. RequireAuth also lets everyone
- * through. To re-enable Privy, revert this file + RequireAuth.tsx
- * to the prior version that called auth.login() and gated routes.
+ * "Insert Coin" opens the Privy modal. Telegram is the primary login
+ * method (matches our distribution funnel — bot is the entry point and
+ * users already have TG sessions). Email/Google/wallet are alternates
+ * that bind into the same Privy account.
+ *
+ * Lazy-auth model (canonical doc §12.2.5): no hard gate. Users who
+ * skip sign-in can browse /play and play any game; sign-in is prompted
+ * only when they want to claim a score, view a wallet, or spend tickets
+ * (V3). Sign-in on the cabinet landing is the recommended path though
+ * — same one-step claim, no mid-flow interruption.
+ *
+ * After successful auth, route to /play. If the user is already
+ * authenticated when they hit `/`, skip the landing entirely.
  */
 export function CabinetLanding() {
   const navigate = useNavigate();
+  const auth = useArcadeAuth();
+
+  // Already signed in → straight to dashboard.
+  useEffect(() => {
+    if (auth.authenticated) navigate('/play', { replace: true });
+  }, [auth.authenticated, navigate]);
 
   const handleEnter = () => {
-    navigate('/play');
+    if (auth.authenticated) {
+      navigate('/play');
+    } else if (auth.ready) {
+      auth.login();
+    }
+    // If Privy isn't ready yet (initial mount), the click is a no-op;
+    // user can re-tap once the SDK boots (~200ms typical).
   };
 
   return (

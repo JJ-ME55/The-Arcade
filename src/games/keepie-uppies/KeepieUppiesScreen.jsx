@@ -3,6 +3,8 @@ import Phaser from 'phaser';
 import { createScene } from './scene.js';
 import { GameChrome } from '@/components/GameChrome.jsx';
 import { TelegramLinkBanner } from '@/components/TelegramLinkBanner.jsx';
+import { ClaimScoreOverlay } from '@/components/ClaimScoreOverlay';
+import { HowToPlayIntro } from '@/components/HowToPlayIntro';
 import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
 
 /**
@@ -17,10 +19,20 @@ export function KeepieUppiesScreen() {
     const gameRef = useRef(null);
 
     // Bot users — JWT via URL. Web users — JWT minted by Privy auth.
+    // SECURITY: strip ?session=<jwt> from URL after capture so the
+    // token isn't visible in the address bar / browser history / any
+    // share. history.replaceState avoids a navigation event.
     useEffect(() => {
         try {
-            const session = new URLSearchParams(window.location.search).get('session');
-            if (session) sessionStorage.setItem('arcade_session', session);
+            const params = new URLSearchParams(window.location.search);
+            const session = params.get('session');
+            if (session) {
+                sessionStorage.setItem('arcade_session', session);
+                params.delete('session');
+                const q = params.toString();
+                const cleanUrl = window.location.pathname + (q ? `?${q}` : '') + window.location.hash;
+                window.history.replaceState({}, '', cleanUrl);
+            }
         } catch (_) { /* no leaderboard for this play; game still works */ }
     }, []);
     const { status: sessionStatus } = useArcadeSessionMint('keepieuppies');
@@ -56,7 +68,9 @@ export function KeepieUppiesScreen() {
         <div style={styles.root}>
             <div ref={phaserHostRef} style={styles.phaserHost} />
             <GameChrome onMute={handleMute} />
+            <HowToPlayIntro slug="keepie-uppies" gameName="Keepie Uppies" />
             {sessionStatus === 'tg_not_linked' && <TelegramLinkBanner />}
+            <ClaimScoreOverlay game="keepie-uppies" />
         </div>
     );
 }

@@ -1,17 +1,22 @@
 // @ts-nocheck — JSX-heavy. Phase 4 editorial game detail per ed-game.jsx.
-import { useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { Section } from '@/components/brand';
-import { SolanaPortal } from '@/components/brand/SolanaPortal';
 import { PORTAL_GAMES, type ArcadeGame } from '@/data/games-fixtures';
-import {
-  HOW_TO_PLAY,
-  PAYOUT_TABLE,
-  RECENT_PLAYS,
-  RECENT_PLAYS_NET,
-  WAGER_CHIPS,
-} from '@/data/game-detail-fixtures';
+import { HOW_TO_PLAY } from '@/data/game-detail-fixtures';
+import { useLeaderboardData } from '@/hooks/useLeaderboardData';
+
+/**
+ * Map PORTAL_GAMES slug to the LB API slug for `useLeaderboardData`.
+ * Pool isn't wired to a LB endpoint yet (V2 work — backend exists but
+ * Arcade-side wrapper pending). SolShot has its own detail page so
+ * skipped here.
+ */
+const LB_API: Record<string, 'basketball' | 'keepieuppies' | 'freekicks' | undefined> = {
+  basketball: 'basketball',
+  'keepie-uppies': 'keepieuppies',
+  'free-kicks': 'freekicks',
+};
 
 /**
  * GameDetail — `/play/:slug`. Editorial game-detail page per ed-game.jsx.
@@ -91,7 +96,7 @@ function Breadcrumb({ game }: { game: ArcadeGame }) {
       <span style={{ color: 'var(--ink)' }}>{game.name}</span>
       <span style={{ flex: 1 }} />
       <span style={{ color: 'var(--brass-deep)' }}>
-        Cabinet 01 of 04
+        V1 · Free Play · Wager V2
       </span>
     </div>
   );
@@ -101,6 +106,18 @@ function Breadcrumb({ game }: { game: ArcadeGame }) {
    MARQUEE
    ============================================================ */
 function Marquee({ game, isMobile }: { game: ArcadeGame; isMobile: boolean }) {
+  // Real LB data — Hi Score + Players Now pulled from the live count,
+  // not from PORTAL_GAMES fixtures (which were v1 placeholder numbers).
+  const apiSlug = LB_API[game.slug];
+  const live = useLeaderboardData({
+    api: apiSlug,
+    window: 'all',
+    limit: 1,
+  });
+  const liveTopScore =
+    live.rows && live.rows.length > 0 ? live.rows[0].score : null;
+  const livePlayerCount = live.totalPlayers;
+
   return (
     <section
       style={{
@@ -163,7 +180,7 @@ function Marquee({ game, isMobile }: { game: ArcadeGame; isMobile: boolean }) {
               marginBottom: 10,
             }}
           >
-            {game.genre} · Cabinet 01 · Live
+            {game.genre} · {apiSlug ? 'Free Play · V1' : 'Coming Soon'}
           </div>
           <div
             style={{
@@ -187,12 +204,14 @@ function Marquee({ game, isMobile }: { game: ArcadeGame; isMobile: boolean }) {
                 maxWidth: 460,
               }}
             >
-              {game.tagline} Wager SOL on every shot — or free-play to grind Tickets toward
-              the prize counter.
+              {game.tagline} Free play to climb the leaderboard. Wager mode ships in V2.
             </div>
           )}
         </div>
 
+        {/* Honest stats only — `Hi Score` from real LB (or `—` while
+            loading / when game has no wired LB). Players count likewise.
+            Removed: fake `Best Payout`, fake `Your Best`. */}
         <div
           style={{
             display: 'flex',
@@ -201,16 +220,26 @@ function Marquee({ game, isMobile }: { game: ArcadeGame; isMobile: boolean }) {
             flexWrap: 'wrap',
           }}
         >
-          <MarqueeStat label="Players Now" value={String(game.players)} accent="var(--win)" />
-          <MarqueeStat label="Best Payout" value="2.4×" accent="var(--brass)" />
-          <MarqueeStat label="HI Score" value={game.hi} accent="var(--paper)" />
-          {!isMobile && (
-            <MarqueeStat label="Your Best" value="142,089" accent="var(--paper)" />
-          )}
+          <MarqueeStat
+            label="Players"
+            value={
+              typeof livePlayerCount === 'number'
+                ? String(livePlayerCount)
+                : apiSlug
+                ? '—'
+                : 'V2'
+            }
+            accent="var(--win)"
+          />
+          <MarqueeStat
+            label="Hi Score"
+            value={liveTopScore ?? (apiSlug ? '—' : 'V2')}
+            accent="var(--paper)"
+          />
         </div>
       </div>
 
-      {/* on-chain pill top-right */}
+      {/* "V2 · Wager Mode Coming" pill top-right — honest about state */}
       <div
         style={{
           position: 'absolute',
@@ -225,7 +254,7 @@ function Marquee({ game, isMobile }: { game: ArcadeGame; isMobile: boolean }) {
           letterSpacing: '0.22em',
         }}
       >
-        ◉ ON-CHAIN
+        WAGER · V2
       </div>
     </section>
   );
@@ -269,9 +298,93 @@ function Main({ game, isMobile }: { game: ArcadeGame; isMobile: boolean }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28, minWidth: 0 }}>
       <HowToPlay game={game} isMobile={isMobile} />
-      <PayoutTable isMobile={isMobile} />
-      <YourHistory isMobile={isMobile} />
+      <WagerModeStub isMobile={isMobile} />
     </div>
+  );
+}
+
+/**
+ * WagerModeStub — replaces the fictional Payout Table + Recent Plays
+ * sections from v1. Honest about what V1 ships (free-play leaderboards)
+ * and what comes in V2 (SOL wagering with on-chain settlement).
+ */
+function WagerModeStub({ isMobile }: { isMobile: boolean }) {
+  return (
+    <Section title="Wager Mode" sub="V2 · Coming Q3">
+      <div
+        style={{
+          border: '1.5px solid var(--ink)',
+          borderTop: '4px solid var(--brass)',
+          background: 'var(--paper)',
+          padding: isMobile ? '20px 16px' : '28px 24px',
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+          gap: isMobile ? 18 : 28,
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 9.5,
+              letterSpacing: '0.22em',
+              color: 'var(--brass-deep)',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+              marginBottom: 8,
+            }}
+          >
+            · V1 · Now ·
+          </div>
+          <h3
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 18,
+              margin: '0 0 10px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.02em',
+            }}
+          >
+            Free Play
+          </h3>
+          <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink-70)', lineHeight: 1.5 }}>
+            Tap Free Play. Climb the leaderboard. Scores save when you
+            sign in. No SOL at risk yet — wagering ships in V2.
+          </p>
+        </div>
+        <div>
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 9.5,
+              letterSpacing: '0.22em',
+              color: 'var(--brass-deep)',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+              marginBottom: 8,
+            }}
+          >
+            · V2 · Coming Q3 ·
+          </div>
+          <h3
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 18,
+              margin: '0 0 10px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.02em',
+            }}
+          >
+            Wager Slip
+          </h3>
+          <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink-70)', lineHeight: 1.5 }}>
+            Stake SOL on each round. On-chain escrow settles in seconds.
+            90% to winner, 7% to treasury, 3% to ops. Same skill bar as
+            free play — no pay-to-win.
+          </p>
+        </div>
+      </div>
+    </Section>
   );
 }
 
@@ -573,12 +686,15 @@ function YourHistory({ isMobile }: { isMobile: boolean }) {
 }
 
 /* ============================================================
-   RAIL — Wager Slip · Free Play · Activity
+   RAIL — Free Play (primary) · V2 Wager Slip preview (deferred)
    ============================================================ */
 function Rail({ game }: { game: ArcadeGame }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-      <WagerSlip game={game} />
+      {/* V1: Free Play is the primary CTA. Wager Slip moved to V2 stub
+          in the main column — the rail used to hold a fictional Place
+          Wager slip with calculated payouts, which made V2 features
+          look live. Cleaned up to surface only what works today. */}
       <FreePlayCard game={game} />
     </div>
   );

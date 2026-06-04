@@ -28,7 +28,17 @@ function captureSessionFromUrl() {
   try {
     const params = new URLSearchParams(window.location.search);
     const session = params.get('session');
-    if (session) sessionStorage.setItem('arcadeSession', session);
+    if (session) {
+      sessionStorage.setItem('arcadeSession', session);
+      // SECURITY: strip ?session=<jwt> from URL after capture so the
+      // token isn't visible in address bar / browser history / shares.
+      // history.replaceState avoids a navigation event so the scene
+      // mount is undisturbed.
+      params.delete('session');
+      const q = params.toString();
+      const cleanUrl = window.location.pathname + (q ? `?${q}` : '') + window.location.hash;
+      window.history.replaceState({}, '', cleanUrl);
+    }
   } catch {
     /* sessionStorage unavailable → free-play mode, no submit */
   }
@@ -264,6 +274,11 @@ export function bootFreeKicks(container) {
         : `Best: ${result.bestScore} pts · Rank #${result.rank} of ${result.totalPlayers}`;
       runOverInfoEl.textContent = rankLine;
       runOverInfoEl.style.display = 'block';
+      // Celebration burst — confetti + audio + haptic on server-confirmed
+      // new best. Throttled inside the listener.
+      if (result.newBest) {
+        try { window.dispatchEvent(new CustomEvent('arcade:celebrate')); } catch {}
+      }
     } else if (result?.reason === 'session_expired') {
       // 401 — JWT expired. Score is NOT stashed (a stale token would just
       // fail again on retry); user must re-launch to mint a fresh one.
@@ -283,9 +298,20 @@ export function bootFreeKicks(container) {
       runOverInfoEl.textContent =
         '⚠ Score not yet saved — will retry automatically next time';
       runOverInfoEl.style.display = 'block';
+    } else if (result?.reason === 'no_session') {
+      // Guest played without auth — stash so the React ClaimScoreOverlay
+      // can surface "Sign in to claim" CTA. After sign-in, the overlay
+      // auto-fires the submit with the buffered score.
+      try {
+        sessionStorage.setItem('claimable_score', JSON.stringify({
+          game: 'free-kicks',
+          score,
+          ts: Date.now(),
+        }));
+      } catch { /* sessionStorage unavailable — claim flow no-op */ }
+      // Run-over UI still shows the score; the overlay handles the
+      // sign-in prompt above it.
     }
-    // result.reason === 'no_session' stays silent — direct web visitors
-    // played without intending to submit (no bot session minted).
   }
 
   const onReplay = () => {

@@ -828,11 +828,28 @@ export class BasketballScene extends Phaser.Scene {
                 arcadeNewBest: result.newBest,
                 arcadeSubmitError: null,
             });
+            // Celebration burst — fires when the server confirms a new
+            // best (so it reflects the global leaderboard, not just
+            // local). Throttled inside the listener to prevent chain
+            // fire if other code dispatches too.
+            if (result.newBest) {
+                try { window.dispatchEvent(new CustomEvent('arcade:celebrate')); } catch {}
+            }
             return;
         }
         if (result?.reason === 'no_session') {
-            // Free-play (no JWT minted) — stay silent. User didn't
-            // intend to submit.
+            // Free-play (no JWT minted) — stash the score so the
+            // ClaimScoreOverlay can surface "Sign in to claim" CTA.
+            // After the user signs in and useArcadeSessionMint lands
+            // a JWT in sessionStorage, the overlay auto-fires the
+            // submission with the buffered score.
+            try {
+                sessionStorage.setItem('claimable_score', JSON.stringify({
+                    game: 'basketball',
+                    score: finalScore,
+                    ts: Date.now(),
+                }));
+            } catch { /* sessionStorage unavailable — claim flow no-op */ }
             return;
         }
         // 'session_expired' → user must re-launch the bot to mint a fresh

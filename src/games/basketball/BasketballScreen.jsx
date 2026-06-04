@@ -4,6 +4,8 @@ import { makeBasketballGameConfig } from './scene.js';
 import { BasketballHUD } from './hud.jsx';
 import { GameChrome } from '@/components/GameChrome.jsx';
 import { TelegramLinkBanner } from '@/components/TelegramLinkBanner.jsx';
+import { ClaimScoreOverlay } from '@/components/ClaimScoreOverlay';
+import { HowToPlayIntro } from '@/components/HowToPlayIntro';
 import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
 
 /**
@@ -22,10 +24,22 @@ export function BasketballScreen() {
     // Bot users — JWT comes via the URL (?session=). Web users — JWT
     // gets minted server-side via Privy auth (useArcadeSessionMint).
     // Either way the existing game submit logic reads sessionStorage.
+    //
+    // SECURITY: strip the token from the URL after capture so users can
+    // safely copy + share their browser URL without leaking the JWT.
+    // history.replaceState swaps the URL without a navigation event so
+    // the game scene mounts undisturbed.
     useEffect(() => {
         try {
-            const session = new URLSearchParams(window.location.search).get('session');
-            if (session) sessionStorage.setItem('arcade_session', session);
+            const params = new URLSearchParams(window.location.search);
+            const session = params.get('session');
+            if (session) {
+                sessionStorage.setItem('arcade_session', session);
+                params.delete('session');
+                const q = params.toString();
+                const cleanUrl = window.location.pathname + (q ? `?${q}` : '') + window.location.hash;
+                window.history.replaceState({}, '', cleanUrl);
+            }
         } catch (_) { /* no leaderboard for this play; game still works */ }
     }, []);
     const { status: sessionStatus } = useArcadeSessionMint('basketball');
@@ -52,7 +66,9 @@ export function BasketballScreen() {
             <div ref={phaserHostRef} style={styles.phaserHost} />
             <BasketballHUD />
             <GameChrome onMute={handleMute} />
+            <HowToPlayIntro slug="basketball" gameName="Basketball" />
             {sessionStatus === 'tg_not_linked' && <TelegramLinkBanner />}
+            <ClaimScoreOverlay game="basketball" />
         </div>
     );
 }
