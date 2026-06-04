@@ -8,7 +8,7 @@
  */
 
 export interface ArcadeGame {
-  slug: 'solshot' | 'basketball' | 'free-kicks' | 'keepie-uppies' | 'pool';
+  slug: 'solshot' | 'basketball' | 'free-kicks' | 'keepie-uppies' | 'pool' | 'critter-kart';
   name: string;
   tag: '' | 'FEATURED' | 'HOT' | 'NEW' | 'TOP';
   genre: string;
@@ -92,6 +92,25 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     splashSrc: '/assets/games/hero/keepie-uppies-splash.webp',
     heroFocus: 'center',
   },
+  {
+    // Critter Kart — promoted from preview 2026-06-04. React + Three.js
+    // 6-player kart racer lifted from BillionaireBonkClub/critter-kart by
+    // fishyboy-claude on arcade/critter-kart. Server-authoritative MP
+    // physics + Grand Prix scoring on SolShot server.
+    slug: 'critter-kart',
+    name: 'Critter Kart',
+    tag: 'NEW',
+    genre: 'Racing',
+    tagline: '6 critters. 1 circuit. Grand Prix points.',
+    players: 0,
+    stake: '0.01+',
+    yield: 35,
+    hi: '—',
+    heroSrc: '/assets/games/hero/critter-kart.webp',
+    tileSrc: '/assets/games/hero/critter-kart-tile.webp',
+    splashSrc: '/assets/games/hero/critter-kart-splash.webp',
+    heroFocus: 'center',
+  },
   // 8-Ball Pool removed from the public PORTAL_GAMES floor 2026-06-04.
   // The canvas lift from arcade/8-ball-pool isn't done; tile would
   // route to a stub MatchHUD wrapper with no playable game inside.
@@ -162,7 +181,6 @@ export interface ComingUpItem {
 
 export const COMING_UP: ComingUpItem[] = [
   { label: '8-Ball Pool',   when: 'Q3 2026' },
-  { label: 'Critter Kart',  when: 'Q3 2026' },
   { label: 'Shootout',      when: 'Q3 2026' },
   { label: 'Tournaments',   when: 'Q3 2026' },
   { label: 'Trophy Case',   when: 'Q3 2026' },
@@ -179,10 +197,10 @@ export interface BrowseCategory {
 }
 
 export const BROWSE_CATEGORIES: BrowseCategory[] = [
-  { id: 'all',     label: 'All',          count: 4 },
+  { id: 'all',     label: 'All',          count: 5 },
   { id: 'sports',  label: 'Sports',       count: 2 },
   { id: 'skill',   label: 'Skill',        count: 1 },
   { id: 'action',  label: 'Action',       count: 1 },
-  { id: 'multi',   label: 'Multiplayer',  count: 0, soon: true },
-  { id: 'tourny',  label: 'Tournaments',  count: 0, soon: true },
+  { id: 'racing',  label: 'Racing',       count: 1 },
+  { id: 'multi',   label: 'Multiplayer',  count: 1 }, // Critter Kart is MP
 ];

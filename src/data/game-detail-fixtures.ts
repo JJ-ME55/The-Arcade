@@ -45,6 +45,11 @@ export const HOW_TO_PLAY: Record<ArcadeGame['slug'], HowToStep[]> = {
     { n: '02', title: 'Ready & shoot', desc: 'Think as long as you want, then tap READY — 45 seconds to commit.' },
     { n: '03', title: 'Async turns',   desc: '12 hours to take your turn. Play across days. ELO climbs with every win.' },
   ],
+  'critter-kart': [
+    { n: '01', title: 'Race',     desc: '6 karts on the grid. Pick a critter, find the line. Touch + tilt or arrow keys.' },
+    { n: '02', title: 'Position', desc: 'Higher finish = more points. Grand Prix style: 1st pays 15, 2nd pays 12, down to 4.' },
+    { n: '03', title: 'Climb',    desc: 'Points stack across races. Best lap tracked separately for the speedrun board.' },
+  ],
 };
 
 export interface PayoutRow {

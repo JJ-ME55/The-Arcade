@@ -16,6 +16,7 @@ import { GameDetail } from '@/routes/games/GameDetail';
 import { KeepieUppies } from '@/routes/games/KeepieUppies';
 import { Basketball } from '@/routes/games/Basketball';
 import { FreeKicks } from '@/routes/games/FreeKicks';
+import { CritterKart } from '@/routes/games/CritterKart';
 // Pool (legacy chromeless iframe wrapper) replaced by MatchHUD below.
 import { PoolLobby } from '@/routes/games/pool/Lobby';
 import { MatchHUD } from '@/routes/games/pool/MatchHUD';
@@ -42,6 +43,7 @@ export function App() {
         <Route path="/play/keepie-uppies/launch" element={<KeepieUppies />} />
         <Route path="/play/basketball/launch" element={<Basketball />} />
         <Route path="/play/free-kicks/launch" element={<FreeKicks />} />
+        <Route path="/play/critter-kart/launch" element={<CritterKart />} />
         {/* Match HUD wraps the pool iframe with brass HUD bar + power
             shelf (Round 2 DesktopMatch port). MatchHUD replaces the
             chromeless Pool wrapper; the iframe receives ?hud=parent so
