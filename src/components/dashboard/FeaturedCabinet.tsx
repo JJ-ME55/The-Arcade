@@ -165,9 +165,20 @@ export function FeaturedCabinet({ activeIndex, setActiveIndex }: FeaturedCabinet
         <div style={{ flex: 1 }} />
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          {/* V1 CTA priority: FREE PLAY primary (filled-blue), WAGER
+              secondary (outline + V2 tag). Wager mode isn't live in
+              V1; primary slot should reflect what users can actually
+              do today. Note: this got reverted between earlier QA
+              cleanup (3764e46) and the domain swap — re-applying. */}
           <button
             type="button"
-            onClick={() => navigate(`/play/${featured.slug}`)}
+            onClick={() =>
+              navigate(
+                featured.slug === 'solshot'
+                  ? '/play/solshot'
+                  : `/play/${featured.slug}/launch`
+              )
+            }
             style={{
               padding: '12px 22px',
               background: 'var(--blue)',
@@ -181,17 +192,11 @@ export function FeaturedCabinet({ activeIndex, setActiveIndex }: FeaturedCabinet
               cursor: 'pointer',
             }}
           >
-            Wager
+            Free Play
           </button>
           <button
             type="button"
-            onClick={() =>
-              navigate(
-                featured.slug === 'solshot'
-                  ? '/play/solshot'
-                  : `/play/${featured.slug}/launch`
-              )
-            }
+            onClick={() => navigate(`/play/${featured.slug}`)}
             style={{
               padding: '12px 22px',
               background: 'transparent',
@@ -203,9 +208,23 @@ export function FeaturedCabinet({ activeIndex, setActiveIndex }: FeaturedCabinet
               letterSpacing: '0.18em',
               textTransform: 'uppercase',
               cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
-            Free Play
+            Wager
+            <span
+              style={{
+                fontSize: 8,
+                padding: '2px 6px',
+                background: 'rgba(251,252,254,0.18)',
+                letterSpacing: '0.18em',
+                fontWeight: 700,
+              }}
+            >
+              V2
+            </span>
           </button>
         </div>
       </div>
