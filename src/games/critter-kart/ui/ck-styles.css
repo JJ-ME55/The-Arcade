@@ -1,0 +1,246 @@
+/* ============================================================
+   CRITTER KART — UI design system
+   Standalone arcade identity. No Arcade-hub DNA.
+   Type: Lilita One (display) + Nunito (UI)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,800&display=swap');
+
+:root {
+  /* --- Racer / categorical palette (from brief) --- */
+  --rusty:  #c92f23;
+  --shelly: #2f9e44;
+  --pip:    #1c9bd6;
+  --bruno:  #9c6b3f;
+
+  /* --- Item palette (from brief) --- */
+  --berry:  #ff4136;
+  --acorn:  #ff851b;
+  --bee:    #ffdc00;
+  --mud:    #8a5a2b;
+  --leaf:   #2ecc40;
+  --storm:  #0074d9;
+
+  /* --- World palette (matches the low-poly game) --- */
+  --grass:  #5fae46;
+  --road:   #6b6f76;
+  --sky:    #87b7e8;
+
+  /* --- Brand hero accent: sunflower gold (golden-hour energy) --- */
+  --gold:      #ffb22e;
+  --gold-deep: #f59017;
+  --gold-soft: #ffd37a;
+
+  /* --- Ink + neutrals (navy-warm, not pure black) --- */
+  --ink:        #16233c;   /* deep navy panels */
+  --ink-2:      #0e1828;   /* darker */
+  --ink-line:   #2c3e5e;
+  --paper:      #fbf7ee;   /* warm off-white */
+  --paper-2:    #efe7d6;
+  --muted:      #8aa0bf;   /* muted blue-grey text on ink */
+
+  /* --- Panel system (translucent dark, readable over bright world) --- */
+  --panel:        rgba(16, 24, 40, 0.72);
+  --panel-solid:  #14203a;
+  --panel-line:   rgba(255, 255, 255, 0.14);
+  --panel-blur:   blur(8px) saturate(1.1);
+
+  /* --- Shape --- */
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --r-xl: 30px;
+
+  /* --- Shadow / depth (chunky toy shadows) --- */
+  --drop:      0 8px 0 rgba(0,0,0,0.18);
+  --drop-soft: 0 12px 30px rgba(8, 14, 28, 0.35);
+  --text-pop:  0 3px 0 rgba(0,0,0,0.35), 0 1px 0 rgba(0,0,0,0.4);
+
+  /* --- Type --- */
+  --display: 'Lilita One', system-ui, sans-serif;
+  --ui: 'Nunito', system-ui, sans-serif;
+
+  /* Tweakable (overridden via root inline style) */
+  --accent: var(--gold);
+  --accent-deep: var(--gold-deep);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: var(--ui);
+  -webkit-font-smoothing: antialiased;
+  background: #07101f;
+  color: var(--paper);
+  overflow: hidden;
+  /* Mobile: it's a full-screen game — kill page scroll/zoom/bounce + text selection on touch. */
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- Fixed 16:9 stage that letterboxes ---- */
+#stage-root {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(120% 90% at 50% -10%, #11233f 0%, #07101f 60%, #050a14 100%);
+}
+#stage {
+  position: relative;
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  border-radius: 18px;
+  box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+  transform-origin: center center;
+}
+
+/* ---- Screen base ---- */
+.screen {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* speed-stripe motif */
+.speedlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    -24deg,
+    transparent 0 38px,
+    rgba(255,255,255,0.04) 38px 44px
+  );
+}
+
+/* checker motif */
+.checker {
+  background-image:
+    linear-gradient(45deg, #1a2740 25%, transparent 25%),
+    linear-gradient(-45deg, #1a2740 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1a2740 75%),
+    linear-gradient(-45deg, transparent 75%, #1a2740 75%);
+  background-size: 22px 22px;
+  background-position: 0 0, 0 11px, 11px -11px, -11px 0;
+}
+
+/* ---- Chunky button ---- */
+.ck-btn {
+  font-family: var(--display);
+  font-size: 26px;
+  letter-spacing: 0.5px;
+  color: var(--ink);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--r-md);
+  padding: 16px 34px 18px;
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 7px 0 var(--accent-deep), 0 14px 24px rgba(0,0,0,0.3);
+  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.12s ease;
+  text-transform: uppercase;
+  -webkit-text-stroke: 0;
+}
+.ck-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.ck-btn:active { transform: translateY(5px); box-shadow: 0 2px 0 var(--accent-deep), 0 4px 10px rgba(0,0,0,0.3); }
+.ck-btn.ghost {
+  background: var(--panel);
+  color: var(--paper);
+  box-shadow: 0 7px 0 rgba(0,0,0,0.35), inset 0 0 0 1px var(--panel-line);
+  backdrop-filter: var(--panel-blur);
+}
+.ck-btn.ghost:active { box-shadow: 0 2px 0 rgba(0,0,0,0.35), inset 0 0 0 1px var(--panel-line); }
+.ck-btn.sm { font-size: 18px; padding: 10px 20px 12px; box-shadow: 0 5px 0 var(--accent-deep); }
+.ck-btn.sm:active { box-shadow: 0 2px 0 var(--accent-deep); }
+
+/* ---- Panel ---- */
+.panel {
+  background: var(--panel);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--r-lg);
+}
+
+/* ---- Pill label ---- */
+.pill {
+  font-family: var(--display);
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--accent);
+  padding: 5px 14px 6px;
+  border-radius: 999px;
+  display: inline-block;
+  line-height: 1;
+}
+
+.tag {
+  font-family: var(--ui);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ---- Wordmark ---- */
+.wordmark {
+  font-family: var(--display);
+  line-height: 0.84;
+  text-transform: uppercase;
+  -webkit-text-stroke: 8px var(--ink);
+  paint-order: stroke fill;
+  filter: drop-shadow(0 10px 0 rgba(0,0,0,0.28));
+}
+
+/* utility — transform-only so content is ALWAYS visible even if animation is throttled/paused */
+.fade-enter { animation: feSlide 0.42s cubic-bezier(.2,.8,.3,1) both; }
+@keyframes feSlide { from { transform: translateY(12px); } to { transform: none; } }
+.pop { animation: popIn 0.34s cubic-bezier(.2,1.3,.4,1) both; }
+@keyframes popIn { from { transform: scale(.965); } to { transform: scale(1); } }
+
+@keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes scaleIn { from { transform: scale(.5); } to { transform: scale(1); } }
+
+/* Character-select kart stage / chip flourishes */
+@keyframes ckspin { to { transform: rotate(360deg); } }
+@keyframes ckbob { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-11px) rotate(1deg); } }
+@keyframes ckwiggle { 0%,100% { transform: translateY(-3px) rotate(0deg); } 30% { transform: translateY(-3px) rotate(-2.5deg); } 70% { transform: translateY(-3px) rotate(2.5deg); } }
+@keyframes ckstamp { 0% { transform: scale(2.4) rotate(-18deg); opacity: 0; } 60% { transform: scale(.86) rotate(-10deg); opacity: 1; } 100% { transform: scale(1) rotate(-10deg); opacity: 1; } }
+@keyframes ckpulse { 0%,100% { transform: scale(1); opacity: .55; } 50% { transform: scale(1.08); opacity: .9; } }
+@keyframes cksweep { 0% { transform: translateX(-120%) skewX(-18deg); } 100% { transform: translateX(320%) skewX(-18deg); } }
+@keyframes ckgrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Race countdown — punch in + scale + fade for digits, special GO! curve */
+@keyframes ckcount { 0% { transform: scale(2.2); opacity: 0; } 22% { transform: scale(1); opacity: 1; } 78% { transform: scale(1); opacity: 1; } 100% { transform: scale(.62); opacity: 0; } }
+@keyframes ckgo { 0% { transform: scale(.4); opacity: 0; } 30% { transform: scale(1.18); opacity: 1; } 70% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.05); opacity: 0; } }
+@keyframes ckflash { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.12; } }
+
+/* Loading-screen indicator: tiny CSS spinner + animated "Loading…" dots */
+.ck-spinner {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.22);
+  border-top-color: var(--accent);
+  animation: ckspin .75s linear infinite;
+}
+.ck-loading-dots::after {
+  content: '';
+  animation: ckdots 1.4s steps(1, end) infinite;
+}
+@keyframes ckdots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } 100% { content: ''; } }
+
+::selection { background: var(--accent); color: var(--ink); }
