@@ -274,6 +274,11 @@ export function bootFreeKicks(container) {
         : `Best: ${result.bestScore} pts · Rank #${result.rank} of ${result.totalPlayers}`;
       runOverInfoEl.textContent = rankLine;
       runOverInfoEl.style.display = 'block';
+      // Celebration burst — confetti + audio + haptic on server-confirmed
+      // new best. Throttled inside the listener.
+      if (result.newBest) {
+        try { window.dispatchEvent(new CustomEvent('arcade:celebrate')); } catch {}
+      }
     } else if (result?.reason === 'session_expired') {
       // 401 — JWT expired. Score is NOT stashed (a stale token would just
       // fail again on retry); user must re-launch to mint a fresh one.

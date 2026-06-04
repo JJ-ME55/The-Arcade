@@ -286,6 +286,12 @@ class KeepieUppiesScene extends Phaser.Scene {
         if (newBest) {
             this.bestScore = this.score;
             localStorage.setItem('keepie:best', String(this.bestScore));
+            // Celebration burst — confetti + haptic + audio on local
+            // new-best detection. Fires before the server confirms so
+            // the user feels the win instantly. Throttled inside the
+            // listener so it can't fire twice if the server-side
+            // confirmation also dispatches.
+            try { window.dispatchEvent(new CustomEvent('arcade:celebrate')); } catch {}
             this.bestText.setText(`BEST ${this.bestScore}`);
         }
         this.overlayScore.setText(`Score ${this.score}`);

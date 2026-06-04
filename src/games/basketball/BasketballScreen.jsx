@@ -5,6 +5,7 @@ import { BasketballHUD } from './hud.jsx';
 import { GameChrome } from '@/components/GameChrome.jsx';
 import { TelegramLinkBanner } from '@/components/TelegramLinkBanner.jsx';
 import { ClaimScoreOverlay } from '@/components/ClaimScoreOverlay';
+import { HowToPlayIntro } from '@/components/HowToPlayIntro';
 import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
 
 /**
@@ -65,6 +66,7 @@ export function BasketballScreen() {
             <div ref={phaserHostRef} style={styles.phaserHost} />
             <BasketballHUD />
             <GameChrome onMute={handleMute} />
+            <HowToPlayIntro slug="basketball" gameName="Basketball" />
             {sessionStatus === 'tg_not_linked' && <TelegramLinkBanner />}
             <ClaimScoreOverlay game="basketball" />
         </div>

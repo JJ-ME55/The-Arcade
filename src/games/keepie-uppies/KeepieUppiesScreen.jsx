@@ -4,6 +4,7 @@ import { createScene } from './scene.js';
 import { GameChrome } from '@/components/GameChrome.jsx';
 import { TelegramLinkBanner } from '@/components/TelegramLinkBanner.jsx';
 import { ClaimScoreOverlay } from '@/components/ClaimScoreOverlay';
+import { HowToPlayIntro } from '@/components/HowToPlayIntro';
 import { useArcadeSessionMint } from '@/wallet/useArcadeSessionMint.js';
 
 /**
@@ -67,6 +68,7 @@ export function KeepieUppiesScreen() {
         <div style={styles.root}>
             <div ref={phaserHostRef} style={styles.phaserHost} />
             <GameChrome onMute={handleMute} />
+            <HowToPlayIntro slug="keepie-uppies" gameName="Keepie Uppies" />
             {sessionStatus === 'tg_not_linked' && <TelegramLinkBanner />}
             <ClaimScoreOverlay game="keepie-uppies" />
         </div>

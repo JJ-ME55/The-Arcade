@@ -828,6 +828,13 @@ export class BasketballScene extends Phaser.Scene {
                 arcadeNewBest: result.newBest,
                 arcadeSubmitError: null,
             });
+            // Celebration burst — fires when the server confirms a new
+            // best (so it reflects the global leaderboard, not just
+            // local). Throttled inside the listener to prevent chain
+            // fire if other code dispatches too.
+            if (result.newBest) {
+                try { window.dispatchEvent(new CustomEvent('arcade:celebrate')); } catch {}
+            }
             return;
         }
         if (result?.reason === 'no_session') {

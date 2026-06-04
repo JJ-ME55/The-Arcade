@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { ArcadePrivyProvider } from '@/wallet/PrivyProvider';
 import { App } from '@/App';
 import { initSentry, Sentry } from '@/lib/sentry';
+import { CelebrationBurst } from '@/components/CelebrationBurst';
 import '@/styles/tokens.css';
 import '@/styles/global.css';
 
@@ -86,6 +87,10 @@ createRoot(container).render(
           <App />
         </ArcadePrivyProvider>
       </BrowserRouter>
+      {/* Global celebration burst — listens for arcade:celebrate events
+          dispatched by game HUDs on new-best moments. Throttled per the
+          component (max once per 3s). */}
+      <CelebrationBurst />
     </Sentry.ErrorBoundary>
   </StrictMode>
 );
