@@ -1,34 +1,64 @@
 // @ts-nocheck
 /**
- * Critter Kart network client — TWO public APIs.
+ * Critter Kart network client — REAL socket.io connection to SolShot.
  *
- * (A) Legacy getNetClient() + NetClient interface
- *     Used by Fish's existing lobby/custom-game UI (App.tsx +
- *     ui/multiplayer/screens.tsx). Wraps a stub backend verbatim so the
- *     existing lobby UI keeps building and working with fake seed data.
- *     Real lobby-flow server impl is post-v1 work.
+ * SESSION 2d (2026-06-04): replaces the in-process stub with a real
+ * socket that talks to JJ's SolShot server-side lobby + race
+ * implementation. The lobby browser actually shows other players'
+ * rooms; Fish can join JJ's lobby; both ready up; host starts; race
+ * begins for both.
  *
- * (B) New createCritterKartNet() -> CritterKartNet
- *     Used by Session 2c's MultiplayerLayer + GameCanvas integration for
- *     server-authoritative Quick Race. Real socket.io connection to
- *     SolShot, 30Hz input loop, snapshot ring buffer. Requires
- *     `npm install socket.io-client`.
+ * PREREQ: `npm install socket.io-client@^4.7.0` in this repo.
  *
- * Both exports coexist. Existing imports of getNetClient resolve cleanly.
+ * TWO public exports:
+ *
+ *  (A) getNetClient() / NetClient
+ *      Singleton used by Fish's lobby + custom-game UI
+ *      (App.tsx + ui/multiplayer/screens.tsx). Wraps a socket.io
+ *      connection in the NetClient interface so existing imports work
+ *      unchanged.
+ *
+ *  (B) createCritterKartNet() / CritterKartNet
+ *      Used by MultiplayerLayer for Quick Race / per-race input loops.
+ *      Same socket connection style but exposes sendInput + getLatestSnapshot.
+ *
+ * Both authenticate via the arcade session JWT (decoded by identity.ts
+ * into telegramUserId + JWT string, passed in socket handshake.auth).
  */
 
-// =============================================================================
-// (A) Legacy stub-backed NetClient — preserved from Fish's 0c8ac388b
-// =============================================================================
-
-import { getArcadeUsername } from './identity';
+import { getArcadeIdentity, getArcadeUsername } from './identity';
 import type {
     ClientEvents, ServerEvents, ClientEventKey, ServerEventKey,
-    LobbyState, LobbySummary, Member, RaceSnapshot, RaceInputFrame,
+    RaceSnapshot, RaceInputFrame,
 } from './protocol';
 
 type Listener<K extends ServerEventKey> = (payload: ServerEvents[K]) => void;
 type AnyListener = (payload: unknown) => void;
+
+const SERVER_BASE =
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SOLSHOT_API_BASE) ||
+    'https://solshot.onrender.com';
+
+// ─── socket.io loader ───────────────────────────────────────────────────
+let _socketIo: any = null;
+async function loadSocketIo() {
+    if (_socketIo) return _socketIo;
+    try {
+        // @ts-ignore — optional dep
+        const mod = await import('socket.io-client');
+        _socketIo = mod.io;
+        return _socketIo;
+    } catch (e: any) {
+        throw new Error(
+            'socket.io-client not installed. Run `npm install socket.io-client` ' +
+            `in The-Arcade repo. (${e?.message || e})`
+        );
+    }
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// (A) Legacy-compatible NetClient — backs Fish's lobby UI with REAL server
+// ───────────────────────────────────────────────────────────────────────
 
 export interface NetClient {
     ready(): Promise<void>;
@@ -42,36 +72,19 @@ export interface NetClient {
 let singleton: NetClient | null = null;
 
 export function getNetClient(): NetClient {
-    if (!singleton) singleton = createStubClient();
+    if (!singleton) singleton = createRealClient();
     return singleton;
 }
 
-function createStubClient(): NetClient {
+/**
+ * Build the NetClient with a real socket.io connection. Identity comes
+ * from the arcade JWT via identity.ts.
+ */
+function createRealClient(): NetClient {
     const listeners = new Map<ServerEventKey, Set<AnyListener>>();
     let usernameValue = '';
-
-    const lobbies = new Map<string, LobbyState>();
-    let nextLobbyId = 1;
-    let nextRequestId = 1;
-    let myLobbyId: string | null = null;
-    let fakeFillTimer: any = null;
-
-    const seedFakeLobby = (id: string, name: string, host: string, cap: number, joined: number): LobbyState => ({
-        id, name, hostUsername: host, cap,
-        members: Array.from({ length: joined }, (_, i) => ({
-            username: i === 0 ? host : `fake-${i}`,
-            ready: false,
-            host: i === 0,
-        })),
-        pending: [], status: 'open',
-    });
-    lobbies.set('seed-jj', seedFakeLobby('seed-jj', 'JJ Lobby', 'JJ', 4, 2));
-    lobbies.set('seed-fish', seedFakeLobby('seed-fish', 'Fish vs Pip', 'Fish', 2, 1));
-
-    const ready = (async () => {
-        usernameValue = await getArcadeUsername();
-        setTimeout(() => dispatch('net:connected' as any, { username: usernameValue } as any), 0);
-    })();
+    let socket: any = null;
+    const pendingEmits: Array<{ event: string; payload: any }> = [];
 
     function dispatch(type: ServerEventKey, payload: unknown): void {
         const set = listeners.get(type);
@@ -79,126 +92,104 @@ function createStubClient(): NetClient {
         for (const fn of set) fn(payload);
     }
 
-    function lobbySummary(l: LobbyState): LobbySummary {
-        return {
-            id: l.id, name: l.name, hostUsername: l.hostUsername, cap: l.cap,
-            joinedCount: l.members.length,
-            status: (l.status === 'closed' ? 'open' : l.status) as any,
-        };
-    }
-
-    function broadcastLobby(l: LobbyState): void {
-        dispatch('lobby:state' as any, { lobby: structuredClone(l) } as any);
-    }
-
-    function handleEmit<K extends ClientEventKey>(event: K, payload: ClientEvents[K]): void {
-        switch (event) {
-            case 'lobby:list': {
-                const list = Array.from(lobbies.values())
-                    .filter((l) => l.status === 'open')
-                    .map(lobbySummary);
-                dispatch('lobby:listing' as any, { lobbies: list } as any);
-                return;
-            }
-            case 'lobby:create': {
-                const { name, cap } = payload as ClientEvents['lobby:create'];
-                const id = `lobby-${nextLobbyId++}`;
-                const lobby: LobbyState = {
-                    id,
-                    name: name.trim() || `${usernameValue}'s lobby`,
-                    cap: Math.max(1, Math.min(6, cap)),
-                    hostUsername: usernameValue,
-                    members: [{ username: usernameValue, host: true, ready: false }],
-                    pending: [], status: 'open',
-                };
-                lobbies.set(id, lobby);
-                myLobbyId = id;
-                dispatch('lobby:created' as any, { lobby: structuredClone(lobby) } as any);
-                if (fakeFillTimer) clearTimeout(fakeFillTimer);
-                fakeFillTimer = setTimeout(() => {
-                    if (lobbies.get(id)?.status !== 'open') return;
-                    const requestId = `req-${nextRequestId++}`;
-                    lobby.pending.push({ requestId, username: 'Pip' });
-                    dispatch('lobby:joinRequest' as any, { lobbyId: id, requestId, username: 'Pip' } as any);
-                    broadcastLobby(lobby);
-                }, 2200);
-                return;
-            }
-            case 'lobby:join': {
-                const { lobbyId } = payload as ClientEvents['lobby:join'];
-                const lobby = lobbies.get(lobbyId);
-                if (!lobby) return;
-                lobby.members.push({ username: usernameValue, ready: false });
-                myLobbyId = lobbyId;
-                dispatch('lobby:joined' as any, { lobby: structuredClone(lobby) } as any);
-                broadcastLobby(lobby);
-                return;
-            }
-            case 'lobby:decision': {
-                if (!myLobbyId) return;
-                const lobby = lobbies.get(myLobbyId);
-                if (!lobby) return;
-                const { requestId, accept } = payload as ClientEvents['lobby:decision'];
-                const idx = lobby.pending.findIndex((p) => p.requestId === requestId);
-                if (idx < 0) return;
-                const req = lobby.pending.splice(idx, 1)[0];
-                if (accept) lobby.members.push({ username: req.username, ready: false });
-                broadcastLobby(lobby);
-                return;
-            }
-            case 'lobby:ready': {
-                if (!myLobbyId) return;
-                const lobby = lobbies.get(myLobbyId);
-                if (!lobby) return;
-                const { ready: rd } = payload as ClientEvents['lobby:ready'];
-                const me = lobby.members.find((m) => m.username === usernameValue);
-                if (me) me.ready = !!rd;
-                broadcastLobby(lobby);
-                return;
-            }
-            case 'lobby:start':
-            case 'lobby:leave': {
-                if (myLobbyId) {
-                    const lobby = lobbies.get(myLobbyId);
-                    if (lobby) {
-                        lobby.status = 'closed';
-                        broadcastLobby(lobby);
-                    }
-                    myLobbyId = null;
-                }
-                return;
-            }
-            case 'match:enqueue': {
-                dispatch('match:queued' as any, { waitMs: 0 } as any);
-                return;
-            }
-            default:
-                return;
+    const ready = (async () => {
+        let identity;
+        try {
+            identity = await getArcadeIdentity();
+        } catch (e) {
+            console.warn('[critter-kart/net] identity resolve failed', e);
+            // Continue with empty identity — server will reject auth
+            // but at least the client doesn't crash
+            identity = { telegramUserId: null, telegramUsername: null, firstName: null, sessionJwt: null, username: '' };
         }
-    }
+        usernameValue = identity.username || '';
+
+        // No JWT → can't authenticate. Surface this clearly but don't
+        // throw — lobby UI just won't get any server events.
+        if (!identity.sessionJwt || !identity.telegramUserId) {
+            console.warn('[critter-kart/net] no session JWT — lobby/multiplayer disabled');
+            setTimeout(() => dispatch('net:error' as any, { message: 'no_session', code: 'no_session' } as any), 0);
+            return;
+        }
+
+        const io = await loadSocketIo();
+        socket = io(SERVER_BASE, {
+            transports: ['websocket'],
+            auth: {
+                telegramUserId: identity.telegramUserId,
+                telegramUsername: identity.telegramUsername,
+                firstName: identity.firstName,
+                sessionJwt: identity.sessionJwt,
+                game: 'critter-kart',
+            },
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 500,
+            reconnectionDelayMax: 4000,
+        });
+
+        socket.on('connect', () => {
+            dispatch('net:connected' as any, { telegramUserId: identity.telegramUserId, username: usernameValue } as any);
+            // Flush queued emits
+            while (pendingEmits.length > 0) {
+                const ev = pendingEmits.shift()!;
+                socket.emit(ev.event, ev.payload);
+            }
+        });
+        socket.on('disconnect', () => {
+            dispatch('net:error' as any, { message: 'disconnected' } as any);
+        });
+        socket.on('connect_error', (err: any) => {
+            dispatch('net:error' as any, { message: String(err?.message || err) } as any);
+        });
+
+        // Forward EVERY server event to the listener map.
+        const proxyEvents: ServerEventKey[] = [
+            'net:connected', 'net:error',
+            'lobby:listing', 'lobby:created', 'lobby:state',
+            'lobby:joinRequest', 'lobby:joined', 'lobby:declined', 'lobby:closed',
+            'match:queued', 'match:found',
+            'race:state', 'race:countdown', 'race:snapshot', 'race:final', 'race:error',
+            // Backwards-compat: server still emits critterkart:* names for
+            // some events that pre-date the lobby rewrite. Listen for both
+            // so Fish's UI components see what they expect.
+            'critterkart:matched' as any,
+            'critterkart:state' as any,
+            'critterkart:countdown' as any,
+            'critterkart:final' as any,
+            'critterkart:error' as any,
+        ];
+        for (const ev of proxyEvents) {
+            socket.on(ev as string, (payload: any) => dispatch(ev, payload));
+        }
+    })();
 
     return {
         ready: () => ready,
         username: () => usernameValue,
-        emit(event, payload) { handleEmit(event, payload); },
+        emit(event, payload) {
+            if (socket && socket.connected) {
+                socket.emit(event as string, payload);
+            } else {
+                pendingEmits.push({ event: event as string, payload });
+            }
+        },
         on<K extends ServerEventKey>(event: K, handler: Listener<K>) {
             let set = listeners.get(event);
             if (!set) { set = new Set(); listeners.set(event, set); }
             set.add(handler as AnyListener);
             return () => set!.delete(handler as AnyListener);
         },
-        close() { /* stub: nothing to clean */ },
-        isStub: true,
+        close() {
+            try { socket?.disconnect(); } catch { /* ignore */ }
+        },
+        isStub: false,
     };
 }
 
-// =============================================================================
-// (B) New server-authoritative CritterKartNet — Session 2c
-// =============================================================================
-
-const SERVER_BASE =
-    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SOLSHOT_API_BASE) ||
-    'https://solshot.onrender.com';
+// ───────────────────────────────────────────────────────────────────────
+// (B) CritterKartNet — race-focused API (sendInput + snapshots)
+// ───────────────────────────────────────────────────────────────────────
 
 const SNAPSHOT_BUFFER = 20;
 const INPUT_HZ = 30;
@@ -218,20 +209,6 @@ export interface NetOptions {
     telegramUserId: number;
     sessionJwt: string;
     serverBase?: string;
-}
-
-async function loadSocketIo() {
-    try {
-        // @ts-ignore — optional dep
-        const mod = await import('socket.io-client');
-        return mod.io;
-    } catch (e: any) {
-        throw new Error(
-            'socket.io-client not installed. Run `npm install socket.io-client` ' +
-            'in The-Arcade repo to enable Critter Kart multiplayer. ' +
-            `(${e?.message || e})`
-        );
-    }
 }
 
 export async function createCritterKartNet(opts: NetOptions): Promise<CritterKartNet> {

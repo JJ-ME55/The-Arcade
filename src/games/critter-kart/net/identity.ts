@@ -1,65 +1,133 @@
 // @ts-nocheck
 /**
- * Identity bootstrap. Multiplayer needs to know the player's Arcade username so
- * lobbies can read "Fish vs JJ" and the matchmaker can quote real names. JJ owns
- * the mechanism by which Critter Kart actually receives that username (URL param,
- * postMessage from a parent frame, `/api/me`, shared cookie — TBD). This module
- * encapsulates the lookup so the rest of the app awaits one Promise and doesn't
- * care which strategy is in play.
+ * Identity bootstrap. Multiplayer needs to know the player's identity (TG id +
+ * username) so the server can attribute lobby actions + race results.
  *
- * Dev fallback: until JJ wires a real source, prompt for a name on first visit
- * and persist it in localStorage so subsequent visits skip the prompt.
+ * UPDATED Session 2d (2026-06-04): now sources from the arcade session JWT
+ * (in sessionStorage as 'arcade_session' / 'arcadeSession'). The JWT was
+ * minted by the SolShot server when the bot launched the game; we trust
+ * it for client-side display purposes (server re-verifies on socket
+ * handshake).
+ *
+ * Public:
+ *   getArcadeUsername()  — display name (sync after first call)
+ *   getArcadeIdentity()  — { telegramUserId, telegramUsername, firstName, sessionJwt }
+ *   resetIdentity()      — clear cache; new lookups re-resolve
  */
 
 const LS_KEY = 'ck_dev_username';
 
-let cached: Promise<string> | null = null;
+interface Identity {
+  telegramUserId: number | null;
+  telegramUsername: string | null;
+  firstName: string | null;
+  sessionJwt: string | null;
+  username: string;   // resolved display name
+}
 
-/** Resolve the player's Arcade username. Cached on first call so screens can
- *  safely await it repeatedly without re-prompting. */
-export function getArcadeUsername(): Promise<string> {
+let cached: Promise<Identity> | null = null;
+
+function getSessionJwt(): string | null {
+  try {
+    return (sessionStorage.getItem('arcade_session')
+      || sessionStorage.getItem('arcadeSession')
+      || null);
+  } catch {
+    return null;
+  }
+}
+
+function decodeJwtBody(jwt: string): any | null {
+  try {
+    const part = jwt.split('.')[1];
+    if (!part) return null;
+    // base64url → base64
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(b64));
+  } catch {
+    return null;
+  }
+}
+
+async function resolve(): Promise<Identity> {
+  const jwt = getSessionJwt();
+  const body = jwt ? decodeJwtBody(jwt) : null;
+
+  // JWT carries { tg, un, fn } per server's mintSession contract
+  if (body && typeof body.tg === 'number') {
+    const telegramUsername = typeof body.un === 'string' ? body.un : null;
+    const firstName = typeof body.fn === 'string' ? body.fn : null;
+    const username = telegramUsername
+      ? `@${telegramUsername}`
+      : (firstName || `Player ${String(body.tg).slice(-4)}`);
+    return {
+      telegramUserId: body.tg,
+      telegramUsername,
+      firstName,
+      sessionJwt: jwt,
+      username,
+    };
+  }
+
+  // ── Strategy: URL param ?u=<username> ────────────────────────────────
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get('u');
+    if (fromUrl && fromUrl.trim()) {
+      return {
+        telegramUserId: null,
+        telegramUsername: null,
+        firstName: null,
+        sessionJwt: jwt,
+        username: fromUrl.trim(),
+      };
+    }
+  } catch { /* fall through */ }
+
+  // ── Dev fallback — localStorage prompt ───────────────────────────────
+  try {
+    const stored = localStorage.getItem(LS_KEY);
+    if (stored && stored.trim()) {
+      return {
+        telegramUserId: null,
+        telegramUsername: null,
+        firstName: null,
+        sessionJwt: jwt,
+        username: stored.trim(),
+      };
+    }
+  } catch { /* private mode */ }
+
+  const entered = (typeof window.prompt === 'function')
+    ? window.prompt('Critter Kart — pick a dev username:', 'Racer')?.trim()
+    : null;
+  const name = entered && entered.length > 0
+    ? entered
+    : `racer-${Math.random().toString(36).slice(2, 7)}`;
+  try { localStorage.setItem(LS_KEY, name); } catch { /* private mode */ }
+  return {
+    telegramUserId: null,
+    telegramUsername: null,
+    firstName: null,
+    sessionJwt: jwt,
+    username: name,
+  };
+}
+
+/** Resolve the player's Arcade username. Cached on first call. */
+export async function getArcadeUsername(): Promise<string> {
+  const id = await getArcadeIdentity();
+  return id.username;
+}
+
+/** Resolve the full identity (TG ids + JWT + display name). */
+export function getArcadeIdentity(): Promise<Identity> {
   if (cached) return cached;
   cached = resolve();
   return cached;
 }
 
-/** Wipe the cached identity (used by the dev "change name" affordance below). */
 export function resetIdentity(): void {
   cached = null;
-  try { localStorage.removeItem(LS_KEY); } catch { /* private mode etc. */ }
-}
-
-async function resolve(): Promise<string> {
-  // ── Strategy 1 (TBD with JJ): URL param ?u=<username> ──────────────────────
-  // Cheap to support if The Arcade ends up redirecting us with the name attached.
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const fromUrl = params.get('u');
-    if (fromUrl && fromUrl.trim()) return fromUrl.trim();
-  } catch { /* fall through */ }
-
-  // ── Strategy 2 (TBD with JJ): parent-frame postMessage ─────────────────────
-  // The Arcade embeds us in an iframe and posts the username on load. We wait a
-  // short window for that handshake before falling through to dev mode.
-  // (Wire this up once JJ confirms the message shape.)
-
-  // ── Strategy 3 (TBD with JJ): cookie-backed /api/me endpoint ───────────────
-  // For when we're served from the same origin as The Arcade and the session
-  // cookie travels with us. Sample shape:
-  //   const res = await fetch('/api/me', { credentials: 'include' });
-  //   if (res.ok) { const { username } = await res.json(); if (username) return username; }
-
-  // ── Dev fallback — localStorage prompt ────────────────────────────────────
-  // Lets us build + test multiplayer screens without any backend at all.
-  try {
-    const stored = localStorage.getItem(LS_KEY);
-    if (stored && stored.trim()) return stored.trim();
-  } catch { /* private mode */ }
-
-  const entered = (typeof window.prompt === 'function')
-    ? window.prompt('Critter Kart — pick a dev username:', 'Fish')?.trim()
-    : null;
-  const name = entered && entered.length > 0 ? entered : `racer-${Math.random().toString(36).slice(2, 7)}`;
-  try { localStorage.setItem(LS_KEY, name); } catch { /* private mode */ }
-  return name;
+  try { localStorage.removeItem(LS_KEY); } catch { /* private mode */ }
 }

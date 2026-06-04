@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useEffect, useRef, type RefObject } from 'react';
+import { useMultiplayerSync } from './game/multiplayer/context';
 import * as THREE from 'three';
 import { createGLTFLoader } from './game/render/loader';
 import { createScene, PREMIUM_RENDER } from './game/render/scene';
@@ -98,6 +99,13 @@ function angleLerp(a: number, b: number, t: number): number {
 
 export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string; hud: GameHud; onFinish: (r: ResultRow[]) => void }) {
   const mountRef = useRef<HTMLDivElement>(null);
+  // Session 2c/2d: when MultiplayerProvider wraps this component (set by
+  // MultiplayerLayer once a race is matched), `multi` returns the sync
+  // helpers. When solo, it returns null and the rAF loop runs Fish's
+  // local physics for all karts unchanged.
+  const multi = useMultiplayerSync();
+  const multiRef = useRef(multi);
+  multiRef.current = multi;
 
   useEffect(() => {
     const mount = mountRef.current!;
@@ -602,6 +610,50 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       // whatever item box their line passes over — no diversion steering needed.)
 
       const raw = keyboard.read();
+
+      // === Multiplayer integration (additive) =================================
+      // When useMultiplayerSync returns non-null, do two things per rAF tick:
+      //   1. Send the local input frame to the server (down-sampled to 30Hz
+      //      inside the net client).
+      //   2. Overwrite REMOTE karts' states[i] from the latest server
+      //      snapshot, so other humans + server-driven bots move
+      //      authoritatively. Skip the local-player slot — Fish's local
+      //      physics drives our own kart's render for snappy feel (thin
+      //      client v1; reconciliation lands in v2).
+      // No-op when solo: multiRef.current is null and this block exits.
+      const mp = multiRef.current;
+      if (mp) {
+        mp.sendInput({
+          steer: racing ? raw.steer : 0,
+          throttle: racing ? raw.throttle : 0,
+          brake: racing ? raw.brake : 0,
+          drift: !!(racing && raw.drift),
+        });
+        const snap = mp.latestSnapshot;
+        if (snap) {
+          for (let i = 0; i < NUM; i++) {
+            if (i === mp.selfSlot) continue; // local kart stays locally driven
+            const k = mp.applyToSlot(i);
+            if (!k) continue;
+            states[i] = {
+              ...states[i],
+              x: k.x,
+              z: k.z,
+              y: k.y ?? states[i].y ?? 0,
+              vy: k.vy ?? states[i].vy ?? 0,
+              heading: k.heading,
+              velHeading: k.velHeading,
+              speed: k.speed,
+              driftDir: k.driftDir,
+              boostTimer: k.boostTimer,
+              stunTimer: k.stunTimer,
+              slowTimer: k.slowTimer,
+              shield: k.shield,
+            };
+          }
+        }
+      }
+      // === End multiplayer integration ========================================
 
       // ROCKET START: hold throttle in the final beat of the countdown for a launch boost. Track
       // when the player first pressed throttle during the countdown; flooring it too EARLY (more
