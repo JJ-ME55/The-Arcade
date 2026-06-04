@@ -90,9 +90,13 @@ export const RARITY_CHIPS: RarityChip[] = [
   { label: 'Legend',   color: 'var(--lose)' },
 ];
 
+// Guest defaults — honest "no Tickets yet, economy V3" reading.
+// When the V3 Ticket emission ledger lands, these wire to real
+// per-user balances via the server. Until then the voucher reads
+// "— · V3 economy" so we don't show fake balances.
 export const VOUCHER = {
-  current: '1,840',
-  weeklyDelta: '+220',
-  lifetimeEarned: '12,480',
-  lifetimeSpent: '10,640',
+  current: '—',
+  weeklyDelta: 'V3',
+  lifetimeEarned: '—',
+  lifetimeSpent: '—',
 };

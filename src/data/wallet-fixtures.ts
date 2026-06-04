@@ -75,5 +75,5 @@ export const WALLET_HERO = {
   netWagers7d: '—',
   winRate: '—',
   biggestHit: '—',
-  cabinetsPlayed: '4 live',
+  cabinetsPlayed: '5 live',
 };
