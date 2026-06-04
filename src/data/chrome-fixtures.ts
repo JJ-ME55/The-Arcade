@@ -63,7 +63,6 @@ export const TICKER_ITEMS: TickerItem[] = [
   { dot: 'var(--blue)',  text: 'Beta · The Arcade · The Floor is open' },
   { dot: 'var(--brass)', text: 'Wager Mainnet · SolShot · V1' },
   { dot: 'var(--ink)',   text: 'Solo skill mode · Basketball · Free Kicks · Keepie Uppies' },
-  { dot: 'var(--brass)', text: 'Tickets economy · V3 · no tradeable token, closed in-game currency' },
   { dot: 'var(--ink)',   text: 'Coming soon · 8-Ball Pool · Critter Kart · Shootout' },
   { dot: 'var(--blue)',  text: 'Sign in · V2 · Privy login returns shortly' },
 ];

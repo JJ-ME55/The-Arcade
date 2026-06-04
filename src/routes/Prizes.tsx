@@ -165,8 +165,8 @@ function PrizeHero({ isMobile }: { isMobile: boolean }) {
             lineHeight: 1.5,
           }}
         >
-          Tickets earned on the floor spend here. Cabinet skins, balls, hulls.{' '}
-          <i>One-way valve — tickets in, never back to SOL.</i> That's the deal.
+          Tickets earned on the floor spend here. Cabinet skins, balls,
+          hulls, avatars. Curated weekly.
         </p>
       </div>
 
@@ -702,19 +702,19 @@ function PrizeCard({ prize }: { prize: ShopPrize }) {
 function PrizeFooter({ isMobile }: { isMobile: boolean }) {
   const notes = [
     {
-      title: 'One-Way Valve',
+      title: 'Earn by playing',
       body:
-        'Tickets earned by playing on the Floor. Spend on the counter — never convert back to SOL. Keeps the prize counter honest.',
+        'Every cabinet pays Tickets. Skill placement pays more. Sign in to track your balance.',
     },
     {
-      title: 'Restock',
+      title: 'Curated weekly',
       body:
-        'New skins land weekly. Legendaries restock monthly. Stock counters update live as players claim.',
+        'New skins land each Friday. Limited drops on themed weekends. Tournament-prize items are one-of-a-kind.',
     },
     {
-      title: 'Ownership',
+      title: 'Avatar + Items (V3)',
       body:
-        'Claimed prizes mint on Solana to your linked wallet. Tradeable on secondary markets. Yours.',
+        'Equip what you claim. Mix and match across cabinets. Trade items in the arcade marketplace.',
     },
   ];
   return (
