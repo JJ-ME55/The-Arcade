@@ -5,6 +5,7 @@ import { MastheadMobile } from './MastheadMobile';
 import { FloorStats, FloorStatsMobile } from './FloorStats';
 import { Ticker } from './Ticker';
 import { MobileTabBar } from './MobileTabBar';
+import { WelcomeToast } from '@/components/WelcomeToast';
 
 /**
  * AppShell — wraps every authed route in the v2 brand chrome.
@@ -61,6 +62,10 @@ export function AppShell() {
           </main>
         </>
       )}
+      {/* Welcome toast — one-time, on first authenticated mount.
+          Mounts above all chrome (high z-index). Auto-dismisses
+          after ~6s; persists dismissal in localStorage. */}
+      <WelcomeToast />
     </div>
   );
 }

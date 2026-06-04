@@ -8,6 +8,7 @@ import { SolShotDetail } from '@/routes/SolShotDetail';
 import { Privacy } from '@/routes/Privacy';
 import { Terms } from '@/routes/Terms';
 import { NotFound } from '@/routes/NotFound';
+import { Me } from '@/routes/Me';
 import { RequireAuth } from '@/routes/RequireAuth';
 import { AppShell } from '@/components/chrome/AppShell';
 import { GameDetail } from '@/routes/games/GameDetail';
@@ -83,7 +84,7 @@ export function App() {
         <Route path="/leaderboards" element={<Navigate to="/leaderboard" replace />} />
         <Route path="/leaderboards/:game" element={<Navigate to="/leaderboard" replace />} />
         <Route path="/wager" element={<Navigate to="/wallet" replace />} />
-        <Route path="/me" element={<Navigate to="/play" replace />} />
+        <Route path="/me" element={<Me />} />
         <Route path="/profile/:callsign" element={<Navigate to="/play" replace />} />
         <Route path="/about" element={<Navigate to="/" replace />} />
       </Route>
