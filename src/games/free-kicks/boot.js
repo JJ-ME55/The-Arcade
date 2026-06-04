@@ -28,7 +28,17 @@ function captureSessionFromUrl() {
   try {
     const params = new URLSearchParams(window.location.search);
     const session = params.get('session');
-    if (session) sessionStorage.setItem('arcadeSession', session);
+    if (session) {
+      sessionStorage.setItem('arcadeSession', session);
+      // SECURITY: strip ?session=<jwt> from URL after capture so the
+      // token isn't visible in address bar / browser history / shares.
+      // history.replaceState avoids a navigation event so the scene
+      // mount is undisturbed.
+      params.delete('session');
+      const q = params.toString();
+      const cleanUrl = window.location.pathname + (q ? `?${q}` : '') + window.location.hash;
+      window.history.replaceState({}, '', cleanUrl);
+    }
   } catch {
     /* sessionStorage unavailable → free-play mode, no submit */
   }

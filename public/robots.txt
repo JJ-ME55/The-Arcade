@@ -1,0 +1,12 @@
+# The Arcade — robots.txt
+User-agent: *
+Allow: /
+
+# Game launch routes capture short-lived JWTs in the URL; we don't
+# want search engines to crawl + cache them. The session is stripped
+# from the URL on capture anyway (history.replaceState), but defence
+# in depth.
+Disallow: /play/*/launch
+
+# Sitemap
+Sitemap: https://the-arcade-eta.vercel.app/sitemap.xml
