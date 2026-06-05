@@ -905,7 +905,23 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         // out-dragged: behind/level → they match-or-beat your pace; only when comfortably AHEAD do
         // they ease so you stay in touch. A hit briefly slows them; a train on the crossing makes
         // them wait. Runs last so it's the final word on bot state (overrides the physics loops).
-        if (racing) {
+        if (racing && !mp) {
+          // MULTIPLAYER GUARD (added 2026-06-05): when in a multiplayer
+          // race, the server is authoritative for every non-self kart.
+          // Snapshots arrive at 20 Hz and the apply block (~ line 624)
+          // writes server-truth into states[1..5] every rAF tick.
+          // Without this `!mp` guard the rail-bot loop below would then
+          // OVERWRITE states[i].x/z/heading/speed for each non-self
+          // slot with locally-computed rail-bot positions (THIS client's
+          // idea of where Peralta's kart should be), so other players'
+          // karts never visually sync with their actual server-driven
+          // movements. Diagnosed 2026-06-05 evening — the diag block at
+          // ~line 624 confirmed snapshots arrive, apply runs, kart-1's
+          // x/z written from server — but the bot loop here trampled it
+          // ~5 ms later every frame. Skipping the entire loop is safe:
+          // boost/stun/slow timer decay arrives via snapshot fields,
+          // and the server runs bot AI for the 4 bot-fill slots, so we
+          // don't need local AI to drive them either.
           const playerCont = laps[PLAYER].lap + track.nearest(states[PLAYER].x, states[PLAYER].z).progress;
           const playerSpeed = Math.max(0, states[PLAYER].speed);
           const FLOOR = TUNING.maxSpeed * 0.72; // don't crawl if the player is slow/stopped/hit
