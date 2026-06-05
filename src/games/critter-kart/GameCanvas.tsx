@@ -339,7 +339,17 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     const chosen = Math.max(0, ROSTER.findIndex((r) => r.id === racerId));
     const botPool = ROSTER.filter((_, i) => i !== chosen);
     const gridRacers: Racer[] = [ROSTER[chosen], ...botPool.slice(0, NUM - 1)];
-    const WEIGHTS = gridRacers.map((r) => r.weight);
+    // In multiplayer, all karts get weight 1.0 regardless of character.
+    // Random character assignment becomes purely visual — no
+    // collision/handling advantage for Pip (light) or disadvantage for
+    // Shelly/Bruno (heavy). Without this, whoever got randomly assigned
+    // the heavy turtle felt like they were "playing on hard mode" with
+    // no way to opt out (Peralta got Shelly 2026-06-05 and reported the
+    // handling felt noticeably degraded). Solo mode unchanged: uses
+    // Fish's per-character weights so picking a character is a real
+    // choice. When proper character-select-in-lobby ships, we can
+    // restore per-racer weights here too.
+    const WEIGHTS = gridRacers.map((r) => multi ? 1.0 : r.weight);
     const karts = gridRacers.map((r, i) => new Kart(r, loader, i === PLAYER)); // only the player casts a shadow (cheap, invisible diff)
     karts.forEach((k) => scene.add(k.mesh));
 
