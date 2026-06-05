@@ -24,10 +24,15 @@ export interface NavCategory {
   to?: string;
 }
 
+// 2026-06-05: Prizes swapped out of primary nav for Competitions.
+// Prizes route stays at /prizes (Wallet's "Browse Prizes" CTA links there,
+// shared TG/X links keep working) — it just renders a coming-soon panel
+// until V3 ships the economy. Competitions is the actionable surface for
+// users with prize energy (1 SOL Free Kicks comp live).
 export const NAV_CATEGORIES: NavCategory[] = [
   { id: 'home',   label: 'Home',         count: 0, active: true, to: '/play' },
-  { id: 'play',   label: 'Play',         count: 4,                to: '/play' },
-  { id: 'prizes', label: 'Prizes',       count: 0,                to: '/prizes' },
+  { id: 'play',   label: 'Play',         count: 5,                to: '/play' },
+  { id: 'comps',  label: 'Competitions', count: 1,                to: '/competitions' },
   { id: 'wallet', label: 'Wallet',       count: 0,                to: '/wallet' },
   { id: 'board',  label: 'Leaderboard',  count: 0,                to: '/leaderboard' },
 ];
@@ -61,9 +66,10 @@ export interface TickerItem {
 
 export const TICKER_ITEMS: TickerItem[] = [
   { dot: 'var(--blue)',  text: 'Beta · The Arcade · The Floor is open' },
+  { dot: 'var(--win)',   text: 'Competition live · 1 SOL · Top Free Kicks score by 30 June' },
   { dot: 'var(--brass)', text: 'Wager Mainnet · SolShot · V1' },
   { dot: 'var(--ink)',   text: 'Solo skill mode · Basketball · Free Kicks · Keepie Uppies' },
-  { dot: 'var(--ink)',   text: 'Coming soon · 8-Ball Pool · Critter Kart · Shootout' },
+  { dot: 'var(--ink)',   text: 'Coming soon · 8-Ball Pool · Shootout' },
   { dot: 'var(--blue)',  text: 'Sign in · V2 · Privy login returns shortly' },
 ];
 

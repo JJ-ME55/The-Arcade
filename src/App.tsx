@@ -3,6 +3,7 @@ import { CabinetLanding } from '@/routes/CabinetLanding';
 import { Dashboard } from '@/routes/Dashboard';
 import { Leaderboards } from '@/routes/Leaderboards';
 import { Prizes } from '@/routes/Prizes';
+import { Competitions } from '@/routes/Competitions';
 import { Wallet } from '@/routes/Wallet';
 import { SolShotDetail } from '@/routes/SolShotDetail';
 import { Privacy } from '@/routes/Privacy';
@@ -78,6 +79,7 @@ export function App() {
           <Route path="/leaderboard" element={<Leaderboards />} />
           <Route path="/leaderboard/:game" element={<Leaderboards />} />
           <Route path="/prizes" element={<Prizes />} />
+          <Route path="/competitions" element={<Competitions />} />
           <Route path="/wallet" element={<Wallet />} />
         </Route>
 

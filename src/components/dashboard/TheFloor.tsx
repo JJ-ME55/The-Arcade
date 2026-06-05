@@ -1,9 +1,11 @@
 // @ts-nocheck — JSX-heavy section, placeholder tile art.
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Section } from '@/components/brand';
 import { SolanaPortal } from '@/components/brand/SolanaPortal';
 import { TicketGlyph } from '@/components/brand/TicketGlyph';
 import { PORTAL_GAMES, type ArcadeGame } from '@/data/games-fixtures';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 /**
  * TheFloor — 4-column grid of cabinet tiles per handoff dashboard §The Floor.
@@ -28,13 +30,17 @@ const TAG_PALETTE: Record<string, { bg: string; fg: string }> = {
   TOP:      { bg: 'var(--brass)', fg: 'var(--ink-deep)' },
 };
 
-function CabinetTile({ game }: { game: ArcadeGame }) {
+function CabinetTile({ game, hoverEnabled }: { game: ArcadeGame; hoverEnabled: boolean }) {
   const navigate = useNavigate();
+  const [hovered, setHovered] = useState(false);
   const tagStyle = game.tag && TAG_PALETTE[game.tag];
   const isFeatured = game.tag === 'FEATURED';
+  const lifted = hoverEnabled && hovered;
 
   return (
     <article
+      onMouseEnter={hoverEnabled ? () => setHovered(true) : undefined}
+      onMouseLeave={hoverEnabled ? () => setHovered(false) : undefined}
       style={{
         position: 'relative',
         background: 'var(--paper)',
@@ -45,8 +51,17 @@ function CabinetTile({ game }: { game: ArcadeGame }) {
         flexDirection: 'column',
         gap: 10,
         opacity: isFeatured ? 0.55 : 1,
-        transition: 'opacity 200ms ease',
+        // Lift on hover — scale + shadow + z-index so the tile pops over
+        // neighbours without bumping the grid layout. Subtle; the
+        // expanding tagline drawer below is the louder cue.
+        transform: lifted ? 'scale(1.035)' : 'scale(1)',
+        boxShadow: lifted ? '0 10px 24px -6px rgba(14,26,46,0.28)' : '0 0 0 0 rgba(0,0,0,0)',
+        zIndex: lifted ? 3 : 1,
+        transition:
+          'opacity 200ms ease, transform 220ms cubic-bezier(.2,.7,.2,1), box-shadow 220ms ease',
+        cursor: hoverEnabled ? 'pointer' : 'default',
       }}
+      onClick={hoverEnabled ? () => navigate(`/play/${game.slug}`) : undefined}
     >
       {/* title row */}
       <header
@@ -116,7 +131,7 @@ function CabinetTile({ game }: { game: ArcadeGame }) {
           }}
         />
 
-        {/* live player count pill */}
+        {/* live player count pill — hidden when tagline drawer is up */}
         <div
           style={{
             position: 'absolute',
@@ -132,6 +147,8 @@ function CabinetTile({ game }: { game: ArcadeGame }) {
             display: 'flex',
             alignItems: 'center',
             gap: 4,
+            opacity: lifted ? 0 : 1,
+            transition: 'opacity 180ms ease',
           }}
         >
           <span
@@ -143,6 +160,55 @@ function CabinetTile({ game }: { game: ArcadeGame }) {
             }}
           />
           {game.players}
+        </div>
+
+        {/* Tagline drawer — peeks up from the bottom of the art on hover.
+            Overlay (not layout) so the grid doesn't jitter when neighbouring
+            tiles change height. Genre + tagline give the user the "what is
+            this" they were asking for at a glance. */}
+        <div
+          aria-hidden={!lifted}
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            padding: '12px 12px 14px',
+            background: 'linear-gradient(180deg, rgba(245,238,221,0) 0%, rgba(245,238,221,0.96) 38%, var(--paper) 100%)',
+            color: 'var(--ink)',
+            transform: lifted ? 'translateY(0)' : 'translateY(20%)',
+            opacity: lifted ? 1 : 0,
+            transition: 'transform 220ms cubic-bezier(.2,.7,.2,1), opacity 200ms ease',
+            pointerEvents: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 8.5,
+              letterSpacing: '0.20em',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              color: 'var(--ink-70)',
+            }}
+          >
+            {game.genre}
+          </span>
+          <span
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 13,
+              fontWeight: 400,
+              letterSpacing: '0.01em',
+              lineHeight: 1.25,
+              color: 'var(--ink)',
+            }}
+          >
+            {game.tagline}
+          </span>
         </div>
       </div>
 
@@ -194,6 +260,10 @@ function CabinetTile({ game }: { game: ArcadeGame }) {
 }
 
 export function TheFloor() {
+  // Hover-lift is desktop-only. On touch devices :hover sticks until the
+  // next tap elsewhere, which makes the tagline drawer feel broken. Mobile
+  // users get the tagline on the game-detail page instead.
+  const isMobile = useIsMobile();
   return (
     <Section title="The Floor" sub={`${PORTAL_GAMES.length} cabinets`}>
       <div
@@ -204,7 +274,7 @@ export function TheFloor() {
         }}
       >
         {PORTAL_GAMES.map((g) => (
-          <CabinetTile key={g.slug} game={g} />
+          <CabinetTile key={g.slug} game={g} hoverEnabled={!isMobile} />
         ))}
       </div>
     </Section>

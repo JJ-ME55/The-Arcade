@@ -20,10 +20,14 @@ interface TabDef {
   to: string;
 }
 
+// 2026-06-05: Prizes tab swapped for Competitions — that's where the
+// live action lives (1 SOL Free Kicks comp). Prizes route stays at
+// /prizes (Wallet has a Browse Prizes link, shared TG/X links keep
+// working) but shows a coming-soon panel until V3 economy.
 const TABS: TabDef[] = [
   { id: 'home',   label: 'Home',   icon: '⌂', to: '/play' },
   { id: 'play',   label: 'Play',   icon: '▸', to: '/play' },
-  { id: 'prize',  label: 'Prizes', icon: '◉', to: '/prizes' },
+  { id: 'comps',  label: 'Comps',  icon: '★', to: '/competitions' },
   { id: 'wallet', label: 'Wallet', icon: '◫', to: '/wallet' },
   { id: 'board',  label: 'Board',  icon: '#', to: '/leaderboard' },
 ];
