@@ -9,6 +9,7 @@ import { LoadingScreen } from './ui/LoadingScreen';
 import { MultiplayerMenu, Matching, CustomBrowse, CustomCreate, LobbyScreen } from './ui/multiplayer/screens';
 import { MultiplayerProvider, type MultiplayerRace } from './game/multiplayer/context';
 import { getNetClient } from './net/client';
+import { getArcadeIdentity } from './net/identity';
 import GameCanvas, { type GameHud } from './GameCanvas';
 import CoverShot from './CoverShot';
 import type { Screen, ResultRow } from './ui/data';
@@ -90,8 +91,9 @@ export default function App({ onRaceFinish }: { onRaceFinish?: (r: ResultRow[], 
   // Shared handler — both Matching and LobbyScreen route through this when the
   // server emits race:start. Builds the MultiplayerRace context and flips the
   // app onto the race screen.
-  const startMpRace = (roomId: string, startAtMs: number, members: Member[]) => {
-    const me = getNetClient().username();
+  const startMpRace = async (roomId: string, startAtMs: number, members: Member[]) => {
+    const net = getNetClient();
+    const me = net.username();
     const selfMember = members.find((m) => m.username === me);
     const selfSlot = selfMember?.slot ?? 0;
     // Server assigns racerId per slot from the regular roster
@@ -99,19 +101,39 @@ export default function App({ onRaceFinish }: { onRaceFinish?: (r: ResultRow[], 
     // player sees themselves as the right character instead of the
     // single-player default.
     if (selfMember?.racerId) setRacer(selfMember.racerId);
-    // Build kartId → slot map and pull self's kartId. Without these the
-    // useMultiplayerSync helper sends `kartId: undefined` on every input
-    // frame (server ignores it) AND `applyToSlot()` returns null for
-    // every remote kart. The MultiplayerRace interface demands them, and
-    // for months App.tsx wasn't populating either — a latent crash that
-    // the rAF tick hit on the very first frame.
+    // Build kartId → slot map and pull self's kartId.
     const kartIdToSlot: Record<string, number> = {};
     members.forEach((m, idx) => {
       const k = m.kartId || `kart-${m.slot ?? idx}`;
       kartIdToSlot[k] = m.slot ?? idx;
     });
     const selfKartId = selfMember?.kartId || `kart-${selfSlot}`;
-    setMpRace({ roomId, selfSlot, selfKartId, startAtMs, members, net: getNetClient(), kartIdToSlot });
+
+    // CRITICAL — bind this socket to the race broadcast room so
+    // `broadcastToRace(io, raceId, 'race:snapshot', snap)` from the
+    // server's RaceRunner reaches us. Without this emit, server still
+    // ticks the race and emits snapshots, but they never arrive at this
+    // socket → each client falls back to running Fish's local 6-kart
+    // sim independently → "they're in different races." The
+    // matchmaking-based MultiplayerLayer.tsx flow already did this; the
+    // lobby-based flow added in this session bypassed it.
+    try {
+      const ident = await getArcadeIdentity();
+      if (ident?.telegramUserId) {
+        net.emit('critterkart:joinRace' as any, {
+          raceId: roomId,
+          telegramUserId: ident.telegramUserId,
+        } as any);
+      } else {
+        // No JWT identity available — multiplayer can't authenticate.
+        // Race screen will still mount but no snapshots will flow.
+        console.warn('[critter-kart/mp] no telegramUserId — race join skipped');
+      }
+    } catch (e) {
+      console.warn('[critter-kart/mp] joinRace emit failed:', e);
+    }
+
+    setMpRace({ roomId, selfSlot, selfKartId, startAtMs, members, net, kartIdToSlot });
     setActiveLobbyId(roomId);
     go('race');
   };
