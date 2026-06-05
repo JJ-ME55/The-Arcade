@@ -622,17 +622,21 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       //      client v1; reconciliation lands in v2).
       // No-op when solo: multiRef.current is null and this block exits.
       const mp = multiRef.current;
+
+      // DIAGNOSTIC: one-shot log on first frame so we know whether mp is null
+      // (= MultiplayerProvider didn't wrap GameCanvas → solo path)
+      // or non-null (= context is wired, see snapshot-apply logs below).
+      if (!(window as any).__ckMpFirstFrame) {
+        (window as any).__ckMpFirstFrame = true;
+        console.log('[critter-kart/diag] FIRST FRAME — mp is:', mp ? {
+          hasSelfSlot: mp.selfSlot,
+          hasSelfKartId: mp.selfKartId,
+          hasSendInput: typeof mp.sendInput,
+          hasLatestSnapshot: typeof Object.getOwnPropertyDescriptor(mp, 'latestSnapshot'),
+        } : 'NULL — solo render, no multiplayer sync');
+      }
+
       if (mp) {
-        // Hard guard — any throw inside this block previously killed the
-        // entire rAF loop (no more requestAnimationFrame(loop) → loading
-        // bar froze at whatever progress was last pushed; e.g. 4% if one
-        // GLB had completed). Specifically, before 2026-06-05, App.tsx
-        // passed a NetClient (lobby socket) into ctx.net but
-        // useMultiplayerSync called ctx.net.sendInput() — a method that
-        // didn't exist on NetClient — and threw on the first frame. The
-        // NetClient now carries sendInput/getLatestSnapshot natively, but
-        // we keep the try/catch so any future schema drift is degraded
-        // rather than fatal.
         try {
           mp.sendInput({
             steer: racing ? raw.steer : 0,
@@ -641,10 +645,39 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
             drift: !!(racing && raw.drift),
           });
           const snap = mp.latestSnapshot;
+          // DIAGNOSTIC: log first time we see a non-null snapshot
+          if (snap && !(window as any).__ckFirstSnapshotLogged) {
+            (window as any).__ckFirstSnapshotLogged = true;
+            console.log('[critter-kart/diag] FIRST SNAPSHOT received:', {
+              raceId: (snap as any).raceId,
+              tick: (snap as any).tick,
+              kartCount: (snap as any).karts?.length,
+              kartIds: (snap as any).karts?.map((k: any) => k.kartId),
+              selfSlot: mp.selfSlot,
+              selfKartId: mp.selfKartId,
+            });
+          }
           if (snap) {
             for (let i = 0; i < NUM; i++) {
-              if (i === mp.selfSlot) continue; // local kart stays locally driven
+              if (i === mp.selfSlot) continue;
               const k = mp.applyToSlot(i);
+              // DIAGNOSTIC: log first non-null applyToSlot result per slot
+              if (k && !(window as any)[`__ckApplied_${i}`]) {
+                (window as any)[`__ckApplied_${i}`] = true;
+                console.log(`[critter-kart/diag] FIRST APPLY slot ${i}:`, {
+                  kartId: (k as any).kartId,
+                  x: (k as any).x,
+                  z: (k as any).z,
+                  heading: (k as any).heading,
+                });
+              }
+              // DIAGNOSTIC: also log per slot when snap exists but applyToSlot returns null
+              if (snap && !k && !(window as any)[`__ckNullApply_${i}`]) {
+                (window as any)[`__ckNullApply_${i}`] = true;
+                console.warn(`[critter-kart/diag] applyToSlot(${i}) returned NULL despite snapshot. snap has karts:`,
+                  (snap as any).karts?.map((kk: any) => kk.kartId),
+                  '  — check kartIdToSlot mapping');
+              }
               if (!k) continue;
               states[i] = {
                 ...states[i],
@@ -664,7 +697,6 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
             }
           }
         } catch (e) {
-          // Log once per session, don't spam, don't crash the loop.
           if (!(window as any).__ckMpErrLogged) {
             (window as any).__ckMpErrLogged = true;
             console.error('[critter-kart/mp] sync threw — race continues solo-rendered:', e);
