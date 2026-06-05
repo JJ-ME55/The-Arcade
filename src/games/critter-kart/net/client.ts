@@ -149,7 +149,7 @@ function createRealClient(): NetClient {
             'lobby:listing', 'lobby:created', 'lobby:state',
             'lobby:joinRequest', 'lobby:joined', 'lobby:declined', 'lobby:closed',
             'match:queued', 'match:found',
-            'race:state', 'race:countdown', 'race:snapshot', 'race:final', 'race:error',
+            'race:start', 'race:state', 'race:countdown', 'race:snapshot', 'race:final', 'race:error',
             // Backwards-compat: server still emits critterkart:* names for
             // some events that pre-date the lobby rewrite. Listen for both
             // so Fish's UI components see what they expect.
