@@ -92,7 +92,13 @@ export default function App({ onRaceFinish }: { onRaceFinish?: (r: ResultRow[], 
   // app onto the race screen.
   const startMpRace = (roomId: string, startAtMs: number, members: Member[]) => {
     const me = getNetClient().username();
-    const selfSlot = members.find((m) => m.username === me)?.slot ?? 0;
+    const selfMember = members.find((m) => m.username === me);
+    const selfSlot = selfMember?.slot ?? 0;
+    // Server assigns racerId per slot from the regular roster
+    // (rusty/shelly/pip/bruno cycled). Pick up self's choice so the
+    // player sees themselves as the right character instead of the
+    // single-player default.
+    if (selfMember?.racerId) setRacer(selfMember.racerId);
     setMpRace({ roomId, selfSlot, startAtMs, members, net: getNetClient() });
     setActiveLobbyId(roomId);
     go('race');
