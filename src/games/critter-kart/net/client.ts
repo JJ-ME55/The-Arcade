@@ -67,6 +67,15 @@ export interface NetClient {
     on<K extends ServerEventKey>(event: K, handler: Listener<K>): () => void;
     close(): void;
     isStub: boolean;
+    // Race-loop API — added 2026-06-05 so the same client can back both
+    // the lobby UI (emit/on) AND GameCanvas's rAF tick (sendInput +
+    // getLatestSnapshot). Previously these lived only on CritterKartNet,
+    // which the multiplayer context never actually instantiated — App.tsx
+    // passed the lobby NetClient instead, and the rAF tick crashed every
+    // frame on `ctx.net.sendInput is not a function`, freezing the
+    // loading bar at the first onProgress emit (~4%).
+    sendInput(frame: RaceInputFrame): void;
+    getLatestSnapshot(): RaceSnapshot | null;
 }
 
 let singleton: NetClient | null = null;
@@ -85,6 +94,10 @@ function createRealClient(): NetClient {
     let usernameValue = '';
     let socket: any = null;
     const pendingEmits: Array<{ event: string; payload: any }> = [];
+    // Latest race:snapshot — captured by the proxy listener below and
+    // surfaced via getLatestSnapshot() so GameCanvas's rAF tick can pull
+    // remote-kart state without subscribing through the listener map.
+    let latestSnapshot: RaceSnapshot | null = null;
 
     function dispatch(type: ServerEventKey, payload: unknown): void {
         const set = listeners.get(type);
@@ -160,7 +173,14 @@ function createRealClient(): NetClient {
             'critterkart:error' as any,
         ];
         for (const ev of proxyEvents) {
-            socket.on(ev as string, (payload: any) => dispatch(ev, payload));
+            socket.on(ev as string, (payload: any) => {
+                // Cache race snapshots so GameCanvas's rAF tick can pull
+                // the latest without subscribing through dispatch().
+                if (ev === ('race:snapshot' as ServerEventKey)) {
+                    latestSnapshot = payload as RaceSnapshot;
+                }
+                dispatch(ev, payload);
+            });
         }
     })();
 
@@ -184,6 +204,17 @@ function createRealClient(): NetClient {
             try { socket?.disconnect(); } catch { /* ignore */ }
         },
         isStub: false,
+        sendInput(frame: RaceInputFrame) {
+            // Same socket as the lobby — input frames go on race:input.
+            // Fire-and-forget; if the socket isn't connected yet, drop
+            // (the rAF tick fires 30Hz so the next frame will retry).
+            if (socket && socket.connected) {
+                try { socket.emit('race:input', frame); } catch { /* ignore */ }
+            }
+        },
+        getLatestSnapshot() {
+            return latestSnapshot;
+        },
     };
 }
 

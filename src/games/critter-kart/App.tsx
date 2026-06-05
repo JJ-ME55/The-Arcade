@@ -99,7 +99,19 @@ export default function App({ onRaceFinish }: { onRaceFinish?: (r: ResultRow[], 
     // player sees themselves as the right character instead of the
     // single-player default.
     if (selfMember?.racerId) setRacer(selfMember.racerId);
-    setMpRace({ roomId, selfSlot, startAtMs, members, net: getNetClient() });
+    // Build kartId → slot map and pull self's kartId. Without these the
+    // useMultiplayerSync helper sends `kartId: undefined` on every input
+    // frame (server ignores it) AND `applyToSlot()` returns null for
+    // every remote kart. The MultiplayerRace interface demands them, and
+    // for months App.tsx wasn't populating either — a latent crash that
+    // the rAF tick hit on the very first frame.
+    const kartIdToSlot: Record<string, number> = {};
+    members.forEach((m, idx) => {
+      const k = m.kartId || `kart-${m.slot ?? idx}`;
+      kartIdToSlot[k] = m.slot ?? idx;
+    });
+    const selfKartId = selfMember?.kartId || `kart-${selfSlot}`;
+    setMpRace({ roomId, selfSlot, selfKartId, startAtMs, members, net: getNetClient(), kartIdToSlot });
     setActiveLobbyId(roomId);
     go('race');
   };

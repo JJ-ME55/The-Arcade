@@ -623,33 +623,51 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       // No-op when solo: multiRef.current is null and this block exits.
       const mp = multiRef.current;
       if (mp) {
-        mp.sendInput({
-          steer: racing ? raw.steer : 0,
-          throttle: racing ? raw.throttle : 0,
-          brake: racing ? raw.brake : 0,
-          drift: !!(racing && raw.drift),
-        });
-        const snap = mp.latestSnapshot;
-        if (snap) {
-          for (let i = 0; i < NUM; i++) {
-            if (i === mp.selfSlot) continue; // local kart stays locally driven
-            const k = mp.applyToSlot(i);
-            if (!k) continue;
-            states[i] = {
-              ...states[i],
-              x: k.x,
-              z: k.z,
-              y: k.y ?? states[i].y ?? 0,
-              vy: k.vy ?? states[i].vy ?? 0,
-              heading: k.heading,
-              velHeading: k.velHeading,
-              speed: k.speed,
-              driftDir: k.driftDir,
-              boostTimer: k.boostTimer,
-              stunTimer: k.stunTimer,
-              slowTimer: k.slowTimer,
-              shield: k.shield,
-            };
+        // Hard guard — any throw inside this block previously killed the
+        // entire rAF loop (no more requestAnimationFrame(loop) → loading
+        // bar froze at whatever progress was last pushed; e.g. 4% if one
+        // GLB had completed). Specifically, before 2026-06-05, App.tsx
+        // passed a NetClient (lobby socket) into ctx.net but
+        // useMultiplayerSync called ctx.net.sendInput() — a method that
+        // didn't exist on NetClient — and threw on the first frame. The
+        // NetClient now carries sendInput/getLatestSnapshot natively, but
+        // we keep the try/catch so any future schema drift is degraded
+        // rather than fatal.
+        try {
+          mp.sendInput({
+            steer: racing ? raw.steer : 0,
+            throttle: racing ? raw.throttle : 0,
+            brake: racing ? raw.brake : 0,
+            drift: !!(racing && raw.drift),
+          });
+          const snap = mp.latestSnapshot;
+          if (snap) {
+            for (let i = 0; i < NUM; i++) {
+              if (i === mp.selfSlot) continue; // local kart stays locally driven
+              const k = mp.applyToSlot(i);
+              if (!k) continue;
+              states[i] = {
+                ...states[i],
+                x: k.x,
+                z: k.z,
+                y: k.y ?? states[i].y ?? 0,
+                vy: k.vy ?? states[i].vy ?? 0,
+                heading: k.heading,
+                velHeading: k.velHeading,
+                speed: k.speed,
+                driftDir: k.driftDir,
+                boostTimer: k.boostTimer,
+                stunTimer: k.stunTimer,
+                slowTimer: k.slowTimer,
+                shield: k.shield,
+              };
+            }
+          }
+        } catch (e) {
+          // Log once per session, don't spam, don't crash the loop.
+          if (!(window as any).__ckMpErrLogged) {
+            (window as any).__ckMpErrLogged = true;
+            console.error('[critter-kart/mp] sync threw — race continues solo-rendered:', e);
           }
         }
       }
