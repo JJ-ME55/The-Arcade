@@ -67,15 +67,15 @@ export interface NetClient {
     on<K extends ServerEventKey>(event: K, handler: Listener<K>): () => void;
     close(): void;
     isStub: boolean;
+    // Race-loop API — added 2026-06-05 so the same client can back both
+    // the lobby UI (emit/on) AND GameCanvas's rAF tick (sendInput +
+    // getLatestSnapshot). Previously these lived only on CritterKartNet,
+    // which the multiplayer context never actually instantiated — App.tsx
+    // passed the lobby NetClient instead, and the rAF tick crashed every
+    // frame on `ctx.net.sendInput is not a function`, freezing the
+    // loading bar at the first onProgress emit (~4%).
     sendInput(frame: RaceInputFrame): void;
     getLatestSnapshot(): RaceSnapshot | null;
-    // Interpolated kart state for a given kartId at the current render
-    // time. Returns smoothly-blended position/heading from the two most
-    // recent snapshots, so 20Hz server emits render as 60fps smooth on
-    // the client (canonical Glenn Fiedler / Source-engine pattern).
-    // Pass interpDelayMs to control how far behind real-time we render;
-    // 100ms is the standard tradeoff between smoothness and apparent lag.
-    getInterpolatedKart(kartId: string, interpDelayMs?: number): any | null;
 }
 
 let singleton: NetClient | null = null;
@@ -98,13 +98,6 @@ function createRealClient(): NetClient {
     // surfaced via getLatestSnapshot() so GameCanvas's rAF tick can pull
     // remote-kart state without subscribing through the listener map.
     let latestSnapshot: RaceSnapshot | null = null;
-    // Snapshot history for interpolation. Tracks the two most recent
-    // snapshots + their arrival timestamps. getInterpolatedKart() lerps
-    // kart position/heading between them so 20Hz server emits render
-    // smoothly at 60fps. Without this, remote karts teleport every 50ms.
-    let prevSnap: RaceSnapshot | null = null;
-    let prevSnapAt = 0;
-    let curSnapAt = 0;
 
     function dispatch(type: ServerEventKey, payload: unknown): void {
         const set = listeners.get(type);
@@ -183,12 +176,8 @@ function createRealClient(): NetClient {
             socket.on(ev as string, (payload: any) => {
                 // Cache race snapshots so GameCanvas's rAF tick can pull
                 // the latest without subscribing through dispatch().
-                // Also slide the previous snapshot down for interpolation.
                 if (ev === ('race:snapshot' as ServerEventKey)) {
-                    prevSnap = latestSnapshot;
-                    prevSnapAt = curSnapAt;
                     latestSnapshot = payload as RaceSnapshot;
-                    curSnapAt = Date.now();
                 }
                 dispatch(ev, payload);
             });
@@ -225,46 +214,6 @@ function createRealClient(): NetClient {
         },
         getLatestSnapshot() {
             return latestSnapshot;
-        },
-        getInterpolatedKart(kartId: string, interpDelayMs: number = 100) {
-            // Two-snapshot lerp. We aim to render INTERP_DELAY_MS behind
-            // real-time so we always have a "future" snapshot to lerp
-            // toward (no extrapolation, no overshoot).
-            //
-            // Edge cases handled inline:
-            //   - No snapshots yet → null
-            //   - Only one snapshot → return its kart as-is (no lerp yet)
-            //   - dt <= 0 (snapshots arrived simultaneously) → use latest
-            //   - kartId missing in either snapshot → fallback to the one
-            //     that has it
-            if (!latestSnapshot) return null;
-            const findKart = (s: RaceSnapshot | null) =>
-                s?.karts.find((k: any) => k.kartId === kartId) ?? null;
-            if (!prevSnap) return findKart(latestSnapshot);
-            const dt = curSnapAt - prevSnapAt;
-            if (dt <= 0) return findKart(latestSnapshot);
-            const renderTime = Date.now() - interpDelayMs;
-            // t = 0 means renderTime == prevSnapAt (use prev), t = 1 means
-            // renderTime == curSnapAt (use cur). Allow slight extrapolation
-            // (up to +50% beyond cur) to mask network jitter, but cap so
-            // we don't fly off into space if a snapshot is missed.
-            const t = Math.max(0, Math.min(1.5, (renderTime - prevSnapAt) / dt));
-            const ka: any = findKart(prevSnap);
-            const kb: any = findKart(latestSnapshot);
-            if (!ka || !kb) return kb || ka || null;
-            // Heading lerp — handle 2π wrap so we don't spin the long way
-            // around when crossing the discontinuity.
-            let dh = kb.heading - ka.heading;
-            while (dh > Math.PI) dh -= 2 * Math.PI;
-            while (dh < -Math.PI) dh += 2 * Math.PI;
-            return {
-                ...kb,
-                x: ka.x + (kb.x - ka.x) * t,
-                z: ka.z + (kb.z - ka.z) * t,
-                y: (ka.y ?? 0) + ((kb.y ?? 0) - (ka.y ?? 0)) * t,
-                heading: ka.heading + dh * t,
-                speed: ka.speed + (kb.speed - ka.speed) * t,
-            };
         },
     };
 }
