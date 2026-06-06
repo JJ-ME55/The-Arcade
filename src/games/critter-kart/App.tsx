@@ -101,39 +101,13 @@ export default function App({ onRaceFinish }: { onRaceFinish?: (r: ResultRow[], 
     // player sees themselves as the right character instead of the
     // single-player default.
     if (selfMember?.racerId) setRacer(selfMember.racerId);
-    // CRITICAL — local-slot REMAP.
-    //
-    // Fish's GameCanvas hardcodes `PLAYER = 0` in 46 places: keyboard
-    // input → stepKart(states[PLAYER], ...), camera follows
-    // states[PLAYER], rocket-start, drift charge, item targeting, lap
-    // tracking — all keyed on slot 0 being "the local user". For the
-    // host (server-slot 0) this works. For any joiner (server-slot 1+)
-    // their keyboard ends up driving slot 0 (visually the host's kart)
-    // while their own kart only follows snapshots — JJ correctly named
-    // this "no controls, drives straight" 2026-06-05.
-    //
-    // The fix without touching 46 sites: rotate the slot indexing so
-    // EVERY client treats self as local-slot 0. Server kartIds
-    // (kart-0/kart-1/...) stay authoritative; client maps them onto
-    // local indices with self at 0.
-    //
-    //   server-slot N for self → local 0
-    //   server-slot (N+1) % NUM → local 1
-    //   ...
-    //
-    // selfSlot in the mpRace context is therefore ALWAYS 0 here, and
-    // PLAYER = 0 in GameCanvas matches it for both players.
-    const NUM = members.length;
-    const selfServerSlot = selfSlot;
+    // Build kartId → slot map and pull self's kartId.
     const kartIdToSlot: Record<string, number> = {};
     members.forEach((m, idx) => {
-      const serverSlot = m.slot ?? idx;
-      const localSlot = (serverSlot - selfServerSlot + NUM) % NUM;
-      const k = m.kartId || `kart-${serverSlot}`;
-      kartIdToSlot[k] = localSlot;
+      const k = m.kartId || `kart-${m.slot ?? idx}`;
+      kartIdToSlot[k] = m.slot ?? idx;
     });
-    const selfKartId = selfMember?.kartId || `kart-${selfServerSlot}`;
-    const localSelfSlot = 0;  // always 0 locally after remap
+    const selfKartId = selfMember?.kartId || `kart-${selfSlot}`;
 
     // CRITICAL — bind this socket to the race broadcast room so
     // `broadcastToRace(io, raceId, 'race:snapshot', snap)` from the
@@ -159,7 +133,7 @@ export default function App({ onRaceFinish }: { onRaceFinish?: (r: ResultRow[], 
       console.warn('[critter-kart/mp] joinRace emit failed:', e);
     }
 
-    setMpRace({ roomId, selfSlot: localSelfSlot, selfKartId, startAtMs, members, net, kartIdToSlot });
+    setMpRace({ roomId, selfSlot, selfKartId, startAtMs, members, net, kartIdToSlot });
     setActiveLobbyId(roomId);
     go('race');
   };
