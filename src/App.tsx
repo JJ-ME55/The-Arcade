@@ -18,6 +18,7 @@ import { KeepieUppies } from '@/routes/games/KeepieUppies';
 import { Basketball } from '@/routes/games/Basketball';
 import { FreeKicks } from '@/routes/games/FreeKicks';
 import { CritterKart } from '@/routes/games/CritterKart';
+import { Shootout } from '@/routes/games/Shootout';
 // Pool (legacy chromeless iframe wrapper) replaced by MatchHUD below.
 import { PoolLobby } from '@/routes/games/pool/Lobby';
 import { MatchHUD } from '@/routes/games/pool/MatchHUD';
@@ -45,6 +46,10 @@ export function App() {
         <Route path="/play/basketball/launch" element={<Basketball />} />
         <Route path="/play/free-kicks/launch" element={<FreeKicks />} />
         <Route path="/play/critter-kart/launch" element={<CritterKart />} />
+        {/* Shootout — chromeless iframe wrapping the standalone Three.js FPS
+            at fps-staking-game.vercel.app. See src/games/shootout/README.md
+            for why this is iframed instead of ported into src/games/. */}
+        <Route path="/play/shootout/launch" element={<Shootout />} />
         {/* Match HUD wraps the pool iframe with brass HUD bar + power
             shelf (Round 2 DesktopMatch port). MatchHUD replaces the
             chromeless Pool wrapper; the iframe receives ?hud=parent so
