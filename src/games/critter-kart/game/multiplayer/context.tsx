@@ -120,6 +120,11 @@ export function useMultiplayerSync() {
       },
       selfSlot: ctx.selfSlot,
       selfKartId: ctx.selfKartId,
+      // V2 (2026-06-06): expose members so GameCanvas can construct
+      // gridRacers from the server's per-slot racerId assignments —
+      // otherwise non-host clients see the wrong character mesh at
+      // every remote slot (Peralta sees JJ as Pip, etc).
+      members: ctx.members,
       sendInput(frame: { steer: number; throttle: number; brake: number; drift: boolean }) {
         ctx.net.sendInput({
           raceId: ctx.roomId,

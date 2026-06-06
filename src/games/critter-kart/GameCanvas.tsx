@@ -109,6 +109,20 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
 
   useEffect(() => {
     const mount = mountRef.current!;
+    // V2 PLAYER refactor (2026-06-06): in multiplayer, the local user's
+    // kart sits at whatever slot the server assigned to this client
+    // (0 for host, 1 for first joiner, etc.). In solo mode `multi` is
+    // null → PLAYER stays 0 → Fish's original code path is byte-identical.
+    //
+    // This single `const PLAYER` shadows the module-level constant at
+    // line 37 for every reference inside this useEffect (~46 sites).
+    // Each site means "the player's kart" semantically — none of them
+    // mean "slot 0 specifically because of grid layout" (audited 2026-
+    // 06-06). So the shadow is sufficient; no per-site changes needed.
+    //
+    // selfSlot is fixed for the duration of a race, so capturing it
+    // once at effect-mount is correct.
+    const PLAYER = multi?.selfSlot ?? 0;
     // Dev diagnostics (FPS log, race breakdown, collision/progress probes, P/B debug keys) are OFF
     // by default for a clean console at launch — append ?debug to the URL to switch them back on.
     const DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug');
@@ -333,12 +347,27 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     };
     window.addEventListener('keydown', onDebugKey);
 
-    // chosen racer races in slot 0; the other five slots are filled by EVERY other character —
-    // the Founders (JJ, Fish) now race as bots too, so it's always a full six-kart grid. (We must
-    // end up with exactly NUM gridRacers or the per-frame loop dereferences gridRacers[undefined].)
-    const chosen = Math.max(0, ROSTER.findIndex((r) => r.id === racerId));
-    const botPool = ROSTER.filter((_, i) => i !== chosen);
-    const gridRacers: Racer[] = [ROSTER[chosen], ...botPool.slice(0, NUM - 1)];
+    // V2 (2026-06-06): in multiplayer the server assigns each slot a
+    // racerId (via members[].racerId on race:start). Honour that so
+    // EVERY client sees the same characters at the same slots — without
+    // this, non-host clients render Peralta as Pip and JJ as Bruno
+    // because Fish's solo construction puts the chosen racer at slot 0
+    // and cycles bots through the remaining slots. In solo, multi is
+    // null → falls through to Fish's original construction.
+    //
+    // Must end up with exactly NUM gridRacers or the per-frame loop
+    // dereferences gridRacers[undefined].
+    let gridRacers: Racer[];
+    if (multi?.members && multi.members.length === NUM) {
+      gridRacers = multi.members.map((m: any) =>
+        ROSTER.find(r => r.id === m.racerId) || ROSTER[0]
+      );
+    } else {
+      // Solo path — Fish's original logic, untouched.
+      const chosen = Math.max(0, ROSTER.findIndex((r) => r.id === racerId));
+      const botPool = ROSTER.filter((_, i) => i !== chosen);
+      gridRacers = [ROSTER[chosen], ...botPool.slice(0, NUM - 1)];
+    }
     const WEIGHTS = gridRacers.map((r) => r.weight);
     const karts = gridRacers.map((r, i) => new Kart(r, loader, i === PLAYER)); // only the player casts a shadow (cheap, invisible diff)
     karts.forEach((k) => scene.add(k.mesh));
