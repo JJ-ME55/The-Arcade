@@ -93,8 +93,21 @@ export default function App({ onRaceFinish }: { onRaceFinish?: (r: ResultRow[], 
   // app onto the race screen.
   const startMpRace = async (roomId: string, startAtMs: number, members: Member[]) => {
     const net = getNetClient();
+    // V2 (2026-06-08): identify self by telegramUserId, NOT username.
+    // Username collisions are real — if two players share a TG first
+    // name (or share an account during dev testing), `.find(m => m.username
+    // === me)` returns the SAME member for both clients, both get
+    // selfSlot=0, and the "non-host has no controls" bug returns
+    // because PLAYER=0 ≠ the joiner's actual slot. telegramUserId is
+    // unique per TG account. Server-side memberWire now includes it
+    // on all 3 race:start emit sites (commit pairs with this one).
+    const ident = await getArcadeIdentity();
+    const myTgId = ident?.telegramUserId ?? null;
     const me = net.username();
-    const selfMember = members.find((m) => m.username === me);
+    const selfMember =
+      (myTgId != null && members.find((m: any) => m.telegramUserId === myTgId)) ||
+      members.find((m) => m.username === me) ||
+      undefined;
     const selfSlot = selfMember?.slot ?? 0;
     // Server assigns racerId per slot from the regular roster
     // (rusty/shelly/pip/bruno cycled). Pick up self's choice so the
@@ -118,11 +131,10 @@ export default function App({ onRaceFinish }: { onRaceFinish?: (r: ResultRow[], 
     // matchmaking-based MultiplayerLayer.tsx flow already did this; the
     // lobby-based flow added in this session bypassed it.
     try {
-      const ident = await getArcadeIdentity();
-      if (ident?.telegramUserId) {
+      if (myTgId != null) {
         net.emit('critterkart:joinRace' as any, {
           raceId: roomId,
-          telegramUserId: ident.telegramUserId,
+          telegramUserId: myTgId,
         } as any);
       } else {
         // No JWT identity available — multiplayer can't authenticate.
