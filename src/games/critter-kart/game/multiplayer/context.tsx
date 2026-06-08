@@ -139,6 +139,24 @@ export function useMultiplayerSync() {
       // otherwise non-host clients see the wrong character mesh at
       // every remote slot (Peralta sees JJ as Pip, etc).
       members: ctx.members,
+      // V2 (2026-06-08): server's race-start-anchor lock from
+      // race:countdownLocked. Falls back to mpRace.startAtMs (set
+      // optimistically at race:start time) until the lock arrives.
+      getStartAtMs(): number {
+        // @ts-ignore — getRaceStartAtMs added 2026-06-08
+        return ctx.net.getRaceStartAtMs?.() ?? ctx.startAtMs;
+      },
+      // V2 (2026-06-08): emit critterkart:ready when assets load.
+      // Server's lobby:start fallback is 15s — clients should signal
+      // ready ASAP so the race countdown locks at the right moment.
+      // Uses the local NetClient's emit directly (same socket).
+      signalReady(telegramUserId: number) {
+        // @ts-ignore — emit is on the underlying NetClient
+        ctx.net.emit?.('critterkart:ready', {
+          raceId: ctx.roomId,
+          telegramUserId,
+        });
+      },
       sendInput(frame: { steer: number; throttle: number; brake: number; drift: boolean }) {
         ctx.net.sendInput({
           raceId: ctx.roomId,

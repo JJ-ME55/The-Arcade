@@ -237,6 +237,23 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         warmedUp = true;
       }
       assetsReady = true;
+      // Signal to the server that THIS client has finished loading.
+      // Server's lobby:start handler is waiting for every human to
+      // emit critterkart:ready before it locks startAtMs and kicks
+      // off the countdown — without this, the 15s fallback timer
+      // would fire instead and joiners with slower loads would
+      // join the race already-in-progress (the desync JJ saw).
+      if (multi && (multi as any).signalReady) {
+        const tgId = (multi.members as any[])?.find(
+          (m: any) => (m.slot ?? -1) === multi.selfSlot,
+        )?.telegramUserId;
+        if (tgId) {
+          (multi as any).signalReady(tgId);
+          console.log('[critter-kart/diag] emitted critterkart:ready', { tgId, selfSlot: multi.selfSlot });
+        } else {
+          console.warn('[critter-kart/diag] cannot emit critterkart:ready — no telegramUserId for selfSlot', multi.selfSlot);
+        }
+      }
     };
     loadingManager.onLoad = () => {
       if (readyTimer !== null) clearTimeout(readyTimer);
@@ -659,8 +676,13 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       // the same wall-clock moment everyone else is at. Better than
       // running a private countdown starting now.
       if (phaseLocal !== 'finished' && assetsReady) {
-        if (multi?.startAtMs) {
-          elapsed = (Date.now() - multi.startAtMs) / 1000;
+        if (multi) {
+          // Prefer the locked startAtMs from race:countdownLocked
+          // (server's all-clients-ready anchor). Falls back to the
+          // tentative startAtMs from race:start until lock arrives.
+          const anchor = (multi as any).getStartAtMs?.() ?? multi.startAtMs;
+          if (anchor) elapsed = (Date.now() - anchor) / 1000;
+          else elapsed += frame;
         } else {
           elapsed += frame;
         }

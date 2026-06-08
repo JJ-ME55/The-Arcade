@@ -76,13 +76,13 @@ export interface NetClient {
     // loading bar at the first onProgress emit (~4%).
     sendInput(frame: RaceInputFrame): void;
     getLatestSnapshot(): RaceSnapshot | null;
-    // Interpolated kart state — lerps position/heading between the two
-    // most recent snapshots so 30Hz server emits render smoothly at
-    // 60fps client-side. Re-added 2026-06-08 after JJ's "needs seamless
-    // NFS-style tightening" feedback. interpDelayMs (default 100ms)
-    // controls how far behind real-time we render — bigger = smoother
-    // but more apparent input lag for remote karts.
     getInterpolatedKart(kartId: string, interpDelayMs?: number): any | null;
+    // Server's locked race-start wall-clock. Set when server emits
+    // `race:countdownLocked` AFTER all clients are assets-ready —
+    // overrides the stale startAtMs from race:start which was set
+    // before anyone had finished loading. Returns null if the lock
+    // event hasn't arrived yet; caller falls back to mpRace.startAtMs.
+    getRaceStartAtMs(): number | null;
 }
 
 let singleton: NetClient | null = null;
@@ -112,6 +112,13 @@ function createRealClient(): NetClient {
     let prevSnap: RaceSnapshot | null = null;
     let prevSnapAt = 0;
     let curSnapAt = 0;
+    // Server's locked race-start wall-clock. Updated when
+    // `race:countdownLocked` arrives — that's AFTER all humans have
+    // emitted critterkart:ready (or after the 15s fallback fires on
+    // server). Once set, GameCanvas uses this in place of the stale
+    // mpRace.startAtMs from race:start so both clients agree on the
+    // race-time anchor regardless of asset-load asymmetry.
+    let raceStartAtMs: number | null = null;
 
     function dispatch(type: ServerEventKey, payload: unknown): void {
         const set = listeners.get(type);
@@ -177,6 +184,7 @@ function createRealClient(): NetClient {
             'lobby:joinRequest', 'lobby:joined', 'lobby:declined', 'lobby:closed',
             'match:queued', 'match:found',
             'race:start', 'race:state', 'race:countdown', 'race:snapshot', 'race:final', 'race:error',
+            'race:countdownLocked' as any,  // updated startAtMs after all-ready handshake
             // Backwards-compat: server still emits critterkart:* names for
             // some events that pre-date the lobby rewrite. Listen for both
             // so Fish's UI components see what they expect.
@@ -188,16 +196,18 @@ function createRealClient(): NetClient {
         ];
         for (const ev of proxyEvents) {
             socket.on(ev as string, (payload: any) => {
-                // Cache race snapshots so GameCanvas's rAF tick can pull
-                // the latest without subscribing through dispatch().
-                // Also slide the previous snapshot down for interpolation —
-                // we keep the two most recent + their arrival timestamps
-                // and lerp kart state between them in getInterpolatedKart.
                 if (ev === ('race:snapshot' as ServerEventKey)) {
                     prevSnap = latestSnapshot;
                     prevSnapAt = curSnapAt;
                     latestSnapshot = payload as RaceSnapshot;
                     curSnapAt = Date.now();
+                }
+                // Capture the all-clients-ready locked startAtMs so
+                // GameCanvas's elapsed anchors to the same wall-clock
+                // across all clients regardless of asset-load timing.
+                if (ev === ('race:countdownLocked' as any) && payload?.startAtMs) {
+                    raceStartAtMs = payload.startAtMs;
+                    console.log('[critter-kart/diag] race:countdownLocked → startAtMs', payload.startAtMs);
                 }
                 dispatch(ev, payload);
             });
@@ -234,6 +244,9 @@ function createRealClient(): NetClient {
         },
         getLatestSnapshot() {
             return latestSnapshot;
+        },
+        getRaceStartAtMs() {
+            return raceStartAtMs;
         },
         getInterpolatedKart(kartId: string, interpDelayMs: number = 100) {
             // Two-snapshot lerp (canonical Glenn Fiedler / Source-engine
