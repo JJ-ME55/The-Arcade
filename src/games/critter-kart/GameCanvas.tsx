@@ -639,7 +639,32 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       if (frame > 0.25) frame = 0.25;
       // Hold the countdown at "3" until the LoadingManager reports every queued GLB
       // has fully decoded — players never hear GO! over a half-rendered world.
-      if (phaseLocal !== 'finished' && assetsReady) elapsed += frame;
+      //
+      // MULTIPLAYER ANCHOR (added 2026-06-08): in MP, server emits
+      // `startAtMs` (the wall-clock time when elapsed should == 0,
+      // i.e. when the countdown ends and the race actually begins).
+      // Anchoring elapsed to (Date.now() - startAtMs) / 1000 makes
+      // both clients agree on when the race started — regardless of
+      // who finished loading assets first. Without this, JJ saw
+      // "shelly still on countdown while rusty past first corner"
+      // 2026-06-08 because each client's elapsed was tied to its
+      // own assets-ready moment instead of a shared anchor.
+      //
+      // The train, countdown, and every other elapsed-driven entity
+      // (drift sparks, item respawns, lap banners) now stay in sync
+      // because they all read from this same value.
+      //
+      // Joiner loaded 5s late? Their elapsed jumps to 5 the moment
+      // their assets finish — they enter the race in progress at
+      // the same wall-clock moment everyone else is at. Better than
+      // running a private countdown starting now.
+      if (phaseLocal !== 'finished' && assetsReady) {
+        if (multi?.startAtMs) {
+          elapsed = (Date.now() - multi.startAtMs) / 1000;
+        } else {
+          elapsed += frame;
+        }
+      }
       if (phaseLocal === 'countdown' && elapsed >= 0) { phaseLocal = 'racing'; playRace(); }
       const racing = phaseLocal === 'racing';
 
