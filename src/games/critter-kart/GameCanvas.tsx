@@ -123,6 +123,14 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     // selfSlot is fixed for the duration of a race, so capturing it
     // once at effect-mount is correct.
     const PLAYER = multi?.selfSlot ?? 0;
+    // BOT_PERSONAS has NUM-1 entries (5 personas for 5 non-player slots).
+    // Fish's solo code did `BOT_PERSONAS[i - 1]` everywhere, assuming
+    // i >= 1 because PLAYER was always 0. With dynamic PLAYER, a
+    // non-player slot can be at i=0 (when PLAYER > 0), and
+    // BOT_PERSONAS[0 - 1] = BOT_PERSONAS[-1] = undefined → crash on
+    // any property access (.useDelay etc). Map non-player slot indices
+    // [0..PLAYER-1, PLAYER+1..NUM-1] onto persona indices [0..NUM-2]:
+    const botPersonaForSlot = (i: number) => i < PLAYER ? i : i - 1;
     // Dev diagnostics (FPS log, race breakdown, collision/progress probes, P/B debug keys) are OFF
     // by default for a clean console at launch — append ?debug to the URL to switch them back on.
     const DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug');
@@ -1089,7 +1097,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
               heldItems[i] = rolled;
               heldCount[i] = rolled === ITEM.ACORN ? 3 : 1; // Acorn = triple shots
               box.respawnAt = elapsed + TUNING.itemBoxRespawn;
-              if (i !== PLAYER) botUseAt[i] = elapsed + BOT_PERSONAS[i - 1].useDelay;
+              if (i !== PLAYER) botUseAt[i] = elapsed + BOT_PERSONAS[botPersonaForSlot(i)].useDelay;
               break;
             }
           }
