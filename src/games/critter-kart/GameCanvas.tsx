@@ -1132,7 +1132,23 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
 
       if (racing) {
         const ranked = rankRacers(standings());
+        // MP guard (2026-06-08): in multiplayer, items live ONLY on the
+        // client that owns the kart. Without this guard each client
+        // independently rolls "Rusty picked up an acorn → throw at
+        // Shelly in 0.4s" for the other human, and the throw VFX is
+        // locally fabricated — Shelly sees Rusty throw acorns Rusty
+        // never threw (JJ's report 2026-06-08). Bots remain locally
+        // AI-driven (server doesn't sync their items either; everyone
+        // independently rolls bot items, which is fine because no real
+        // human is making contradictory decisions). Only slots backed
+        // by a non-bot remote human get skipped.
+        const isRemoteHuman = (i: number): boolean => {
+          if (!mp || i === PLAYER) return false;
+          const member = (mp.members as any[])?.find((m: any) => (m.slot ?? -1) === i);
+          return !!(member && !member.isBot);
+        };
         for (let i = 0; i < NUM; i++) {
+          if (isRemoteHuman(i)) continue;
           if (heldItems[i] !== NO_ITEM) continue;
           for (const box of itemBoxes) {
             if (elapsed < box.respawnAt) continue;
@@ -1151,7 +1167,10 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         }
         const useEdge = raw.use && !prevUse;
         if (useEdge && heldItems[PLAYER] !== NO_ITEM) useItem(PLAYER, ranked);
-        for (let i = 1; i < NUM; i++) if (heldItems[i] !== NO_ITEM && elapsed >= botUseAt[i]) useItem(i, ranked);
+        for (let i = 1; i < NUM; i++) {
+          if (isRemoteHuman(i)) continue;
+          if (heldItems[i] !== NO_ITEM && elapsed >= botUseAt[i]) useItem(i, ranked);
+        }
       }
       prevUse = raw.use;
 
