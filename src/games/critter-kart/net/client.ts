@@ -76,6 +76,13 @@ export interface NetClient {
     // loading bar at the first onProgress emit (~4%).
     sendInput(frame: RaceInputFrame): void;
     getLatestSnapshot(): RaceSnapshot | null;
+    // Interpolated kart state — lerps position/heading between the two
+    // most recent snapshots so 30Hz server emits render smoothly at
+    // 60fps client-side. Re-added 2026-06-08 after JJ's "needs seamless
+    // NFS-style tightening" feedback. interpDelayMs (default 100ms)
+    // controls how far behind real-time we render — bigger = smoother
+    // but more apparent input lag for remote karts.
+    getInterpolatedKart(kartId: string, interpDelayMs?: number): any | null;
 }
 
 let singleton: NetClient | null = null;
@@ -98,6 +105,13 @@ function createRealClient(): NetClient {
     // surfaced via getLatestSnapshot() so GameCanvas's rAF tick can pull
     // remote-kart state without subscribing through the listener map.
     let latestSnapshot: RaceSnapshot | null = null;
+    // Snapshot history for interpolation — track the second-most-recent
+    // alongside latest, with arrival wall-clock timestamps, so we can
+    // lerp kart positions smoothly between them. Without this, remote
+    // karts visibly teleport every 33ms at 30Hz snapshot rate.
+    let prevSnap: RaceSnapshot | null = null;
+    let prevSnapAt = 0;
+    let curSnapAt = 0;
 
     function dispatch(type: ServerEventKey, payload: unknown): void {
         const set = listeners.get(type);
@@ -176,8 +190,14 @@ function createRealClient(): NetClient {
             socket.on(ev as string, (payload: any) => {
                 // Cache race snapshots so GameCanvas's rAF tick can pull
                 // the latest without subscribing through dispatch().
+                // Also slide the previous snapshot down for interpolation —
+                // we keep the two most recent + their arrival timestamps
+                // and lerp kart state between them in getInterpolatedKart.
                 if (ev === ('race:snapshot' as ServerEventKey)) {
+                    prevSnap = latestSnapshot;
+                    prevSnapAt = curSnapAt;
                     latestSnapshot = payload as RaceSnapshot;
+                    curSnapAt = Date.now();
                 }
                 dispatch(ev, payload);
             });
@@ -214,6 +234,45 @@ function createRealClient(): NetClient {
         },
         getLatestSnapshot() {
             return latestSnapshot;
+        },
+        getInterpolatedKart(kartId: string, interpDelayMs: number = 100) {
+            // Two-snapshot lerp (canonical Glenn Fiedler / Source-engine
+            // pattern). We aim to render INTERP_DELAY_MS behind real-time
+            // so we always have a "future" snapshot to lerp toward — no
+            // extrapolation, no overshoot.
+            //
+            // Edge cases:
+            //   - No snapshots → null
+            //   - Only one snapshot → return its kart as-is
+            //   - dt <= 0 (simultaneous arrival, shouldn't happen) → use latest
+            //   - kartId missing in either → fallback to the one with it
+            if (!latestSnapshot) return null;
+            const findKart = (s: RaceSnapshot | null) =>
+                s?.karts.find((k: any) => k.kartId === kartId) ?? null;
+            if (!prevSnap) return findKart(latestSnapshot);
+            const dt = curSnapAt - prevSnapAt;
+            if (dt <= 0) return findKart(latestSnapshot);
+            const renderTime = Date.now() - interpDelayMs;
+            // t = 0 → use prev, t = 1 → use cur. Allow slight extrapolation
+            // (up to +50%) to mask brief packet loss without flying off
+            // into space if a snapshot drops entirely.
+            const t = Math.max(0, Math.min(1.5, (renderTime - prevSnapAt) / dt));
+            const ka: any = findKart(prevSnap);
+            const kb: any = findKart(latestSnapshot);
+            if (!ka || !kb) return kb || ka || null;
+            // Heading lerp — handle 2π wrap so karts don't spin the
+            // long way around when crossing the discontinuity.
+            let dh = kb.heading - ka.heading;
+            while (dh > Math.PI) dh -= 2 * Math.PI;
+            while (dh < -Math.PI) dh += 2 * Math.PI;
+            return {
+                ...kb,
+                x: ka.x + (kb.x - ka.x) * t,
+                z: ka.z + (kb.z - ka.z) * t,
+                y: (ka.y ?? 0) + ((kb.y ?? 0) - (ka.y ?? 0)) * t,
+                heading: ka.heading + dh * t,
+                speed: ka.speed + (kb.speed - ka.speed) * t,
+            };
         },
     };
 }

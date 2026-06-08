@@ -111,11 +111,25 @@ export function useMultiplayerSync() {
     return {
       get latestSnapshot(): RaceSnapshot | null { return ctx.net.getLatestSnapshot(); },
       applyToSlot(slot: number) {
-        const snap = ctx.net.getLatestSnapshot();
-        if (!snap) return null;
+        // Resolve the kartId mapped to this slot (server's
+        // canonical kart-N id) and pull the *interpolated* kart state.
+        // Without interpolation, remote karts teleport every 33ms (30Hz
+        // snapshot rate) — JJ's "needs seamless NFS-style tightening"
+        // feedback 2026-06-08. With it, motion lerps smoothly between
+        // snapshots at 60fps render rate, render-time 100ms behind
+        // real-time so we always have a "future" snapshot to lerp toward.
         const kartId = Object.keys(ctx.kartIdToSlot)
           .find(kid => ctx.kartIdToSlot[kid] === slot);
         if (!kartId) return null;
+        // @ts-ignore — getInterpolatedKart added to NetClient 2026-06-08
+        if (ctx.net.getInterpolatedKart) {
+          return ctx.net.getInterpolatedKart(kartId, 100);
+        }
+        // Defensive fallback: if NetClient ever loses the interp method,
+        // fall through to raw latest-snapshot lookup so MP still works
+        // (just janky), rather than null and silent solo-render.
+        const snap = ctx.net.getLatestSnapshot();
+        if (!snap) return null;
         return snap.karts.find(k => k.kartId === kartId) ?? null;
       },
       selfSlot: ctx.selfSlot,
