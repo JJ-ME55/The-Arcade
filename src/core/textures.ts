@@ -223,6 +223,18 @@ function genSpecials(scene: Phaser.Scene): void {
       g.fillRect(cx - 3, cy - TILE * 0.2, 6, TILE * 0.4);
       g.fillStyle(0x000000, 0.6);
       g.fillCircle(cx, cy, 3);
+    } else if (sk.kind === 'goody') {
+      // a wrapped present / treasure box with a bow
+      g.fillStyle(sk.color, 1);
+      g.fillRoundedRect(cx - TILE * 0.24, cy - TILE * 0.16, TILE * 0.48, TILE * 0.34, 4);
+      g.fillStyle(sk.glow, 1);
+      g.fillRect(cx - 3, cy - TILE * 0.16, 6, TILE * 0.34); // ribbon vertical
+      g.fillRect(cx - TILE * 0.24, cy - 3, TILE * 0.48, 6); // ribbon horizontal
+      g.fillStyle(sk.glow, 1);
+      g.fillCircle(cx - 5, cy - TILE * 0.18, 4); // bow
+      g.fillCircle(cx + 5, cy - TILE * 0.18, 4);
+      g.fillStyle(0xffffff, 0.85);
+      g.fillCircle(cx - TILE * 0.12, cy - 2, 2);
     } else if (sk.kind === 'wreck') {
       // a broken, dead pod — half-buried husk
       g.fillStyle(sk.color, 1);
@@ -399,9 +411,28 @@ function genSky(scene: Phaser.Scene): void {
   ct.refresh();
 }
 
+/** Soft radial light brush used to "erase" holes in the underground darkness overlay. */
+function genLightMask(scene: Phaser.Scene): void {
+  const key = 'lightmask';
+  if (scene.textures.exists(key)) return;
+  const S = 512;
+  const ct = scene.textures.createCanvas(key, S, S);
+  if (!ct) return;
+  const ctx = ct.getContext();
+  const g = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.42, 'rgba(255,255,255,0.96)');
+  g.addColorStop(0.72, 'rgba(255,255,255,0.4)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, S, S);
+  ct.refresh();
+}
+
 export function generateAllTextures(scene: Phaser.Scene): void {
   genTiles(scene);
   genStaticTiles(scene);
+  genLightMask(scene);
   genOres(scene);
   genSpecials(scene);
   genPod(scene);

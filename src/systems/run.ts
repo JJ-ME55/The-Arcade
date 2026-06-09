@@ -43,6 +43,7 @@ export function createRun(config: RunConfig): RunState {
     items,
     upgrades,
     depthMax: 0,
+    ticketsEarned: 0,
     transmissionIdx: 0,
     cashBanked: 0,
     oreMinedValue: 0,

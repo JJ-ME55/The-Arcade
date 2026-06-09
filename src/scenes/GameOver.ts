@@ -74,10 +74,14 @@ export class GameOver extends Phaser.Scene {
     }
     y += 20;
 
-    // cores + rank
+    // cores + tickets + rank
     makePanel(this, cx - 220, y, 440, 64, { alpha: 0.6 });
     this.add.text(cx - 200, y + 12, 'Cores earned', textStyle(15, COL.dim));
     this.add.text(cx - 200, y + 34, `◈ ${coresEarned}`, textStyle(20, COL.accent));
+    if (run.ticketsEarned > 0) {
+      this.add.text(cx, y + 12, 'Tickets', textStyle(15, COL.dim)).setOrigin(0.5, 0);
+      this.add.text(cx, y + 34, `🎟 ${run.ticketsEarned}`, textStyle(20, COL.brand)).setOrigin(0.5, 0);
+    }
     const rankText = this.add.text(cx + 200, y + 22, 'ranking…', textStyle(18, COL.brand)).setOrigin(1, 0.5);
     y += 84;
 

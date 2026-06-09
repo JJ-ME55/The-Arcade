@@ -88,6 +88,7 @@ export interface RunState {
   upgrades: Record<string, number>;
 
   depthMax: number; // deepest metres reached this run
+  ticketsEarned: number; // goody-box tickets found this run
   transmissionIdx: number; // index of next transmission to surface
   cashBanked: number; // total cash ever sold this run (for score)
   oreMinedValue: number; // raw value of everything mined
@@ -107,6 +108,7 @@ export interface MetaState {
   updatedAt: number; // ms timestamp of last save (for cross-device merge)
   playerName: string;
   cores: number; // rare persistent meta-currency
+  tickets: number; // arcade tickets — found in surprise goody boxes
   totalCash: number;
   bestScore: number;
   bestDepth: number;

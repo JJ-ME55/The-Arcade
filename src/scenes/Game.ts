@@ -12,6 +12,7 @@ import { Hud } from '../ui/hud';
 import { TouchControls } from '../ui/touch';
 import { SurfaceMenu } from '../ui/shop';
 import { Fx } from '../systems/fx';
+import { Darkness } from '../systems/darkness';
 import { Sound } from '../systems/audio';
 import { createRun, addOre, cargoValue } from '../systems/run';
 import { deriveStats, type DerivedStats } from '../systems/stats';
@@ -39,6 +40,7 @@ export class GameScene extends Phaser.Scene {
   private hud!: Hud;
   private touch!: TouchControls;
   private fx!: Fx;
+  private darkness!: Darkness;
   private menu!: SurfaceMenu;
 
   private bgImgs: Phaser.GameObjects.Image[] = [];
@@ -132,6 +134,7 @@ export class GameScene extends Phaser.Scene {
     this.pod.onLand = (speed) => this.onLand(speed);
 
     this.fx = new Fx(this);
+    this.darkness = new Darkness(this);
     this.hud = new Hud(this);
     this.touch = new TouchControls(this, 70);
     this.menu = new SurfaceMenu(this, this.run, () => this.stats, () => this.recompute(), this.fx, () => {
@@ -386,6 +389,13 @@ export class GameScene extends Phaser.Scene {
       haulValue: haul,
     });
     this.refreshItemBar();
+
+    // underground darkness + pod lamp (lamp widens with the Scanner upgrade)
+    const cam = this.cameras.main;
+    const darkAmt = Phaser.Math.Clamp((depth - 25) / 1150, 0, 0.92);
+    const lightR = (4.4 + this.stats.scannerRange * 0.7) * TILE;
+    this.darkness.update(darkAmt, this.pod.px - cam.scrollX, this.pod.py - cam.scrollY, lightR, dt);
+
     this.touch.draw();
 
     // death checks
@@ -536,6 +546,53 @@ export class GameScene extends Phaser.Scene {
       this.showTransmission({ depth, from: 'SALVAGE', color: 0xff6b8a, text: line });
       const tool = hash2(this.world.seed, tx, ty, 85) < 0.5 ? 'reserveFuel' : 'nanobots';
       this.run.items[tool as ItemId] = (this.run.items[tool as ItemId] ?? 0) + 1;
+    } else if (kind === 'goody') {
+      // surprise goody box — randomised (deterministic per tile) delight
+      const roll = hash2(this.world.seed, tx, ty, 201);
+      const amt = hash2(this.world.seed, tx, ty, 203);
+      const m = App.meta;
+      let msg = '';
+      let color = 0xffe14d;
+      if (roll < 0.45) {
+        const t = 3 + Math.floor(amt * 6);
+        m.tickets += t;
+        this.run.ticketsEarned += t;
+        msg = `🎟 ${t} TICKETS!`;
+      } else if (roll < 0.65) {
+        const c = Math.round(2200 * (1 + depth / 500) * (0.7 + amt * 0.8));
+        this.run.cash += c;
+        this.run.cashBanked += c;
+        msg = `+$${c.toLocaleString()}`;
+        color = COL.cash;
+      } else if (roll < 0.78) {
+        this.run.fuel = this.run.fuelMax;
+        msg = 'FUEL CACHE — FULL TANK';
+        color = COL.fuel;
+      } else if (roll < 0.88) {
+        const it = ITEMS[Math.floor(amt * ITEMS.length)];
+        this.run.items[it.id] = (this.run.items[it.id] ?? 0) + 1;
+        msg = `+1 ${it.name.toUpperCase()}`;
+        color = it.color;
+      } else if (roll < 0.96) {
+        const t = 10 + Math.floor(amt * 11);
+        m.tickets += t;
+        this.run.ticketsEarned += t;
+        msg = `🎟 ${t} TICKETS!`;
+      } else if (roll < 0.99) {
+        m.cores += 1;
+        msg = '◈ +1 CORE';
+        color = COL.accent;
+      } else {
+        m.tickets += 50;
+        this.run.ticketsEarned += 50;
+        msg = '🎟 JACKPOT — 50 TICKETS!';
+      }
+      App.save();
+      this.hitStop(70);
+      this.fx.explosion(cx, cy, color);
+      this.fx.popText(this.pod.px, this.pod.py - 34, 'GOODY BOX!  ' + msg, color, 20);
+      Sound.jackpot();
+      Sound.milestone();
     } else if (kind === 'season' && this.activeSeason) {
       const f = this.activeSeason.find;
       this.run.cash += f.cash;
@@ -895,6 +952,7 @@ export class GameScene extends Phaser.Scene {
     this.outpostBtn?.setPosition(w / 2, 134);
     this.outpostHint?.setPosition(w / 2, 168);
     this.hud?.relayout();
+    this.darkness?.resize();
   }
 
   private cleanup(): void {
@@ -906,5 +964,6 @@ export class GameScene extends Phaser.Scene {
     this.boulders?.destroy();
     this.touch?.destroy();
     this.menu?.destroy();
+    this.darkness?.destroy();
   }
 }

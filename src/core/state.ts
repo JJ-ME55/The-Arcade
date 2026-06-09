@@ -17,6 +17,7 @@ export function defaultMeta(): MetaState {
     updatedAt: 0,
     playerName: 'Miner',
     cores: 0,
+    tickets: 0,
     totalCash: 0,
     bestScore: 0,
     bestDepth: 0,
@@ -83,6 +84,7 @@ export function mergeMeta(local: MetaState, cloud: MetaState): MetaState {
   const recent = (local.updatedAt ?? 0) >= (cloud.updatedAt ?? 0) ? local : cloud;
   return {
     ...recent, // cores, totalCash, runsPlayed, selectedPod, settings, playerName, stats, version
+    tickets: Math.max(local.tickets, cloud.tickets),
     bestScore: Math.max(local.bestScore, cloud.bestScore),
     bestDepth: Math.max(local.bestDepth, cloud.bestDepth),
     unlockedLoadouts: union(local.unlockedLoadouts, cloud.unlockedLoadouts),

@@ -4,7 +4,7 @@
  * "artifact:martian_skull", "lockbox", "cache".
  */
 
-export type SpecialKind = 'geode' | 'fossil' | 'artifact' | 'lockbox' | 'cache' | 'wreck';
+export type SpecialKind = 'geode' | 'fossil' | 'artifact' | 'lockbox' | 'cache' | 'wreck' | 'goody';
 
 export interface SpecialKindDef {
   kind: SpecialKind;
@@ -24,6 +24,8 @@ export const SPECIAL_KINDS: SpecialKindDef[] = [
   { kind: 'cache',   appearDepth: 600,  peakDepth: 1400, weightAtPeak: 1.6, falloff: 2000, color: 0x5a7a8a, glow: 0xa0e0ff },
   { kind: 'artifact',appearDepth: 850,  peakDepth: 1800, weightAtPeak: 1.4, falloff: 2200, color: 0xb59cff, glow: 0xeaddff },
   { kind: 'wreck',   appearDepth: 380,  peakDepth: 1600, weightAtPeak: 1.0, falloff: 2400, color: 0x8a93a0, glow: 0xff6b8a },
+  // surprise goody boxes — the "what did I find?!" moment, regular delight from shallow on
+  { kind: 'goody',   appearDepth: 40,   peakDepth: 1200, weightAtPeak: 4.5, falloff: 2600, color: 0xff8ad6, glow: 0xffe14d },
 ];
 
 export function specialKindWeight(def: SpecialKindDef, depth: number): number {

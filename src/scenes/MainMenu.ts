@@ -108,7 +108,7 @@ export class MainMenu extends Phaser.Scene {
 
     // footer
     this.add
-      .text(cx, BASE_H - 22, `v0.1  ·  ${App.meta.playerName}  ·  ◈ ${App.meta.cores} cores`, textStyle(13, COL.faint))
+      .text(cx, BASE_H - 22, `v0.1  ·  ${App.meta.playerName}  ·  ◈ ${App.meta.cores}  ·  🎟 ${App.meta.tickets}`, textStyle(13, COL.faint))
       .setOrigin(0.5);
   }
 
