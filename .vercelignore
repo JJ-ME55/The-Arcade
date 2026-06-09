@@ -1,0 +1,9 @@
+# Keep CLI deploys lean — Vercel reinstalls deps and rebuilds, so don't upload these.
+node_modules
+dist
+release
+.git
+.claude
+electron
+build
+*.local
