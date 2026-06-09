@@ -79,11 +79,14 @@ export interface ScorePayload {
   seed: string;
 }
 
-/** Submit a score; on failure stash it to retry next boot. Returns true if accepted. */
+/** Submit a score; on failure stash it to retry next boot. Returns true if accepted.
+ *  The SolShot server reads the bot JWT from `body.session` (or an Authorization: Bearer
+ *  Privy token for web users). Extra fields (depth/cash/mode/seed) are stored by the
+ *  drilldeep leaderboard service. */
 export async function submitScore(p: ScorePayload): Promise<boolean> {
   const jwt = getSession();
   if (!jwt || !apiBase()) return false;
-  const body = JSON.stringify({ jwt, ...p });
+  const body = JSON.stringify({ session: jwt, ...p });
   try {
     const r = await fetch(`${apiBase()}/api/games/${GAME_SLUG}/score`, {
       method: 'POST',
@@ -131,9 +134,9 @@ export async function fetchLeaderboard(mode: string, limit: number): Promise<Lea
   try {
     const r = await fetch(`${base}/api/games/${GAME_SLUG}/leaderboard?mode=${encodeURIComponent(mode)}&limit=${limit}`);
     if (!r.ok) return null;
-    const json = (await r.json()) as { entries?: Array<Record<string, unknown>> };
-    if (!json.entries) return null;
-    return json.entries.map((e, i) => ({
+    const json = (await r.json()) as { leaderboard?: Array<Record<string, unknown>> };
+    if (!json.leaderboard) return null;
+    return json.leaderboard.map((e, i) => ({
       id: String(e.id ?? e.telegramUserId ?? i),
       name: String(e.displayName ?? e.name ?? 'Player'),
       score: Number(e.bestScore ?? e.score ?? 0),
@@ -154,7 +157,7 @@ export async function loadCloudSave(): Promise<MetaState | null> {
   const jwt = getSession();
   if (!base || !jwt) return null;
   try {
-    const r = await fetch(`${base}/api/games/${GAME_SLUG}/save?jwt=${encodeURIComponent(jwt)}`);
+    const r = await fetch(`${base}/api/games/${GAME_SLUG}/save?session=${encodeURIComponent(jwt)}`);
     if (!r.ok) return null;
     const json = (await r.json()) as { data?: MetaState | null };
     return json.data ?? null;
@@ -164,6 +167,6 @@ export async function loadCloudSave(): Promise<MetaState | null> {
 }
 
 export async function pushCloudSave(meta: MetaState): Promise<boolean> {
-  const r = await post('/save', { jwt: getSession(), data: meta });
+  const r = await post('/save', { session: getSession(), data: meta });
   return !!r && r.ok;
 }
