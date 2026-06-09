@@ -1,0 +1,16 @@
+node_modules
+dist
+dist-ssr
+release
+*.local
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.log
+.env
+.env.*
+!.env.example
+.vercel
+.claude/
+*vercel-token*

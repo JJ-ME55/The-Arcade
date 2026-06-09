@@ -1,0 +1,65 @@
+{
+  "name": "deeper",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "DEEPER — a deep, tactical single-player high-score mining game (Motherload lineage)",
+  "author": "TheArcadeGG",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173",
+    "typecheck": "tsc --noEmit",
+    "electron:dev": "concurrently -k -n vite,electron -c green,cyan \"vite\" \"wait-on tcp:127.0.0.1:5173 && electron .\"",
+    "electron:start": "electron .",
+    "electron:build": "tsc --noEmit && vite build && electron-builder",
+    "electron:build:win": "tsc --noEmit && vite build && electron-builder --win",
+    "electron:dir": "vite build && electron-builder --dir"
+  },
+  "dependencies": {
+    "phaser": "^3.88.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.7",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "gg.thearcade.deeper",
+    "productName": "DEEPER",
+    "copyright": "Copyright © 2026",
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "DEEPER"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.png",
+      "category": "public.app-category.games"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "build/icon.png",
+      "category": "Game"
+    }
+  }
+}
