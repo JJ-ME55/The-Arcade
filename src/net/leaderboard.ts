@@ -6,6 +6,7 @@
  */
 import { kvGet, kvSet } from '../core/save';
 import type { LeaderboardEntry } from '../core/types';
+import * as arcade from './arcade';
 
 const KEY = 'leaderboard.v1';
 const MAX_PER_MODE = 100;
@@ -110,17 +111,20 @@ export function makeEntry(
   };
 }
 
-// ---- Cloud scaffold (Phase D). Disabled until configured. ----
-// To enable: set VITE_SUPABASE_URL + a deployed Edge Function that verifies an HMAC of
-// the payload server-side, then implement these two functions.
-export const REMOTE_ENABLED = false;
-
-async function submitRemote(_entry: LeaderboardEntry): Promise<void> {
-  if (!REMOTE_ENABLED) return;
-  // await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-score`, {...})
+// ---- Cloud (The Arcade / SolShot backend) ----
+// Live whenever the game was launched with a session JWT and VITE_SOLSHOT_API_BASE is set.
+async function submitRemote(entry: LeaderboardEntry): Promise<void> {
+  if (!arcade.isOnline()) return;
+  await arcade.submitScore({
+    score: entry.score,
+    depth: entry.depth,
+    cash: entry.cash,
+    mode: entry.mode,
+    seed: entry.seed,
+  });
 }
 
-async function fetchRemote(_mode: string, _n: number): Promise<LeaderboardEntry[] | null> {
-  if (!REMOTE_ENABLED) return null;
-  return null;
+async function fetchRemote(mode: string, n: number): Promise<LeaderboardEntry[] | null> {
+  if (!arcade.isOnline()) return null;
+  return arcade.fetchLeaderboard(mode, n);
 }

@@ -2,6 +2,7 @@
 import type { GameSettings, MetaState } from './types';
 import { kvGet, kvSet } from './save';
 import { LOADOUTS } from '../config/loadouts';
+import * as arcade from '../net/arcade';
 
 export const META_VERSION = 1;
 export const SAVE_KEYS = { meta: 'meta', run: 'run' } as const;
@@ -13,6 +14,7 @@ export function defaultSettings(): GameSettings {
 export function defaultMeta(): MetaState {
   return {
     version: META_VERSION,
+    updatedAt: 0,
     playerName: 'Miner',
     cores: 0,
     totalCash: 0,
@@ -63,6 +65,40 @@ export interface RunConfig {
   challengeId?: string;
 }
 
+function maxMerge(a: Record<string, number> = {}, b: Record<string, number> = {}): Record<string, number> {
+  const out: Record<string, number> = { ...a };
+  for (const k in b) out[k] = Math.max(out[k] ?? 0, b[k] ?? 0);
+  return out;
+}
+function union(a: string[] = [], b: string[] = []): string[] {
+  return Array.from(new Set([...a, ...b]));
+}
+
+/**
+ * Merge two saves so the player never loses progress across devices:
+ * spendable currency + settings come from the more-recently-saved blob, while permanent
+ * unlocks / records / collection are unioned & maxed from both.
+ */
+export function mergeMeta(local: MetaState, cloud: MetaState): MetaState {
+  const recent = (local.updatedAt ?? 0) >= (cloud.updatedAt ?? 0) ? local : cloud;
+  return {
+    ...recent, // cores, totalCash, runsPlayed, selectedPod, settings, playerName, stats, version
+    bestScore: Math.max(local.bestScore, cloud.bestScore),
+    bestDepth: Math.max(local.bestDepth, cloud.bestDepth),
+    unlockedLoadouts: union(local.unlockedLoadouts, cloud.unlockedLoadouts),
+    unlockedPods: union(local.unlockedPods, cloud.unlockedPods),
+    seasonUnlocks: union(local.seasonUnlocks, cloud.seasonUnlocks),
+    achievements: union(local.achievements, cloud.achievements),
+    metaUpgrades: maxMerge(local.metaUpgrades, cloud.metaUpgrades),
+    seasonPoints: maxMerge(local.seasonPoints, cloud.seasonPoints),
+    collection: {
+      ores: maxMerge(local.collection.ores, cloud.collection.ores),
+      fossils: union(local.collection.fossils, cloud.collection.fossils),
+      artifacts: union(local.collection.artifacts, cloud.collection.artifacts),
+    },
+  };
+}
+
 class AppState {
   meta: MetaState = defaultMeta();
   runConfig: RunConfig | null = null;
@@ -75,14 +111,33 @@ class AppState {
     const raw = await kvGet<MetaState>(SAVE_KEYS.meta);
     this.meta = migrate(raw);
     this.loaded = true;
+    // If launched into the Arcade (session + backend), pull the per-user cloud save and
+    // merge it in, then persist the union back up.
+    try {
+      if (arcade.isOnline()) {
+        const cloud = await arcade.loadCloudSave();
+        if (cloud) this.meta = mergeMeta(this.meta, migrate(cloud));
+        const ident = arcade.sessionIdentity();
+        if (ident?.name) this.meta.playerName = ident.name; // use the Arcade/TG identity
+        this.saveNow();
+      }
+    } catch {
+      /* stay local-first if the backend is unreachable */
+    }
   }
 
-  /** Debounced persist. */
+  private persist(): void {
+    this.meta.updatedAt = Date.now();
+    void kvSet(SAVE_KEYS.meta, this.meta);
+    if (arcade.isOnline()) void arcade.pushCloudSave(this.meta);
+  }
+
+  /** Debounced persist (local + cloud). */
   save(): void {
     if (this.saveTimer !== null) return;
     this.saveTimer = window.setTimeout(() => {
       this.saveTimer = null;
-      void kvSet(SAVE_KEYS.meta, this.meta);
+      this.persist();
     }, 250);
   }
 
@@ -91,7 +146,7 @@ class AppState {
       clearTimeout(this.saveTimer);
       this.saveTimer = null;
     }
-    void kvSet(SAVE_KEYS.meta, this.meta);
+    this.persist();
   }
 }
 

@@ -104,6 +104,7 @@ export interface RunState {
 /** Persistent meta state (survives across runs). */
 export interface MetaState {
   version: number;
+  updatedAt: number; // ms timestamp of last save (for cross-device merge)
   playerName: string;
   cores: number; // rare persistent meta-currency
   totalCash: number;
