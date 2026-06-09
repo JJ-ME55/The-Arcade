@@ -25,7 +25,7 @@ export class MainMenu extends Phaser.Scene {
 
   create(): void {
     const cx = BASE_W / 2;
-    this.add.image(0, 0, 'bg_sky').setOrigin(0).setDisplaySize(BASE_W, BASE_H);
+    const sky = this.add.image(0, 0, 'bg_sky');
 
     // drifting dust motes for atmosphere
     const parts = this.add.particles(0, 0, 'soft', {
@@ -104,7 +104,7 @@ export class MainMenu extends Phaser.Scene {
     // ---- resume a suspended run, if any (reserved slot at y=548) ----
     void this.checkResume();
 
-    fitDesign(this);
+    fitDesign(this, sky);
 
     // footer
     this.add

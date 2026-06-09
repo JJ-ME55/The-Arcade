@@ -19,8 +19,8 @@ export class Workshop extends Phaser.Scene {
 
   create(): void {
     const cx = BASE_W / 2;
-    this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
-    fitDesign(this);
+    const bg = this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
+    fitDesign(this, bg);
     this.add.text(cx, 50, 'WORKSHOP', title(32, COL.accent)).setOrigin(0.5);
     this.coresText = this.add.text(cx, 86, '', textStyle(18, COL.accent)).setOrigin(0.5);
     this.add.text(cx, 112, 'Spend Cores on permanent upgrades — dying still pays off.', textStyle(12, COL.dim)).setOrigin(0.5);

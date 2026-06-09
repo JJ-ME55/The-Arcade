@@ -38,8 +38,8 @@ export class GameOver extends Phaser.Scene {
   create(): void {
     const { run, score, cause, coresEarned } = this.goData;
     const cx = BASE_W / 2;
-    this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
-    fitDesign(this);
+    const bg = this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
+    fitDesign(this, bg);
     this.cameras.main.fadeIn(260, 0, 0, 0);
 
     const [head, col] = HEADLINE[cause];

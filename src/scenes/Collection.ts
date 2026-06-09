@@ -14,8 +14,8 @@ export class Collection extends Phaser.Scene {
 
   create(): void {
     const cx = BASE_W / 2;
-    this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
-    fitDesign(this);
+    const bg = this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
+    fitDesign(this, bg);
     this.add.text(cx, 52, 'COLLECTION', title(32)).setOrigin(0.5);
 
     const col = App.meta.collection;

@@ -17,8 +17,8 @@ export class Leaderboard extends Phaser.Scene {
 
   create(): void {
     const cx = BASE_W / 2;
-    this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
-    fitDesign(this);
+    const bg = this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
+    fitDesign(this, bg);
     this.add.text(cx, 56, 'LEADERBOARD', title(32)).setOrigin(0.5);
 
     new Button(this, cx - 92, 108, 170, 44, 'GLOBAL', () => this.setMode('free'), {

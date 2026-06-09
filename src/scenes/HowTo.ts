@@ -19,8 +19,8 @@ export class HowTo extends Phaser.Scene {
 
   create(): void {
     const cx = BASE_W / 2;
-    this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
-    fitDesign(this);
+    const bg = this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
+    fitDesign(this, bg);
     this.add.text(cx, 80, 'HOW TO PLAY', title(40)).setOrigin(0.5);
 
     let y = 160;

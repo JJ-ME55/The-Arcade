@@ -14,8 +14,8 @@ export class Season extends Phaser.Scene {
 
   create(): void {
     const cx = BASE_W / 2;
-    this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
-    fitDesign(this);
+    const bg = this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
+    fitDesign(this, bg);
     const season = getActiveSeason();
 
     this.add.text(cx, 60, 'SEASON', title(34, season ? season.accent : COL.dim)).setOrigin(0.5);
