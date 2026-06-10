@@ -170,7 +170,15 @@ export const GameConfig : IGameConfig = {
         cushionWidth:     78,
         feltInset:        48,
         cushionThickness: 30,
-        pocketRadius:     42,
+        // pocketRadius is the CAPTURE radius (ball centre within this of a
+        // pocket centre = potted) AND drives the rendered hole (canvas
+        // VISIBLE_POCKET_R = pocketRadius + 6) and the mouth-gap geometry
+        // (railMouths chord). JJ 2026-06-10: "pockets seem too large."
+        // 42 → 34 drops the visible hole diameter from 96px (2.53× the
+        // 38px ball) to 80px (2.1× ball) — at the generous end of the
+        // regulation 1.6-2.2× range, and narrower mouths mean off-centre
+        // shots now RATTLE in the jaws instead of getting vacuumed.
+        pocketRadius:     34,
         pocketsPositions: [
             { x: 62,   y: 62  },   // TL corner
             { x: 750,  y: 56  },   // Top side

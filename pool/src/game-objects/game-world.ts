@@ -763,26 +763,48 @@ export class GameWorld {
             this.drawMatchScores();
             this.drawOverallScores();
         }
-        // Sink ghosts — pot animation, drawn UNDER live balls so a ball
-        // rolling past a pocket can pass over a sinking one. Ease-in
-        // pull into the pocket centre with shrink + fade over 240ms.
+        // Sink ghosts — pot drop animation. Drawn UNDER live balls so a
+        // ball rolling past a pocket passes over a sinking one.
+        //
+        // JJ 2026-06-10: the old version "vanishes into a black hole
+        // rather than be seen going into a pocket." Cause: it lerped
+        // position AND faded alpha in lockstep over 240ms, so the ball
+        // was already half-transparent before it reached the rim — it
+        // dissolved in open felt instead of dropping into the hole.
+        //
+        // New two-phase drop (340ms):
+        //   TRAVEL (0 → 0.55): the ball rolls from the contact point to
+        //     the pocket centre at FULL opacity and full size — you
+        //     clearly see it head into the mouth. Ease-in (accelerates,
+        //     like a ball catching the lip).
+        //   FALL (0.55 → 1): now centred over the hole, it shrinks and
+        //     darkens as it drops below the rim. Alpha only starts
+        //     dropping here, so the disappearance reads as "fell in,"
+        //     not "faded out."
         if (this._sinkGhosts.length > 0) {
-            const SINK_MS = 240;
+            const SINK_MS = 340;
+            const TRAVEL = 0.55;
             const now = performance.now();
             this._sinkGhosts = this._sinkGhosts.filter(g => now - g.start < SINK_MS);
             for (const g of this._sinkGhosts) {
                 const t = (now - g.start) / SINK_MS;
-                const ease = t * t;  // accelerate into the hole
-                const x = g.from.x + (g.to.x - g.from.x) * ease;
-                const y = g.from.y + (g.to.y - g.from.y) * ease;
+                // Position: reach the pocket centre by t=TRAVEL, ease-in.
+                const pt = Math.min(1, t / TRAVEL);
+                const posEase = pt * pt;
+                const x = g.from.x + (g.to.x - g.from.x) * posEase;
+                const y = g.from.y + (g.to.y - g.from.y) * posEase;
+                // Fall: shrink + fade only after the ball is over the hole.
+                const ft = Math.max(0, (t - TRAVEL) / (1 - TRAVEL));  // 0..1
+                const scale = 1 - 0.7 * ft;     // 1 → 0.30
+                const alpha = 1 - ft * ft;       // hold near 1, fade late
                 Canvas2D.drawAmericanBall(
                     { x, y },
                     g.ballId,
                     g.rollAngle,
                     { x: 0, y: 0 },
                     g.motionAngle,
-                    1 - 0.65 * ease,   // scale 1 → 0.35
-                    1 - ease           // alpha 1 → 0
+                    scale,
+                    alpha
                 );
             }
         }
@@ -823,8 +845,13 @@ export class GameWorld {
         const dirY = Math.sin(angle);
         const ballR = ballConfig.diameter / 2;
 
-        // Find nearest object-ball intersection
+        // Find the nearest object-ball intersection — and KEEP the ball,
+        // so we can draw the contact tangent (where the object ball goes
+        // after the cue strikes it). JJ 2026-06-10: "line from cue to
+        // ball, then a small line from centre of ball to show where it
+        // goes after." Standard Miniclip aim assist.
         let hitDist = Infinity;
+        let hitBall: Ball | null = null;
         for (const b of this._balls) {
             if (b === this._cueBall || !b.visible) continue;
             const dx = b.position.x - cuePos.x;
@@ -832,21 +859,19 @@ export class GameWorld {
             const t = dx * dirX + dy * dirY;
             if (t < 0) continue;  // behind the cue
             const perpSq = (dx * dx + dy * dy) - t * t;
-            const sumR = ballConfig.diameter;  // both balls' radii (cue + object)
+            const sumR = ballConfig.diameter;  // cue radius + object radius
             if (perpSq > sumR * sumR) continue;
-            // Distance from cue centre to contact along ray
+            // Distance along the ray to the cue-ball CENTRE at contact
+            // (the "ghost ball" position — centres exactly one diameter
+            // apart).
             const back = Math.sqrt(sumR * sumR - perpSq);
             const tHit = t - back;
-            if (tHit < hitDist) hitDist = tHit;
+            if (tHit < hitDist) { hitDist = tHit; hitBall = b; }
         }
 
         // Find cushion intersection — distance along ray until we hit a
         // playable-boundary edge (cushion width inset from each side).
-        // Tracks WHICH rail wins so we can check for pocket mouths: if
-        // the crossing point falls inside a mouth, there is no cushion
-        // there — the shot runs into the pocket, and the guide should
-        // show that (line to the pocket centre) instead of a phantom
-        // bounce. Mirrors the sim's mouthAt() geometry exactly.
+        // Tracks WHICH rail wins so we can check for pocket mouths.
         const cw = tableConfig.cushionWidth;
         const cushionHits: Array<{ d: number; rail: 'top'|'bottom'|'left'|'right' }> = [];
         if (dirX > 0.001) cushionHits.push({ d: (gameSize.x - cw - ballR - cuePos.x) / dirX, rail: 'right' });
@@ -855,20 +880,38 @@ export class GameWorld {
         if (dirY < -0.001) cushionHits.push({ d: (cw + ballR - cuePos.y) / dirY, rail: 'top' });
         let railHit: { d: number; rail: 'top'|'bottom'|'left'|'right' } | null = null;
         for (const h of cushionHits) {
-            if (h.d > 0 && h.d < hitDist) { hitDist = h.d; railHit = h; }
+            if (h.d > 0 && h.d < hitDist) { hitDist = h.d; railHit = h; hitBall = null; }
         }
 
-        // Clamp the line length — if no hits, just draw a long ray
         if (!isFinite(hitDist)) hitDist = 1000;
 
-        // Endpoint = cue position + dir * hitDist (where the cue ball
-        // would stop, NOT where the object ball is contacted)
+        // Ghost-ball position — where the cue ball's centre sits at the
+        // moment of contact (object-ball hit) or where it stops (rail).
         let endX = cuePos.x + dirX * hitDist;
         let endY = cuePos.y + dirY * hitDist;
 
-        // Pocket-mouth awareness: when the winning hit is a rail and the
-        // crossing point is inside a pocket mouth, the ball would sail
-        // into the pocket — point the guide at the pocket centre.
+        // CASE A — the cue hits an object ball: draw cue→ghost + ghost
+        // circle + the object-ball TANGENT. A struck ball departs along
+        // the line of centres (ghost-ball centre → object-ball centre).
+        if (hitBall) {
+            const ox = hitBall.position.x;
+            const oy = hitBall.position.y;
+            let tdx = ox - endX;
+            let tdy = oy - endY;
+            const tlen = Math.hypot(tdx, tdy) || 1;
+            tdx /= tlen; tdy /= tlen;
+            Canvas2D.drawAimGuide(cuePos.x, cuePos.y, endX, endY, ballR, {
+                objX: ox,
+                objY: oy,
+                dirX: tdx,
+                dirY: tdy,
+            });
+            return;
+        }
+
+        // CASE B — the cue runs to a rail/pocket. Pocket-mouth awareness:
+        // if the crossing point is inside a mouth, the ball sails in —
+        // point the guide at the pocket centre instead of a phantom rail.
         if (railHit && this._simTable) {
             const lateral = (railHit.rail === 'top' || railHit.rail === 'bottom') ? endX : endY;
             const m = mouthAt(railHit.rail, lateral, this._simTable);
@@ -878,8 +921,6 @@ export class GameWorld {
                 endY = p.y;
             }
         }
-
-        // Draw dotted guide line
         Canvas2D.drawAimGuide(cuePos.x, cuePos.y, endX, endY, ballR);
     }
 }

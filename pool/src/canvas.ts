@@ -298,7 +298,18 @@ class Canvas2D_Singleton {
      * stop point. Miniclip-style. JJ 2026-06: "still no visible white
      * guide line."
      */
-    public drawAimGuide(startX: number, startY: number, endX: number, endY: number, ballR: number): void {
+    public drawAimGuide(
+        startX: number, startY: number, endX: number, endY: number, ballR: number,
+        /**
+         * Object-ball contact (Miniclip aim assist). When the aim ray
+         * meets an object ball, `tangent` carries that ball's centre and
+         * the unit direction it will travel after contact (the line of
+         * centres). We draw a solid ring on the object ball plus a short
+         * tangent line out of it so the player sees BOTH where the cue
+         * stops and where the target goes. Omitted for rail/pocket aims.
+         */
+        tangent?: { objX: number; objY: number; dirX: number; dirY: number },
+    ): void {
         const ctx = this._context;
         ctx.save();
         ctx.scale(this._scale.x, this._scale.y);
@@ -318,7 +329,7 @@ class Canvas2D_Singleton {
         const lineEndX = endX - nx * ballR;
         const lineEndY = endY - ny * ballR;
 
-        // Dotted line — white with slight transparency, dash pattern
+        // Dotted line — cue ball → contact / stop point
         ctx.setLineDash([8, 8]);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
         ctx.lineWidth = 2.5;
@@ -335,9 +346,37 @@ class Canvas2D_Singleton {
         ctx.beginPath();
         ctx.arc(endX, endY, ballR, 0, Math.PI * 2);
         ctx.stroke();
-        // Subtle inner fill so the ghost reads against the felt
         ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
         ctx.fill();
+
+        // Object-ball tangent — solid ring on the target ball + a short
+        // line out of its centre showing its post-contact direction.
+        if (tangent) {
+            // Ring around the actual target ball (a touch tighter than
+            // full radius so it hugs the ball edge).
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(tangent.objX, tangent.objY, ballR + 1, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Tangent line — solid (not dotted) so it reads as the
+            // "this ball goes here" cue, ~2.4 ball-diameters long,
+            // starting at the ball edge.
+            const tlen = ballR * 4.8;
+            const tsx = tangent.objX + tangent.dirX * ballR;
+            const tsy = tangent.objY + tangent.dirY * ballR;
+            const tex = tangent.objX + tangent.dirX * tlen;
+            const tey = tangent.objY + tangent.dirY * tlen;
+            // soft yellow so it's distinct from the white cue line
+            ctx.strokeStyle = 'rgba(255, 226, 138, 0.92)';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(tsx, tsy);
+            ctx.lineTo(tex, tey);
+            ctx.stroke();
+        }
 
         ctx.restore();
     }
