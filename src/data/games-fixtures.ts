@@ -218,8 +218,8 @@ export interface ComingUpItem {
 }
 
 export const COMING_UP: ComingUpItem[] = [
+  // Shootout removed — it went live on the floor 2026-06-10.
   { label: '8-Ball Pool',   when: 'Q3 2026' },
-  { label: 'Shootout',      when: 'Q3 2026' },
   { label: 'Tournaments',   when: 'Q3 2026' },
   { label: 'Trophy Case',   when: 'Q3 2026' },
   { label: 'Loadout',       when: 'Q4 2026' },
@@ -235,10 +235,10 @@ export interface BrowseCategory {
 }
 
 export const BROWSE_CATEGORIES: BrowseCategory[] = [
-  { id: 'all',     label: 'All',          count: 5 },
-  { id: 'sports',  label: 'Sports',       count: 2 },
-  { id: 'skill',   label: 'Skill',        count: 1 },
-  { id: 'action',  label: 'Action',       count: 1 },
-  { id: 'racing',  label: 'Racing',       count: 1 },
-  { id: 'multi',   label: 'Multiplayer',  count: 1 }, // Critter Kart is MP
+  { id: 'all',     label: 'All',          count: 6 },
+  { id: 'sports',  label: 'Sports',       count: 2 },                  // Basketball, Free Kicks
+  { id: 'action',  label: 'Action',       count: 2 },                  // SolShot, Shootout
+  { id: 'racing',  label: 'Racing',       count: 1 },                  // Critter Kart
+  { id: 'skill',   label: 'Skill',        count: 1 },                  // Keepie Uppies
+  { id: 'multi',   label: 'Multiplayer',  count: 3 },                  // SolShot, Critter Kart, Shootout
 ];

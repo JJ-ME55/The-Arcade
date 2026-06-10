@@ -31,7 +31,7 @@ export interface NavCategory {
 // users with prize energy (1 SOL Free Kicks comp live).
 export const NAV_CATEGORIES: NavCategory[] = [
   { id: 'home',   label: 'Home',         count: 0, active: true, to: '/play' },
-  { id: 'play',   label: 'Play',         count: 5,                to: '/play' },
+  { id: 'play',   label: 'Play',         count: 6,                to: '/play' },
   { id: 'comps',  label: 'Competitions', count: 1,                to: '/competitions' },
   { id: 'wallet', label: 'Wallet',       count: 0,                to: '/wallet' },
   { id: 'board',  label: 'Leaderboard',  count: 0,                to: '/leaderboard' },
@@ -47,14 +47,14 @@ export interface FloorStat {
 // (was "Wager V2 · Q3" / "Tickets V3", which meant nothing to a
 // visitor and signalled "not finished"). Leads with the live prize.
 export const FLOOR_STATS: FloorStat[] = [
-  { label: 'Cabinets', value: '5 live',          tone: 'ink' },
+  { label: 'Cabinets', value: '6 live',          tone: 'ink' },
   { label: 'Prize',    value: '1 SOL live',      tone: 'win' },
   { label: 'Entry',    value: 'Free to play',    tone: 'blue' },
   { label: 'Soon',     value: 'Pool · Shootout', tone: 'ink' },
 ];
 
 export const FLOOR_STATS_MOBILE: FloorStat[] = [
-  { label: 'Cabinets', value: '5 live',     tone: 'ink' },
+  { label: 'Cabinets', value: '6 live',     tone: 'ink' },
   { label: 'Prize',    value: '1 SOL live', tone: 'win' },
   { label: 'Entry',    value: 'Free',       tone: 'blue' },
 ];
@@ -71,10 +71,10 @@ export interface TickerItem {
 // strip stays evergreen across competitions.
 export const TICKER_ITEMS: TickerItem[] = [
   { dot: 'var(--win)',   text: 'Competition live · Win 1 SOL · Top the Free Kicks board' },
-  { dot: 'var(--blue)',  text: 'Five cabinets open · Basketball · Free Kicks · Keepie Uppies · Critter Kart · SolShot' },
+  { dot: 'var(--blue)',  text: 'Six cabinets open · SolShot · Basketball · Free Kicks · Keepie Uppies · Critter Kart · Shootout' },
   { dot: 'var(--brass)', text: 'SolShot · Real SOL wagering · 1v1 on Solana' },
   { dot: 'var(--ink)',   text: 'Free to play · Climb the leaderboards' },
-  { dot: 'var(--ink)',   text: 'Coming soon · 8-Ball Pool · Shootout' },
+  { dot: 'var(--ink)',   text: 'Coming soon · 8-Ball Pool' },
 ];
 
 /** Placeholder balances. Render "—" until a real wallet is connected. */
