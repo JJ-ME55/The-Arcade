@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { Logo } from '@/components/brand/Logo';
 import { BalanceLockup } from './BalanceLockup';
 import { SignetPanel } from './SignetPanel';
@@ -29,7 +29,9 @@ export function MastheadDesktop() {
         color: 'var(--ink)',
       }}
     >
-      <Logo variant="blue" height={52} />
+      <Link to="/play" aria-label="The Arcade — home" style={{ display: 'inline-flex', textDecoration: 'none' }}>
+        <Logo variant="blue" height={52} />
+      </Link>
 
       <nav
         style={{

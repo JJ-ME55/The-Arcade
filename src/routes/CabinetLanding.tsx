@@ -97,31 +97,58 @@ export function CabinetLanding() {
           all on-chain, all paper-light.
         </p>
 
-        <button
-          type="button"
-          onClick={handleEnter}
-          style={{
-            padding: '14px 32px',
-            background: 'var(--ink)',
-            color: 'var(--paper)',
-            border: '1.5px solid var(--ink)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 12,
-            letterSpacing: '0.22em',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            transition: 'background-color 120ms ease, transform 100ms ease',
-          }}
-          onMouseDown={(e) => {
-            e.currentTarget.style.transform = 'translateY(1px)';
-          }}
-          onMouseUp={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          ▸ Insert Coin
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <button
+            type="button"
+            onClick={handleEnter}
+            style={{
+              padding: '14px 32px',
+              background: 'var(--ink)',
+              color: 'var(--paper)',
+              border: '1.5px solid var(--ink)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              letterSpacing: '0.22em',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              transition: 'background-color 120ms ease, transform 100ms ease',
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = 'translateY(1px)';
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            ▸ Insert Coin
+          </button>
+
+          {/* Zero-friction path. No hard auth gate (lazy-auth model) — let
+              visitors reach the floor and play without signing in first.
+              Sign-in is prompted only when they want to save a score /
+              enter the competition. This is the single biggest conversion
+              lever: don't make people log in to look. */}
+          <button
+            type="button"
+            onClick={() => navigate('/play')}
+            style={{
+              padding: '6px 8px',
+              background: 'transparent',
+              color: 'var(--ink-70)',
+              border: 'none',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              letterSpacing: '0.16em',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              borderBottom: '1px solid var(--hair)',
+            }}
+          >
+            Browse the floor →
+          </button>
+        </div>
 
         <p
           style={{
@@ -134,7 +161,7 @@ export function CabinetLanding() {
             fontWeight: 700,
           }}
         >
-          · The Arcade · Floor 1 · Now Open ·
+          · The Arcade · 6 Cabinets · 1 SOL Prize Live ·
         </p>
       </div>
     </main>

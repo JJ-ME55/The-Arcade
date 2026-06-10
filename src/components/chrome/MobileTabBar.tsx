@@ -20,16 +20,15 @@ interface TabDef {
   to: string;
 }
 
-// 2026-06-05: Prizes tab swapped for Competitions — that's where the
-// live action lives (1 SOL Free Kicks comp). Prizes route stays at
-// /prizes (Wallet has a Browse Prizes link, shared TG/X links keep
-// working) but shows a coming-soon panel until V3 economy.
+// 2026-06-10: deduped — 'Home' and 'Play' both pointed at /play and both
+// lit active at once. Now four distinct destinations.
+// (2026-06-05: Prizes tab swapped for Competitions — the live 1 SOL hook.
+// /prizes still resolves via Wallet's "Browse Prizes" + shared links.)
 const TABS: TabDef[] = [
-  { id: 'home',   label: 'Home',   icon: '⌂', to: '/play' },
   { id: 'play',   label: 'Play',   icon: '▸', to: '/play' },
   { id: 'comps',  label: 'Comps',  icon: '★', to: '/competitions' },
-  { id: 'wallet', label: 'Wallet', icon: '◫', to: '/wallet' },
   { id: 'board',  label: 'Board',  icon: '#', to: '/leaderboard' },
+  { id: 'wallet', label: 'Wallet', icon: '◫', to: '/wallet' },
 ];
 
 function isActive(currentPath: string, tabPath: string): boolean {
@@ -49,7 +48,7 @@ export function MobileTabBar() {
       style={{
         flexShrink: 0,
         display: 'grid',
-        gridTemplateColumns: 'repeat(5, 1fr)',
+        gridTemplateColumns: 'repeat(4, 1fr)',
         background: 'var(--paper)',
         borderTop: '1.5px solid var(--ink)',
         padding: '6px 0 10px',

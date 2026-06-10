@@ -29,12 +29,14 @@ export interface NavCategory {
 // shared TG/X links keep working) — it just renders a coming-soon panel
 // until V3 ships the economy. Competitions is the actionable surface for
 // users with prize energy (1 SOL Free Kicks comp live).
+// Deduped 2026-06-10: 'Home' and 'Play' both pointed at /play, so both
+// lit up as active simultaneously. The logo is now the home link
+// (→ /play); the nav leads with Play.
 export const NAV_CATEGORIES: NavCategory[] = [
-  { id: 'home',   label: 'Home',         count: 0, active: true, to: '/play' },
-  { id: 'play',   label: 'Play',         count: 6,                to: '/play' },
-  { id: 'comps',  label: 'Competitions', count: 1,                to: '/competitions' },
-  { id: 'wallet', label: 'Wallet',       count: 0,                to: '/wallet' },
-  { id: 'board',  label: 'Leaderboard',  count: 0,                to: '/leaderboard' },
+  { id: 'play',   label: 'Play',         count: 6, active: true, to: '/play' },
+  { id: 'comps',  label: 'Competitions', count: 1,               to: '/competitions' },
+  { id: 'board',  label: 'Leaderboard',  count: 0,               to: '/leaderboard' },
+  { id: 'wallet', label: 'Wallet',       count: 0,               to: '/wallet' },
 ];
 
 export interface FloorStat {

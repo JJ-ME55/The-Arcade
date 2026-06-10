@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- The Arcade mark — controller hexagon + 4-point sparkle.
+       Cobalt outline, brass spark. Matches the lockup. -->
+  <rect width="64" height="64" rx="10" fill="#15203A"/>
+  <path d="M20 16 H44 a8 8 0 0 1 8 8 v8 a10 10 0 0 1 -10 10 h-2 l-4 5 h-4 l-4 -5 h-2 a10 10 0 0 1 -10 -10 v-8 a8 8 0 0 1 8 -8 Z"
+        fill="none" stroke="#3866C8" stroke-width="3.2" stroke-linejoin="round"/>
+  <path d="M32 21 L34.4 29.6 L43 32 L34.4 34.4 L32 43 L29.6 34.4 L21 32 L29.6 29.6 Z"
+        fill="#C8A063"/>
+</svg>

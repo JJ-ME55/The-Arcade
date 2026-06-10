@@ -5,6 +5,7 @@ import { MastheadMobile } from './MastheadMobile';
 import { FloorStats, FloorStatsMobile } from './FloorStats';
 import { Ticker } from './Ticker';
 import { MobileTabBar } from './MobileTabBar';
+import { Footer } from './Footer';
 import { WelcomeToast } from '@/components/WelcomeToast';
 
 /**
@@ -44,6 +45,7 @@ export function AppShell() {
             }}
           >
             <Outlet />
+            <Footer />
           </main>
           <MobileTabBar />
         </>
@@ -59,6 +61,7 @@ export function AppShell() {
             }}
           >
             <Outlet />
+            <Footer />
           </main>
         </>
       )}
