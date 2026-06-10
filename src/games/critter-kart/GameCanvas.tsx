@@ -472,6 +472,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     let phaseLocal: 'countdown' | 'racing' | 'finished' = 'countdown';
     let steer = 0;
     let prevUse = false;
+    let mpLastTick = -1, mpLastTickAt = 0, netStalled = false; // MP snapshot-health tracker
     let throttleDownSince: number | null = null; // when the player first held throttle during the countdown
     let rocketResolved = false; // rocket-start bonus applied at GO (once)
     let lastHud = '';
@@ -1492,6 +1493,20 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         playCountdownBeep(cd === 0);
         lastBeepCd = cd;
       }
+      // MP sync health — if the server's snapshot tick stops advancing for
+      // >1.2s mid-race, snapshots have stalled (polling hiccup / dropped from
+      // the race room). Surface it as a HUD badge + a timestamped console line
+      // so a desync is OBSERVABLE instead of silent.
+      if (mp) {
+        const t = (mp.latestSnapshot as any)?.tick;
+        if (typeof t === 'number' && t !== mpLastTick) { mpLastTick = t; mpLastTickAt = performance.now(); }
+      }
+      const stalledNow = !!mp && racing && mpLastTickAt > 0 && (performance.now() - mpLastTickAt) > 1200;
+      if (stalledNow !== netStalled) {
+        netStalled = stalledNow;
+        if (stalledNow) console.warn('[critter-kart/mp] ⚠ DESYNC — snapshots stalled >1.2s (last tick ' + mpLastTick + ')', new Date().toISOString());
+        else console.log('[critter-kart/mp] ✓ resynced', new Date().toISOString());
+      }
       const hs: HudState = {
         lap: currentLap(laps[PLAYER], track.laps),
         position: positionOf(PLAYER, st),
@@ -1504,10 +1519,11 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         wrongWay,
         boosting: racing && (states[PLAYER].boostTimer > 0 || states[PLAYER].speed > TUNING.maxSpeed * 1.02),
         heldItemCount: heldItems[PLAYER] === NO_ITEM ? 0 : heldCount[PLAYER],
+        netStalled,
       };
       // Cheap change-key (avoids a per-frame JSON.stringify): concatenate the scalar fields plus
       // the order strip. Only pushes to the HUD when something actually changed.
-      const key = `${hs.lap}|${hs.position}|${hs.heldItem}|${hs.countdown}|${hs.loading}|${hs.loadProgress.toFixed(2)}|${hs.lapBanner}|${hs.wrongWay}|${hs.boosting}|${hs.heldItemCount}|${order.map((o) => o.racerId + o.pos).join(',')}`;
+      const key = `${hs.lap}|${hs.position}|${hs.heldItem}|${hs.countdown}|${hs.loading}|${hs.loadProgress.toFixed(2)}|${hs.lapBanner}|${hs.wrongWay}|${hs.boosting}|${hs.heldItemCount}|${hs.netStalled}|${order.map((o) => o.racerId + o.pos).join(',')}`;
       if (key !== lastHud) { lastHud = key; hud.onState(hs); }
 
       raf = requestAnimationFrame(loop);

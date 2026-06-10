@@ -30,6 +30,9 @@ export interface HudState {
   boosting: boolean;
   /** Shots remaining for the held item (Acorn = 3); shown as a ×N badge when > 1. */
   heldItemCount: number;
+  /** Multiplayer only: true when server snapshots have stalled (>1.2s) mid-race —
+   *  shows a RECONNECTING badge so a desync is visible, not silent. */
+  netStalled?: boolean;
 }
 
 interface RaceHudProps extends HudState {
@@ -40,7 +43,7 @@ interface RaceHudProps extends HudState {
   onQuit: () => void;
 }
 
-export function RaceHud({ lap, position, heldItem, countdown, order, lapBanner, wrongWay, boosting, heldItemCount, racerId, timeRef, boostRef, miniRef, onQuit }: RaceHudProps) {
+export function RaceHud({ lap, position, heldItem, countdown, order, lapBanner, wrongWay, boosting, heldItemCount, netStalled, racerId, timeRef, boostRef, miniRef, onQuit }: RaceHudProps) {
   const held = heldItem != null ? ITEMS[heldItem] : null;
   return (
     <div className="screen" style={{ pointerEvents: 'none' }}>
@@ -153,6 +156,15 @@ export function RaceHud({ lap, position, heldItem, countdown, order, lapBanner, 
       {lapBanner && <LapBanner text={lapBanner} />}
 
       {/* wrong-way warning — flashes while driving against the track */}
+      {netStalled && (
+        <div style={{
+          position: 'absolute', top: 78, left: '50%', transform: 'translateX(-50%)', zIndex: 22,
+          pointerEvents: 'none', background: 'rgba(214,58,43,0.94)', color: '#fff',
+          padding: '6px 16px', borderRadius: 99, fontFamily: "'Lilita One',sans-serif",
+          fontSize: 14, letterSpacing: 1, boxShadow: '0 4px 14px rgba(0,0,0,.45)',
+          animation: 'ckflash 1s steps(2, jump-none) infinite',
+        }}>⚠ RECONNECTING…</div>
+      )}
       {wrongWay && (
         <div className="screen" style={{ display: 'grid', placeItems: 'center', paddingBottom: '8vh', alignContent: 'end', pointerEvents: 'none', zIndex: 21 }}>
           <div style={{
