@@ -236,14 +236,16 @@ export function FeaturedCabinet({ activeIndex, setActiveIndex }: FeaturedCabinet
         </div>
       </div>
 
-      {/* tiny dot indicators bottom-left */}
+      {/* dot indicators bottom-left — 7px visual, but each button carries
+          padding so the tap target is ~24px (the bare 7px dot was nearly
+          impossible to hit on touch). */}
       <div
         style={{
           position: 'absolute',
-          bottom: 18,
-          left: 36,
+          bottom: 10,
+          left: 28,
           display: 'flex',
-          gap: 6,
+          gap: 2,
           zIndex: 2,
         }}
       >
@@ -254,15 +256,25 @@ export function FeaturedCabinet({ activeIndex, setActiveIndex }: FeaturedCabinet
             onClick={() => setActiveIndex(i)}
             aria-label={`Show cabinet ${i + 1}`}
             style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: i === activeIndex ? 'var(--brass-glint)' : 'rgba(251,252,254,0.3)',
+              display: 'grid',
+              placeItems: 'center',
+              width: 24,
+              height: 24,
+              background: 'transparent',
               border: 'none',
               cursor: 'pointer',
               padding: 0,
             }}
-          />
+          >
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: i === activeIndex ? 'var(--brass-glint)' : 'rgba(251,252,254,0.3)',
+              }}
+            />
+          </button>
         ))}
       </div>
     </article>

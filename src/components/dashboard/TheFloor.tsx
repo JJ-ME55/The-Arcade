@@ -45,6 +45,10 @@ function CabinetTile({ game, hoverEnabled }: { game: ArcadeGame; hoverEnabled: b
   const tagStyle = game.tag && TAG_PALETTE[game.tag];
   const isFeatured = game.tag === 'FEATURED';
   const lifted = hoverEnabled && hovered;
+  // hoverEnabled is desktop-only, so its inverse is our mobile signal.
+  // Mobile never sees the hover drawer, so it gets an always-on tagline
+  // and bigger (≥44px) tap targets instead.
+  const isMobile = !hoverEnabled;
 
   return (
     <article
@@ -111,6 +115,23 @@ function CabinetTile({ game, hoverEnabled }: { game: ArcadeGame; hoverEnabled: b
           </span>
         )}
       </header>
+
+      {/* Mobile-only tagline — desktop gets this in the hover drawer, but
+          touch devices never trigger hover, so surface the "what is this"
+          here instead. */}
+      {isMobile && (
+        <p
+          style={{
+            margin: '-2px 0 0',
+            fontFamily: 'var(--font-body)',
+            fontSize: 12,
+            lineHeight: 1.3,
+            color: 'var(--ink-70)',
+          }}
+        >
+          {game.tagline}
+        </p>
+      )}
 
       {/* art area — 16:10 cabinet screen */}
       <div
@@ -271,17 +292,18 @@ function CabinetTile({ game, hoverEnabled }: { game: ArcadeGame; hoverEnabled: b
         )}
       </div>
 
-      {/* play button */}
+      {/* play button — ≥44px tap target on mobile (was ~32px) */}
       <button
         type="button"
         onClick={() => navigate(`/play/${game.slug}`)}
         style={{
-          padding: '8px 0',
+          padding: isMobile ? '14px 0' : '8px 0',
+          minHeight: isMobile ? 44 : undefined,
           background: 'var(--ink)',
           color: 'var(--paper)',
           border: 'none',
           fontFamily: 'var(--font-mono)',
-          fontSize: 10,
+          fontSize: isMobile ? 11 : 10,
           letterSpacing: '0.18em',
           fontWeight: 700,
           textTransform: 'uppercase',
