@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useEffect, useRef, type RefObject } from 'react';
+import { useMultiplayerSync } from './game/multiplayer/context';
 import * as THREE from 'three';
 import { createGLTFLoader } from './game/render/loader';
 import { createScene, PREMIUM_RENDER } from './game/render/scene';
@@ -98,9 +99,38 @@ function angleLerp(a: number, b: number, t: number): number {
 
 export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string; hud: GameHud; onFinish: (r: ResultRow[]) => void }) {
   const mountRef = useRef<HTMLDivElement>(null);
+  // Session 2c/2d: when MultiplayerProvider wraps this component (set by
+  // MultiplayerLayer once a race is matched), `multi` returns the sync
+  // helpers. When solo, it returns null and the rAF loop runs Fish's
+  // local physics for all karts unchanged.
+  const multi = useMultiplayerSync();
+  const multiRef = useRef(multi);
+  multiRef.current = multi;
 
   useEffect(() => {
     const mount = mountRef.current!;
+    // V2 PLAYER refactor (2026-06-06): in multiplayer, the local user's
+    // kart sits at whatever slot the server assigned to this client
+    // (0 for host, 1 for first joiner, etc.). In solo mode `multi` is
+    // null → PLAYER stays 0 → Fish's original code path is byte-identical.
+    //
+    // This single `const PLAYER` shadows the module-level constant at
+    // line 37 for every reference inside this useEffect (~46 sites).
+    // Each site means "the player's kart" semantically — none of them
+    // mean "slot 0 specifically because of grid layout" (audited 2026-
+    // 06-06). So the shadow is sufficient; no per-site changes needed.
+    //
+    // selfSlot is fixed for the duration of a race, so capturing it
+    // once at effect-mount is correct.
+    const PLAYER = multi?.selfSlot ?? 0;
+    // BOT_PERSONAS has NUM-1 entries (5 personas for 5 non-player slots).
+    // Fish's solo code did `BOT_PERSONAS[i - 1]` everywhere, assuming
+    // i >= 1 because PLAYER was always 0. With dynamic PLAYER, a
+    // non-player slot can be at i=0 (when PLAYER > 0), and
+    // BOT_PERSONAS[0 - 1] = BOT_PERSONAS[-1] = undefined → crash on
+    // any property access (.useDelay etc). Map non-player slot indices
+    // [0..PLAYER-1, PLAYER+1..NUM-1] onto persona indices [0..NUM-2]:
+    const botPersonaForSlot = (i: number) => i < PLAYER ? i : i - 1;
     // Dev diagnostics (FPS log, race breakdown, collision/progress probes, P/B debug keys) are OFF
     // by default for a clean console at launch — append ?debug to the URL to switch them back on.
     const DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug');
@@ -207,6 +237,23 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         warmedUp = true;
       }
       assetsReady = true;
+      // Signal to the server that THIS client has finished loading.
+      // Server's lobby:start handler is waiting for every human to
+      // emit critterkart:ready before it locks startAtMs and kicks
+      // off the countdown — without this, the 15s fallback timer
+      // would fire instead and joiners with slower loads would
+      // join the race already-in-progress (the desync JJ saw).
+      if (multi && (multi as any).signalReady) {
+        const tgId = (multi.members as any[])?.find(
+          (m: any) => (m.slot ?? -1) === multi.selfSlot,
+        )?.telegramUserId;
+        if (tgId) {
+          (multi as any).signalReady(tgId);
+          console.log('[critter-kart/diag] emitted critterkart:ready', { tgId, selfSlot: multi.selfSlot });
+        } else {
+          console.warn('[critter-kart/diag] cannot emit critterkart:ready — no telegramUserId for selfSlot', multi.selfSlot);
+        }
+      }
     };
     loadingManager.onLoad = () => {
       if (readyTimer !== null) clearTimeout(readyTimer);
@@ -325,12 +372,27 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     };
     window.addEventListener('keydown', onDebugKey);
 
-    // chosen racer races in slot 0; the other five slots are filled by EVERY other character —
-    // the Founders (JJ, Fish) now race as bots too, so it's always a full six-kart grid. (We must
-    // end up with exactly NUM gridRacers or the per-frame loop dereferences gridRacers[undefined].)
-    const chosen = Math.max(0, ROSTER.findIndex((r) => r.id === racerId));
-    const botPool = ROSTER.filter((_, i) => i !== chosen);
-    const gridRacers: Racer[] = [ROSTER[chosen], ...botPool.slice(0, NUM - 1)];
+    // V2 (2026-06-06): in multiplayer the server assigns each slot a
+    // racerId (via members[].racerId on race:start). Honour that so
+    // EVERY client sees the same characters at the same slots — without
+    // this, non-host clients render Peralta as Pip and JJ as Bruno
+    // because Fish's solo construction puts the chosen racer at slot 0
+    // and cycles bots through the remaining slots. In solo, multi is
+    // null → falls through to Fish's original construction.
+    //
+    // Must end up with exactly NUM gridRacers or the per-frame loop
+    // dereferences gridRacers[undefined].
+    let gridRacers: Racer[];
+    if (multi?.members && multi.members.length === NUM) {
+      gridRacers = multi.members.map((m: any) =>
+        ROSTER.find(r => r.id === m.racerId) || ROSTER[0]
+      );
+    } else {
+      // Solo path — Fish's original logic, untouched.
+      const chosen = Math.max(0, ROSTER.findIndex((r) => r.id === racerId));
+      const botPool = ROSTER.filter((_, i) => i !== chosen);
+      gridRacers = [ROSTER[chosen], ...botPool.slice(0, NUM - 1)];
+    }
     const WEIGHTS = gridRacers.map((r) => r.weight);
     const karts = gridRacers.map((r, i) => new Kart(r, loader, i === PLAYER)); // only the player casts a shadow (cheap, invisible diff)
     karts.forEach((k) => scene.add(k.mesh));
@@ -594,7 +656,49 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       if (frame > 0.25) frame = 0.25;
       // Hold the countdown at "3" until the LoadingManager reports every queued GLB
       // has fully decoded — players never hear GO! over a half-rendered world.
-      if (phaseLocal !== 'finished' && assetsReady) elapsed += frame;
+      //
+      // MULTIPLAYER ANCHOR (added 2026-06-08): in MP, server emits
+      // `startAtMs` (the wall-clock time when elapsed should == 0,
+      // i.e. when the countdown ends and the race actually begins).
+      // Anchoring elapsed to (Date.now() - startAtMs) / 1000 makes
+      // both clients agree on when the race started — regardless of
+      // who finished loading assets first. Without this, JJ saw
+      // "shelly still on countdown while rusty past first corner"
+      // 2026-06-08 because each client's elapsed was tied to its
+      // own assets-ready moment instead of a shared anchor.
+      //
+      // The train, countdown, and every other elapsed-driven entity
+      // (drift sparks, item respawns, lap banners) now stay in sync
+      // because they all read from this same value.
+      //
+      // Joiner loaded 5s late? Their elapsed jumps to 5 the moment
+      // their assets finish — they enter the race in progress at
+      // the same wall-clock moment everyone else is at. Better than
+      // running a private countdown starting now.
+      if (phaseLocal !== 'finished' && assetsReady) {
+        if (multi) {
+          // MP MODE: ONLY use the server's locked anchor from
+          // race:countdownLocked. Do NOT fall back to multi.startAtMs
+          // (the provisional pre-handshake value from race:start) or to
+          // local frame accumulation — both run a private countdown
+          // out of sync with the racing peers and produced JJ's
+          // "rusty started way before shelly" 2026-06-10.
+          //
+          // If the lock hasn't arrived yet, elapsed stays at its
+          // initial -COUNTDOWN. The lock arrives via either the
+          // broadcast at race start (normal joiner) or the joinRace
+          // replay (late joiner, reconnect, slow asset load). Once
+          // the lock lands, elapsed jumps to (now - lockedAnchor)/1000
+          // and the phase transitions on the next line.
+          const lockedAnchor = (multi as any).getStartAtMs?.();
+          if (lockedAnchor) {
+            elapsed = (Date.now() - lockedAnchor) / 1000;
+          }
+          // else: hold at the initial -COUNTDOWN value. Don't accumulate.
+        } else {
+          elapsed += frame;
+        }
+      }
       if (phaseLocal === 'countdown' && elapsed >= 0) { phaseLocal = 'racing'; playRace(); }
       const racing = phaseLocal === 'racing';
 
@@ -602,6 +706,100 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       // whatever item box their line passes over — no diversion steering needed.)
 
       const raw = keyboard.read();
+
+      // === Multiplayer integration (additive) =================================
+      // When useMultiplayerSync returns non-null, do two things per rAF tick:
+      //   1. Send the local input frame to the server (down-sampled to 30Hz
+      //      inside the net client).
+      //   2. Overwrite REMOTE karts' states[i] from the latest server
+      //      snapshot, so other humans + server-driven bots move
+      //      authoritatively. Skip the local-player slot — Fish's local
+      //      physics drives our own kart's render for snappy feel (thin
+      //      client v1; reconciliation lands in v2).
+      // No-op when solo: multiRef.current is null and this block exits.
+      const mp = multiRef.current;
+
+      // DIAGNOSTIC: one-shot log on first frame so we know whether mp is null
+      // (= MultiplayerProvider didn't wrap GameCanvas → solo path)
+      // or non-null (= context is wired, see snapshot-apply logs below).
+      if (!(window as any).__ckMpFirstFrame) {
+        (window as any).__ckMpFirstFrame = true;
+        console.log('[critter-kart/diag] FIRST FRAME — mp is:', mp ? {
+          hasSelfSlot: mp.selfSlot,
+          hasSelfKartId: mp.selfKartId,
+          hasSendInput: typeof mp.sendInput,
+          hasLatestSnapshot: typeof Object.getOwnPropertyDescriptor(mp, 'latestSnapshot'),
+        } : 'NULL — solo render, no multiplayer sync');
+      }
+
+      if (mp) {
+        try {
+          mp.sendInput({
+            steer: racing ? raw.steer : 0,
+            throttle: racing ? raw.throttle : 0,
+            brake: racing ? raw.brake : 0,
+            drift: !!(racing && raw.drift),
+          });
+          const snap = mp.latestSnapshot;
+          // DIAGNOSTIC: log first time we see a non-null snapshot
+          if (snap && !(window as any).__ckFirstSnapshotLogged) {
+            (window as any).__ckFirstSnapshotLogged = true;
+            console.log('[critter-kart/diag] FIRST SNAPSHOT received:', {
+              raceId: (snap as any).raceId,
+              tick: (snap as any).tick,
+              kartCount: (snap as any).karts?.length,
+              kartIds: (snap as any).karts?.map((k: any) => k.kartId),
+              selfSlot: mp.selfSlot,
+              selfKartId: mp.selfKartId,
+            });
+          }
+          if (snap) {
+            for (let i = 0; i < NUM; i++) {
+              if (i === mp.selfSlot) continue;
+              const k = mp.applyToSlot(i);
+              // DIAGNOSTIC: log first non-null applyToSlot result per slot
+              if (k && !(window as any)[`__ckApplied_${i}`]) {
+                (window as any)[`__ckApplied_${i}`] = true;
+                console.log(`[critter-kart/diag] FIRST APPLY slot ${i}:`, {
+                  kartId: (k as any).kartId,
+                  x: (k as any).x,
+                  z: (k as any).z,
+                  heading: (k as any).heading,
+                });
+              }
+              // DIAGNOSTIC: also log per slot when snap exists but applyToSlot returns null
+              if (snap && !k && !(window as any)[`__ckNullApply_${i}`]) {
+                (window as any)[`__ckNullApply_${i}`] = true;
+                console.warn(`[critter-kart/diag] applyToSlot(${i}) returned NULL despite snapshot. snap has karts:`,
+                  (snap as any).karts?.map((kk: any) => kk.kartId),
+                  '  — check kartIdToSlot mapping');
+              }
+              if (!k) continue;
+              states[i] = {
+                ...states[i],
+                x: k.x,
+                z: k.z,
+                y: k.y ?? states[i].y ?? 0,
+                vy: k.vy ?? states[i].vy ?? 0,
+                heading: k.heading,
+                velHeading: k.velHeading,
+                speed: k.speed,
+                driftDir: k.driftDir,
+                boostTimer: k.boostTimer,
+                stunTimer: k.stunTimer,
+                slowTimer: k.slowTimer,
+                shield: k.shield,
+              };
+            }
+          }
+        } catch (e) {
+          if (!(window as any).__ckMpErrLogged) {
+            (window as any).__ckMpErrLogged = true;
+            console.error('[critter-kart/mp] sync threw — race continues solo-rendered:', e);
+          }
+        }
+      }
+      // === End multiplayer integration ========================================
 
       // ROCKET START: hold throttle in the final beat of the countdown for a launch boost. Track
       // when the player first pressed throttle during the countdown; flooring it too EARLY (more
@@ -803,7 +1001,23 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         // out-dragged: behind/level → they match-or-beat your pace; only when comfortably AHEAD do
         // they ease so you stay in touch. A hit briefly slows them; a train on the crossing makes
         // them wait. Runs last so it's the final word on bot state (overrides the physics loops).
-        if (racing) {
+        if (racing && !mp) {
+          // MULTIPLAYER GUARD (added 2026-06-05): when in a multiplayer
+          // race, the server is authoritative for every non-self kart.
+          // Snapshots arrive at 20 Hz and the apply block (~ line 624)
+          // writes server-truth into states[1..5] every rAF tick.
+          // Without this `!mp` guard the rail-bot loop below would then
+          // OVERWRITE states[i].x/z/heading/speed for each non-self
+          // slot with locally-computed rail-bot positions (THIS client's
+          // idea of where Peralta's kart should be), so other players'
+          // karts never visually sync with their actual server-driven
+          // movements. Diagnosed 2026-06-05 evening — the diag block at
+          // ~line 624 confirmed snapshots arrive, apply runs, kart-1's
+          // x/z written from server — but the bot loop here trampled it
+          // ~5 ms later every frame. Skipping the entire loop is safe:
+          // boost/stun/slow timer decay arrives via snapshot fields,
+          // and the server runs bot AI for the 4 bot-fill slots, so we
+          // don't need local AI to drive them either.
           const playerCont = laps[PLAYER].lap + track.nearest(states[PLAYER].x, states[PLAYER].z).progress;
           const playerSpeed = Math.max(0, states[PLAYER].speed);
           const FLOOR = TUNING.maxSpeed * 0.72; // don't crawl if the player is slow/stopped/hit
@@ -930,7 +1144,23 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
 
       if (racing) {
         const ranked = rankRacers(standings());
+        // MP guard (2026-06-08): in multiplayer, items live ONLY on the
+        // client that owns the kart. Without this guard each client
+        // independently rolls "Rusty picked up an acorn → throw at
+        // Shelly in 0.4s" for the other human, and the throw VFX is
+        // locally fabricated — Shelly sees Rusty throw acorns Rusty
+        // never threw (JJ's report 2026-06-08). Bots remain locally
+        // AI-driven (server doesn't sync their items either; everyone
+        // independently rolls bot items, which is fine because no real
+        // human is making contradictory decisions). Only slots backed
+        // by a non-bot remote human get skipped.
+        const isRemoteHuman = (i: number): boolean => {
+          if (!mp || i === PLAYER) return false;
+          const member = (mp.members as any[])?.find((m: any) => (m.slot ?? -1) === i);
+          return !!(member && !member.isBot);
+        };
         for (let i = 0; i < NUM; i++) {
+          if (isRemoteHuman(i)) continue;
           if (heldItems[i] !== NO_ITEM) continue;
           for (const box of itemBoxes) {
             if (elapsed < box.respawnAt) continue;
@@ -942,14 +1172,17 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
               heldItems[i] = rolled;
               heldCount[i] = rolled === ITEM.ACORN ? 3 : 1; // Acorn = triple shots
               box.respawnAt = elapsed + TUNING.itemBoxRespawn;
-              if (i !== PLAYER) botUseAt[i] = elapsed + BOT_PERSONAS[i - 1].useDelay;
+              if (i !== PLAYER) botUseAt[i] = elapsed + BOT_PERSONAS[botPersonaForSlot(i)].useDelay;
               break;
             }
           }
         }
         const useEdge = raw.use && !prevUse;
         if (useEdge && heldItems[PLAYER] !== NO_ITEM) useItem(PLAYER, ranked);
-        for (let i = 1; i < NUM; i++) if (heldItems[i] !== NO_ITEM && elapsed >= botUseAt[i]) useItem(i, ranked);
+        for (let i = 1; i < NUM; i++) {
+          if (isRemoteHuman(i)) continue;
+          if (heldItems[i] !== NO_ITEM && elapsed >= botUseAt[i]) useItem(i, ranked);
+        }
       }
       prevUse = raw.use;
 

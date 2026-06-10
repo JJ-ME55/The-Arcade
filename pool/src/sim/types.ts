@@ -53,6 +53,20 @@ export interface TableConfig {
   pocketsPositions: IVec2[];
   /** Pocket capture radius. */
   pocketRadius: number;
+  /**
+   * Pocket-mouth geometry — optional; defaults mirror the Side Pocket
+   * render constants in canvas.ts so sim and visuals stay locked.
+   * The cushion segments have GAPS (mouths) at the pockets; the mouth
+   * edges land where the pocket circle crosses the wood-seam line,
+   * extended by the chamfer miter to the playing face. See
+   * world.ts railMouths() for the construction.
+   */
+  /** Wood-seam inset from the table edge (canvas FELT_INSET). Default 48. */
+  woodSeamInset?: number;
+  /** Chamfer miter length from wood seam to playing face (canvas CHAMFER). Default 30. */
+  jawChamfer?: number;
+  /** Visible hole lip beyond pocketRadius (canvas VISIBLE_POCKET_R − pocketRadius). Default 6. */
+  pocketRim?: number;
 }
 
 export interface PhysicsConfig {

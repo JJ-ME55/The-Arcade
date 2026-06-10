@@ -15,7 +15,7 @@ import { Keyboard } from '../input/keyboard';
 import { SpinHud } from '../input/spin-hud';
 import { State } from './state';
 import { applySidespinToCushionBounce, applyTopBackSpinToBallCollision } from '../physics/spin';
-import { stepWorld } from '../sim/world';
+import { stepWorld, mouthAt } from '../sim/world';
 import type { SerializableBall, TableConfig, PhysicsConfig, ShotEvent } from '../sim/types';
 import { syncBallsToSerializable, syncSerializableToBalls, buildSimTableConfig, buildSimPhysicsConfig } from '../sim/browser-adapter';
 
@@ -735,15 +735,20 @@ export class GameWorld {
 
         // Find cushion intersection — distance along ray until we hit a
         // playable-boundary edge (cushion width inset from each side).
+        // Tracks WHICH rail wins so we can check for pocket mouths: if
+        // the crossing point falls inside a mouth, there is no cushion
+        // there — the shot runs into the pocket, and the guide should
+        // show that (line to the pocket centre) instead of a phantom
+        // bounce. Mirrors the sim's mouthAt() geometry exactly.
         const cw = tableConfig.cushionWidth;
-        const cushionDistances: number[] = [];
-        // Hit the right cushion
-        if (dirX > 0.001) cushionDistances.push((gameSize.x - cw - ballR - cuePos.x) / dirX);
-        if (dirX < -0.001) cushionDistances.push((cw + ballR - cuePos.x) / dirX);
-        if (dirY > 0.001) cushionDistances.push((gameSize.y - cw - ballR - cuePos.y) / dirY);
-        if (dirY < -0.001) cushionDistances.push((cw + ballR - cuePos.y) / dirY);
-        for (const d of cushionDistances) {
-            if (d > 0 && d < hitDist) hitDist = d;
+        const cushionHits: Array<{ d: number; rail: 'top'|'bottom'|'left'|'right' }> = [];
+        if (dirX > 0.001) cushionHits.push({ d: (gameSize.x - cw - ballR - cuePos.x) / dirX, rail: 'right' });
+        if (dirX < -0.001) cushionHits.push({ d: (cw + ballR - cuePos.x) / dirX, rail: 'left' });
+        if (dirY > 0.001) cushionHits.push({ d: (gameSize.y - cw - ballR - cuePos.y) / dirY, rail: 'bottom' });
+        if (dirY < -0.001) cushionHits.push({ d: (cw + ballR - cuePos.y) / dirY, rail: 'top' });
+        let railHit: { d: number; rail: 'top'|'bottom'|'left'|'right' } | null = null;
+        for (const h of cushionHits) {
+            if (h.d > 0 && h.d < hitDist) { hitDist = h.d; railHit = h; }
         }
 
         // Clamp the line length — if no hits, just draw a long ray
@@ -751,8 +756,21 @@ export class GameWorld {
 
         // Endpoint = cue position + dir * hitDist (where the cue ball
         // would stop, NOT where the object ball is contacted)
-        const endX = cuePos.x + dirX * hitDist;
-        const endY = cuePos.y + dirY * hitDist;
+        let endX = cuePos.x + dirX * hitDist;
+        let endY = cuePos.y + dirY * hitDist;
+
+        // Pocket-mouth awareness: when the winning hit is a rail and the
+        // crossing point is inside a pocket mouth, the ball would sail
+        // into the pocket — point the guide at the pocket centre.
+        if (railHit && this._simTable) {
+            const lateral = (railHit.rail === 'top' || railHit.rail === 'bottom') ? endX : endY;
+            const m = mouthAt(railHit.rail, lateral, this._simTable);
+            if (m) {
+                const p = this._simTable.pocketsPositions[m.pocketIdx];
+                endX = p.x;
+                endY = p.y;
+            }
+        }
 
         // Draw dotted guide line
         Canvas2D.drawAimGuide(cuePos.x, cuePos.y, endX, endY, ballR);

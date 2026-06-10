@@ -96,7 +96,9 @@ function buildHTML() {
     renderer.setSize(${SPRITE_SIZE}, ${SPRITE_SIZE}, false);
     renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    // No tone mapping — unlit albedo must ship the EXACT brand palette
+    // values painted into the texture canvas (ACES was shifting them).
+    renderer.toneMapping = THREE.NoToneMapping;
     renderer.toneMappingExposure = 1.0;
 
     const scene = new THREE.Scene();
@@ -114,13 +116,20 @@ function buildHTML() {
     camera.up.set(0, 0, -1);
     camera.lookAt(0, 0, 0);
 
-    // Lighting — single overhead-left key + hemisphere fill. Same setup
-    // as the previous bake so the look stays consistent.
-    const key = new THREE.DirectionalLight(0xffffff, 2.8);
-    key.position.set(-2.5, 5, -2.5);
-    scene.add(key);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xc8c8c8, 0.65));
-    scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+    // NO LIGHTS — the bake is UNLIT (MeshBasicMaterial below renders
+    // pure albedo). Rationale (JJ 2026-06-10 "looks off" iteration):
+    // the runtime rotates each sprite by the ball's motion direction,
+    // so any directional shading baked into the pixels SWINGS around
+    // as balls change direction. A vertical key is rotation-safe but
+    // renders a top-down sphere nearly flat (no form at all). The
+    // split that works — and what commercial 2D pool clients do — is:
+    //   BAKE     the texture only: discs/stripes/digits wrapped on the
+    //            sphere with true 3D foreshortening per rotation frame
+    //   RUNTIME  all shading screen-fixed on top (limb darkening +
+    //            up-left specular in Canvas2D's atlas path) — constant
+    //            for every ball at every travel angle
+    // Bonus: unlit albedo means the painted colours ship EXACTLY at
+    // the brand palette values (no tone-mapping shift).
 
     const geometry = new THREE.SphereGeometry(1, 128, 128);
 
@@ -247,12 +256,11 @@ function buildHTML() {
       currentTexture.anisotropy = 8;
       currentTexture.needsUpdate = true;
 
-      currentMaterial = new THREE.MeshPhysicalMaterial({
-        map:                currentTexture,
-        roughness:          0.18,
-        clearcoat:          1.0,
-        clearcoatRoughness: 0.04,
-        metalness:          0.0,
+      // UNLIT — pure albedo. All shading (limb darkening + specular)
+      // is applied screen-fixed at runtime so it can never swing with
+      // the ball's travel direction. See the lighting note above.
+      currentMaterial = new THREE.MeshBasicMaterial({
+        map: currentTexture,
       });
 
       currentMesh = new THREE.Mesh(geometry, currentMaterial);

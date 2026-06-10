@@ -189,3 +189,60 @@ The build-debug loop this session was 12 deploys (8 fails → 4 greens), driven 
 - Don't trust the Rollup PURE-comment warnings — they're noise; the real error is buried below them
 
 — main-claude (Opus 4.7 / 1M context)
+
+---
+
+## 2026-06-04 — Critter Kart integrated onto `arcade/critter-kart`
+
+**From:** fishyboy-claude (Opus 4.8) · **To:** JJ + main-claude
+
+Lifted the full **Critter Kart** game (React + Three.js kart racer, from
+`BillionaireBonkClub/critter-kart`) into this branch as a mounted route, per the
+brief at `src/games/critter-kart/README.md`. Single-player is complete + signed off
+by Fish; this is the integration pass. **Pushed to `arcade/critter-kart` only.**
+
+### What landed
+- `src/games/critter-kart/` — the whole game (49 TS/TSX modules: GameCanvas, game/, ui/, net/, audio). All prefixed `// @ts-nocheck` (your sanctioned escape hatch; strict TS + the 0.160→0.184 type drift would otherwise fight the build).
+- `src/games/critter-kart/CritterKartScreen.jsx` — arcade wrapper: session-JWT capture (`?session=` → sessionStorage), `useArcadeSessionMint('critter-kart')`, score submit with the **explicit failure surface** (Elliot-450 pattern), GameChrome + TelegramLinkBanner.
+- `src/routes/games/CritterKart.tsx` + route `"/play/critter-kart/launch"` in `src/App.tsx` (under `RequireAuth`, beside free-kicks).
+- `public/critter-kart/` — **61 MB** of runtime GLBs + audio (pruned 64 MB `unused versions` + 27 MB source PNGs). Loader paths rebased to `/critter-kart/...` via a clean prefix.
+
+### Verified
+- `npm run build` (`tsc -b && vite build`) is **green** locally (2m18s). Assets copy into `dist/critter-kart/`, bundle references the rebased paths. Commit hash in this push.
+- Did **not** browser-test on Three 0.184 here (no browser in my env) — see #4.
+
+### Needs your decision / action (don't act alone — flagging per brief)
+
+1. **Server endpoints don't exist yet (expected).** Need, in the SolShot repo:
+   `POST /api/games/critter-kart/score`, `GET /api/games/critter-kart/leaderboard`,
+   `GET /api/games/critter-kart/standing/:telegramUserId`, a `CRITTER_KART_LEADERBOARD_SECRET`
+   env on Render, and a `critter-kart` entry in the arcade bot's `GAMES` array.
+   Until then the submit 404s — game plays fine. Mint-session + score slug used: **`critter-kart`**.
+
+2. **⚠ Build-memory ceiling (highest risk for the Vercel preview).** The prod bundle's
+   sourcemap is ~19 MB and blows Node's default ~2 GB heap during chunk rendering — local
+   build only passes with `NODE_OPTIONS=--max-old-space-size=8192`. I did **not** touch
+   `vite.config.ts` (your no-touch list). Pick one: set `NODE_OPTIONS` in the Vercel project
+   env, or `build.sourcemap:false`, or `manualChunks` to split three/game out. Without this
+   the `arcade/critter-kart` preview deploy will likely OOM.
+
+3. **Asset hosting (61 MB, raw in-repo).** Bundled under `public/critter-kart/` per Fish's
+   call, but this is ~120× the per-game asset budget and will bloat git history. Recommend
+   Git LFS or an external/CDN host — the loader uses a `/critter-kart/` base, so relocating is
+   a one-line change. Several dressing GLBs (Large tree 5.5 MB, Rope bridge 4.4 MB, Windmill,
+   Waterfall) are undecimated and could be meshopt-compressed for a big win. Your call.
+
+4. **Three.js 0.184 vs 0.160.** Game was authored/tested on 0.160; Arcade is on 0.184. Build
+   is clean and the usual breakers (`outputEncoding`/`sRGBEncoding`/legacy lights) aren't used,
+   so risk is low — but please click the preview once #2 is sorted to confirm rendering.
+
+5. **Race scoring semantics — your call.** Leaderboard contract is position-based for a racer,
+   not a points game. I send `score` = Mario-Kart-style position points (1st=15…6th=4) **plus**
+   raw `pos`/`best`/`time` in the payload so you can define the canonical model server-side
+   (position points vs best-lap vs total-time).
+
+6. **Minor / polish (mine or yours later):** arcade mute button is a no-op (game has its own
+   music — needs a global-gain hook); on touch the game's own top-left Quit can overlap
+   GameChrome's "← Arcade"; PORTAL_GAMES tile/hero art is yours per brief (left empty).
+
+— fishyboy-claude (Opus 4.8)

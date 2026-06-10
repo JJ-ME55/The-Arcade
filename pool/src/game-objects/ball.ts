@@ -32,7 +32,24 @@ export class Ball {
     // to velocity — gives the number disc + stripe a top-down "roll"
     // appearance as the ball moves across the felt. No effect on the
     // sim; purely render-side.
+    //
+    // MONOTONE — always increases. The atlas frames are baked rolling
+    // along ONE canonical axis; direction is handled entirely by
+    // rotating the sprite to the motion angle at draw time. A previous
+    // version multiplied by sign(velocity.x), which double-compensated
+    // with that sprite rotation: left-moving balls played the frame
+    // sequence in REVERSE (visible backwards spin) and near-vertical
+    // movers flipped direction on every tick of x-noise (jitter).
+    // JJ playtest 2026-06-10: "always spins backwards whilst moving
+    // forwards" — that was this.
     private _rollAngle: number = 0;
+
+    // Motion direction (radians) the sprite is aligned to at draw time.
+    // CACHED, not derived from live velocity in the renderer: it only
+    // updates while the ball moves meaningfully, so the sprite holds
+    // its final orientation when the ball stops instead of snapping to
+    // angle 0, and doesn't twitch from velocity noise at crawl speeds.
+    private _motionAngle: number = 0;
 
 
     //------Properties------//
@@ -166,27 +183,42 @@ export class Ball {
      * faster than the human eye can resolve; we want perceivable rolling,
      * not literally accurate per-tick angular velocity.
      */
+    /**
+     * Max visual roll rate, radians per tick. Physically-exact rolling
+     * is ω = v/R: at break speeds (v≈30, R=19) that is ~15 rev/sec —
+     * a quarter revolution PER RENDER FRAME at 60fps, i.e. a ~32-frame
+     * jump through the 128-frame atlas every frame. The eye can't
+     * track that; it reads as random flicker (JJ 2026-06-10:
+     * "jittery"). Real footage of fast balls is motion-blurred anyway.
+     *
+     * So: EXACT v/R while v/R is below this cap — the whole visible
+     * rolling tail (the part players actually watch) is physically
+     * locked to ground speed ("spin matches the roll speed") — and a
+     * hard cap above it. 0.42 rad/tick ≈ 4 rev/sec ≈ an 8.6-frame
+     * atlas step ≈ 24° between consecutive render frames: clearly
+     * directional, zero strobing (the twin-disc texture repeats every
+     * 180°, so anything under ~90°/frame samples cleanly).
+     */
+    private static readonly MAX_VISUAL_ROLL_RATE = 0.42;
+
     public updateRollAngle(): void {
         if (!this._moving) return;
         const speed = this._velocity.length;
         if (speed <= 0) return;
         const ballR = ballConfig.diameter / 2;
-        const dir = Math.abs(this._velocity.x) > 0.01
-            ? Math.sign(this._velocity.x)
-            : Math.sign(this._velocity.y) || 1;
-        // Damping 0.5 — JJ playtest 2026-06: "the rotation is off and
-        // clearly separate from the ball rolling and the speed." The
-        // previous 0.14 made the disc rotate ~7× slower than the ball
-        // actually moves on screen, which read as the ball SKIDDING
-        // rather than rolling. 0.5 is closer to physically-correct no-
-        // slip rolling (1.0 = ω = v/R exactly).
-        //
-        // At v=30 px/tick: rollAngle += ~0.79 rad/tick = ~7.5 rev/sec
-        // at 60fps. At v=5 (slow rolling): ~1.25 rev/sec. The disc
-        // visibly tracks the ball's linear motion now. There's some
-        // strobing on extreme break shots (sprite frame skip exceeds
-        // 1 per tick) but it reads as "spinning fast" not as broken.
-        this._rollAngle += (speed / ballR) * dir * 0.5;
+        // Monotone advance — direction comes from the sprite's motion
+        // alignment at draw time, never from the frame sequence.
+        this._rollAngle += Math.min(speed / ballR, Ball.MAX_VISUAL_ROLL_RATE);
+        // Refresh the cached motion direction only while moving fast
+        // enough for the direction to be meaningful — freezes the
+        // sprite orientation at stop (no snap) and ignores crawl noise.
+        if (speed > 0.5) {
+            this._motionAngle = Math.atan2(this._velocity.y, this._velocity.x);
+        }
+    }
+
+    public get motionAngle(): number {
+        return this._motionAngle;
     }
 
     public update(): void {
@@ -245,11 +277,12 @@ export class Ball {
 
     public draw(): void {
         if(this._visible){
-            // Side Pocket American 8-ball — procedural draw via Canvas2D.
-            // Passes velocity so the renderer can translate the number
-            // disc/stripe band in the direction of motion (visible
-            // rolling effect — JJ 2026-06: "the balls aren't rolling").
-            Canvas2D.drawAmericanBall(this._position, this._id, this._rollAngle, this._velocity);
+            // Side Pocket American 8-ball — atlas draw via Canvas2D.
+            // rollAngle picks the rotation frame; motionAngle (cached,
+            // stable through stops) aligns the baked rolling axis to
+            // the ball's travel direction; velocity feeds the legacy
+            // fallback path only.
+            Canvas2D.drawAmericanBall(this._position, this._id, this._rollAngle, this._velocity, this._motionAngle);
         }
     }
 }

@@ -56,11 +56,18 @@ class Canvas2D_Singleton {
     private _scale: Vector2;
     private _sphereSprites: Partial<Record<SphereSpriteName, HTMLImageElement>> = {};
     private _sphereSpritesReady: boolean = false;
-    // AAA atlas — 16 balls × 32 rotation frames. Indexed [ballId][frameIdx].
-    // Loaded by preloadBallAtlas(); if loading fails, falls back to the
-    // older preloadSphereSprites() path which uses static-sphere bases
-    // plus procedural marking overlays.
+    // AAA atlas — 16 balls × 128 rotation frames. Indexed [ballId][frameIdx].
+    // Loaded PROGRESSIVELY by preloadBallAtlas(): frame 0 of every ball
+    // eagerly (16 images — the await in game.init() returns after just
+    // these), the remaining 2,032 in background chunks. The previous
+    // all-at-once preload decoded 63MB of PNGs before the game loop
+    // started — blank canvas + frozen tab for 30s+ on a cold cache
+    // (JJ "not clean" playtest, 2026-06-10).
     private _ballAtlas: HTMLImageElement[][] = [];
+    // Contiguous count of loaded frames per ball (frames load in order,
+    // so [0..count-1] are always usable). drawAmericanBall maps the
+    // wanted frame onto this prefix while the background fill runs.
+    private _atlasFramesLoaded: number[] = [];
     private _ballAtlasReady: boolean = false;
 
     //------Properties------//
@@ -101,52 +108,75 @@ class Canvas2D_Singleton {
      * first frame the player sees already uses the 3D-baked spheres.
      */
     /**
-     * AAA atlas preload — 16 balls × 32 rotation frames = 512 PNGs.
-     * Each frame is a fully 3D-baked textured ball at one rotation
-     * step around its rolling axis. drawAmericanBall picks the right
-     * frame based on Ball._rollAngle and just drawImage's it — no
-     * procedural marking overlay needed, since the marking IS in the
-     * 3D-baked sprite.
+     * AAA atlas preload — 16 balls × 128 rotation frames = 2,048 PNGs
+     * (~63MB), loaded PROGRESSIVELY:
      *
-     * Soft-fails: any missing/failed image leaves the atlas not-ready,
-     * and drawAmericanBall falls back to the static-sphere + procedural
-     * marking path (preloadSphereSprites).
+     *   EAGER      frame 0 of every ball (16 images). The returned
+     *              promise resolves after these — game.init() awaits
+     *              only this, so the table + 3D balls render at once.
+     *   BACKGROUND the remaining 127 frame-indices, one index across
+     *              all 16 balls per chunk, sequentially. The main
+     *              thread decodes 16 images at a time instead of
+     *              2,048 — no decode storm, no frozen tab.
+     *
+     * _atlasFramesLoaded[ballId] tracks the contiguous loaded prefix;
+     * drawAmericanBall maps its wanted frame onto that prefix, so
+     * rolling starts coarse (few angular steps) and reaches full
+     * 128-frame smoothness within a few seconds of load.
+     *
+     * Soft-fails: if any ball's frame 0 fails, the atlas is marked
+     * not-ready and drawAmericanBall falls back to the static-sphere +
+     * procedural marking path (preloadSphereSprites). A failure later
+     * in the background fill just freezes that ball's prefix where it
+     * reached (modulo mapping keeps every lookup in-range).
      */
     public preloadBallAtlas(): Promise<void> {
         // Must match FRAMES_PER_BALL in scripts/bake-ball-atlas.js.
         const FRAMES = 128;
         const BALL_IDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-        const promises: Promise<void>[] = [];
+
+        const loadFrame = (ballId: number, f: number): Promise<boolean> =>
+            new Promise<boolean>((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    this._ballAtlas[ballId][f] = img;
+                    resolve(true);
+                };
+                img.onerror = () => {
+                    // eslint-disable-next-line no-console
+                    console.warn(`[canvas] ball atlas missing: ball ${ballId} frame ${f}`);
+                    resolve(false);
+                };
+                const frameStr = String(f).padStart(3, '0');
+                img.src = `assets/sprites/balls/ball_${ballId}_frame_${frameStr}.png`;
+            });
+
         for (const ballId of BALL_IDS) {
             this._ballAtlas[ballId] = [];
-            for (let f = 0; f < FRAMES; f++) {
-                promises.push(new Promise<void>((resolve) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        this._ballAtlas[ballId][f] = img;
-                        resolve();
-                    };
-                    img.onerror = () => {
-                        // eslint-disable-next-line no-console
-                        console.warn(`[canvas] ball atlas missing: ball ${ballId} frame ${f} — atlas disabled`);
-                        resolve();
-                    };
-                    // 3-digit pad — frame count went 32 (2-digit) → 128
-                    // (3-digit) in JJ's "more frames" pass 2026-06.
-                    const frameStr = String(f).padStart(3, '0');
-                    img.src = `assets/sprites/balls/ball_${ballId}_frame_${frameStr}.png`;
-                }));
-            }
+            this._atlasFramesLoaded[ballId] = 0;
         }
-        return Promise.all(promises).then(() => {
-            let complete = true;
-            for (const ballId of BALL_IDS) {
-                for (let f = 0; f < FRAMES; f++) {
-                    if (!this._ballAtlas[ballId]?.[f]) { complete = false; break; }
+
+        // EAGER phase — frame 0 only.
+        return Promise.all(BALL_IDS.map((id) => loadFrame(id, 0))).then((oks) => {
+            this._ballAtlasReady = oks.every(Boolean);
+            if (!this._ballAtlasReady) return;
+            for (const id of BALL_IDS) this._atlasFramesLoaded[id] = 1;
+
+            // BACKGROUND phase — fire and forget; never blocks init.
+            void (async () => {
+                for (let f = 1; f < FRAMES; f++) {
+                    const results = await Promise.all(BALL_IDS.map((id) => loadFrame(id, f)));
+                    for (let i = 0; i < BALL_IDS.length; i++) {
+                        const id = BALL_IDS[i];
+                        // Keep the prefix contiguous: only advance when
+                        // this frame directly extends it. A failed frame
+                        // freezes that ball's smoothness where it got to.
+                        if (results[i] && this._atlasFramesLoaded[id] === f) {
+                            this._atlasFramesLoaded[id] = f + 1;
+                        }
+                    }
                 }
-                if (!complete) break;
-            }
-            this._ballAtlasReady = complete;
+            })();
         });
     }
 
@@ -733,6 +763,13 @@ class Canvas2D_Singleton {
         ballId: number,
         rotation: number = 0,
         velocity: IVector2 = { x: 0, y: 0 },
+        /**
+         * Cached travel direction from Ball.motionAngle — aligns the
+         * baked rolling axis in the atlas path. Stable through stops;
+         * NOT derived from live velocity (which snaps to garbage when
+         * a ball halts and twitches at crawl speeds).
+         */
+        motionAngle: number = 0,
     ): void {
         const ctx = this._context;
         const R = GameConfig.ball.diameter / 2;  // 19
@@ -766,45 +803,74 @@ class Canvas2D_Singleton {
         ctx.arc(0, 0, R * 1.3, 0, Math.PI * 2);
         ctx.fill();
 
-        // AAA PATH — sprite atlas (3D-baked frames, 32 rotations per ball).
+        // AAA PATH — sprite atlas (3D-baked frames, 128 rotations per ball).
         // When the atlas is loaded, every ball renders as one drawImage of
         // the right pre-rendered frame. The marking IS in the 3D-baked
         // sprite, already correctly rotated — no procedural overlay needed.
         //
-        // Frame selection: rollAngle / (2π) * 32, then modulo 32.
-        // Motion-direction alignment: 2D-rotate the sprite by the motion
-        // angle so the baked rolling axis (X in 3D, which projects as a
-        // specific 2D direction) lines up with the ball's actual velocity
-        // direction on screen.
+        // Direction handling (JJ 2026-06-10 "always spins backwards" fix):
+        //   - The frame sequence ALWAYS plays forward (Ball._rollAngle is
+        //     monotone) — in the bake, increasing frames move the texture
+        //     toward sprite +y (verified frame 000→016→032: the disc
+        //     travels DOWN and exits the bottom edge).
+        //   - The sprite is rotated by motionAngle − π/2, which maps
+        //     sprite +y onto the travel direction → the visible (top)
+        //     surface flows WITH the motion, exactly like a real ball.
+        //   - motionAngle is the ball's CACHED travel angle (frozen at
+        //     stop, immune to crawl-speed noise), so the sprite never
+        //     snaps when a ball stops and never twitches at low speed.
+        //   - The bake's lighting is vertical/rotation-invariant, so this
+        //     rotation moves only the texture; the brand up-left specular
+        //     is layered screen-fixed afterwards.
         if (this._ballAtlasReady && this._ballAtlas[ballId]) {
             // 128 frames per ball, must match FRAMES_PER_BALL in
-            // scripts/bake-ball-atlas.js. Bumped 32→128 per JJ playtest
-            // 2026-06: "it's clinky, increase to as many as possible so
-            // it looks smooth." 128 gives 2.8°/frame — visually
-            // continuous at every roll speed we see in-game.
+            // scripts/bake-ball-atlas.js.
             const FRAMES = 128;
             // Wrap rollAngle into [0, 2π) and pick the frame.
             const twoPi = Math.PI * 2;
             const wrapped = ((rotation % twoPi) + twoPi) % twoPi;
-            const frameIdx = Math.floor((wrapped / twoPi) * FRAMES) % FRAMES;
+            const fullIdx = Math.floor((wrapped / twoPi) * FRAMES) % FRAMES;
+            // Progressive smoothness: while the background loader is
+            // still filling the atlas, map the wanted frame onto the
+            // loaded prefix — floor(fullIdx · loaded / 128) keeps the
+            // ROTATION SPEED correct and only coarsens the angular
+            // steps (like temporarily playing a smaller atlas). At
+            // loaded=128 this is exactly fullIdx.
+            const loaded = this._atlasFramesLoaded[ballId] || 0;
+            const frameIdx = loaded > 0 ? Math.floor((fullIdx * loaded) / FRAMES) : 0;
             const frame = this._ballAtlas[ballId][frameIdx];
             if (frame) {
-                const speed = Math.hypot(velocity.x, velocity.y);
-                // Align the baked rolling-axis to motion direction. The bake
-                // renders the ball rolling along the screen-down direction
-                // (+y in canvas space). For a ball moving with velocity
-                // (vx, vy), atan2 gives the motion angle relative to +x;
-                // we want the sprite rotated so its baked "forward" lines
-                // up with the velocity vector. -π/2 offset because the
-                // bake's forward is +y in canvas (down), not +x (right).
-                const motionAngle = speed > 0.05
-                    ? Math.atan2(velocity.y, velocity.x) - Math.PI / 2
-                    : 0;
-                if (motionAngle !== 0) {
-                    ctx.rotate(motionAngle);
-                }
                 const drawR = R * 1.05;  // slight inflate to hide AA seam
+                ctx.save();
+                ctx.rotate(motionAngle - Math.PI / 2);
                 ctx.drawImage(frame, -drawR, -drawR, drawR * 2, drawR * 2);
+                ctx.restore();
+                // SCREEN-FIXED SHADING over the unlit albedo frame.
+                // The atlas is baked with no lighting at all (pure
+                // texture) so that rotating the sprite to the travel
+                // direction can never swing a baked highlight around.
+                // Form comes from these two un-rotated layers:
+                //  1. Limb shading — soft lift toward the upper-left
+                //     lamp, falling to a darkened silhouette edge,
+                //     deepest at the lower-right. Same light story as
+                //     the approved static-sphere look.
+                const limb = ctx.createRadialGradient(
+                    -R * 0.35, -R * 0.4, R * 0.15,
+                    0, 0, R
+                );
+                limb.addColorStop(0, 'rgba(255,255,255,0.16)');
+                limb.addColorStop(0.55, 'rgba(0,0,0,0)');
+                limb.addColorStop(0.85, 'rgba(0,0,0,0.18)');
+                limb.addColorStop(1, 'rgba(0,0,0,0.40)');
+                ctx.fillStyle = limb;
+                ctx.beginPath();
+                // Cover the sprite's full 1.05R footprint — beyond the
+                // gradient's R the last stop (0.40 black) clamps, which
+                // darkens the AA seam instead of leaving a bright rim.
+                ctx.arc(0, 0, drawR, 0, Math.PI * 2);
+                ctx.fill();
+                //  2. Brand specular (upper-left lamp ellipses).
+                this.drawBallSpecular(ctx, R);
             }
             ctx.restore();
             return;

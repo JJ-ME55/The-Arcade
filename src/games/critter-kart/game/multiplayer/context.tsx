@@ -111,15 +111,57 @@ export function useMultiplayerSync() {
     return {
       get latestSnapshot(): RaceSnapshot | null { return ctx.net.getLatestSnapshot(); },
       applyToSlot(slot: number) {
-        const snap = ctx.net.getLatestSnapshot();
-        if (!snap) return null;
+        // Resolve the kartId mapped to this slot (server's
+        // canonical kart-N id) and pull the *interpolated* kart state.
+        // Without interpolation, remote karts teleport every 33ms (30Hz
+        // snapshot rate) — JJ's "needs seamless NFS-style tightening"
+        // feedback 2026-06-08. With it, motion lerps smoothly between
+        // snapshots at 60fps render rate, render-time 100ms behind
+        // real-time so we always have a "future" snapshot to lerp toward.
         const kartId = Object.keys(ctx.kartIdToSlot)
           .find(kid => ctx.kartIdToSlot[kid] === slot);
         if (!kartId) return null;
+        // @ts-ignore — getInterpolatedKart added to NetClient 2026-06-08
+        if (ctx.net.getInterpolatedKart) {
+          return ctx.net.getInterpolatedKart(kartId, 100);
+        }
+        // Defensive fallback: if NetClient ever loses the interp method,
+        // fall through to raw latest-snapshot lookup so MP still works
+        // (just janky), rather than null and silent solo-render.
+        const snap = ctx.net.getLatestSnapshot();
+        if (!snap) return null;
         return snap.karts.find(k => k.kartId === kartId) ?? null;
       },
       selfSlot: ctx.selfSlot,
       selfKartId: ctx.selfKartId,
+      // V2 (2026-06-06): expose members so GameCanvas can construct
+      // gridRacers from the server's per-slot racerId assignments —
+      // otherwise non-host clients see the wrong character mesh at
+      // every remote slot (Peralta sees JJ as Pip, etc).
+      members: ctx.members,
+      // V2 (2026-06-10): server's race-start-anchor lock from
+      // race:countdownLocked. Returns null if the lock hasn't arrived
+      // yet — caller MUST hold at countdown until then, never fall back
+      // to the optimistic ctx.startAtMs from race:start. That fallback
+      // is what produced JJ's "rusty started way before shelly" desync
+      // 2026-06-10. The lock arrives via either the broadcast at race
+      // start (normal joiner) or the joinRace replay (late joiner /
+      // reconnect / slow asset load).
+      getStartAtMs(): number | null {
+        // @ts-ignore — getRaceStartAtMs added 2026-06-08
+        return ctx.net.getRaceStartAtMs?.() ?? null;
+      },
+      // V2 (2026-06-08): emit critterkart:ready when assets load.
+      // Server's lobby:start fallback is 15s — clients should signal
+      // ready ASAP so the race countdown locks at the right moment.
+      // Uses the local NetClient's emit directly (same socket).
+      signalReady(telegramUserId: number) {
+        // @ts-ignore — emit is on the underlying NetClient
+        ctx.net.emit?.('critterkart:ready', {
+          raceId: ctx.roomId,
+          telegramUserId,
+        });
+      },
       sendInput(frame: { steer: number; throttle: number; brake: number; drift: boolean }) {
         ctx.net.sendInput({
           raceId: ctx.roomId,
