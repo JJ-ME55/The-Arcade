@@ -116,7 +116,15 @@ export function buildSimTableConfig(): TableConfig {
       x: p.x,
       y: p.y
     })),
-    pocketRadius: GameConfig.table.pocketRadius
+    pocketRadius: GameConfig.table.pocketRadius,
+    // Pocket-mouth geometry — locked to the render constants so the
+    // sim's cushion gaps sit exactly where canvas.ts draws them:
+    // feltInset IS the wood seam, cushionThickness IS the chamfer
+    // miter, and the drawn hole lip is pocketRadius + 6
+    // (VISIBLE_POCKET_R in drawSidePocketTable).
+    woodSeamInset: GameConfig.table.feltInset,
+    jawChamfer: GameConfig.table.cushionThickness,
+    pocketRim: 6
   };
 }
 
