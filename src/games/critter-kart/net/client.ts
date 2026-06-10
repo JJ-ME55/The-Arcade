@@ -167,11 +167,14 @@ function createRealClient(): NetClient {
 
         const io = await loadSocketIo();
         socket = io(SERVER_BASE, {
-            // Try WebSocket first (low-latency, what most clients get), but FALL
-        // BACK to HTTP long-polling when the network/proxy/extension blocks raw
-        // WSS — otherwise those clients can't connect at all (no socket → no
-        // lobby/race). Socket.io upgrades polling→WS automatically when possible.
-        transports: ['websocket', 'polling'],
+            // POLLING-FIRST (socket.io default), deliberately: connect instantly
+        // via HTTP long-polling — which gets through proxies / corp networks /
+        // browser extensions that block raw WSS — then transparently UPGRADE to
+        // WebSocket when the network allows it. Listing 'websocket' first made
+        // WS-blocked clients wait for the WS attempt to time out before falling
+        // back (minutes-long / failed connects). Polling-first connects fast for
+        // everyone; WS-capable clients still end up on WS via the upgrade.
+        transports: ['polling', 'websocket'],
             auth: {
                 telegramUserId: identity.telegramUserId,
                 telegramUsername: identity.telegramUsername,
@@ -419,11 +422,14 @@ export async function createCritterKartNet(opts: NetOptions): Promise<CritterKar
     const base = opts.serverBase || SERVER_BASE;
 
     const socket = io(base, {
-        // Try WebSocket first (low-latency, what most clients get), but FALL
-        // BACK to HTTP long-polling when the network/proxy/extension blocks raw
-        // WSS — otherwise those clients can't connect at all (no socket → no
-        // lobby/race). Socket.io upgrades polling→WS automatically when possible.
-        transports: ['websocket', 'polling'],
+        // POLLING-FIRST (socket.io default), deliberately: connect instantly
+        // via HTTP long-polling — which gets through proxies / corp networks /
+        // browser extensions that block raw WSS — then transparently UPGRADE to
+        // WebSocket when the network allows it. Listing 'websocket' first made
+        // WS-blocked clients wait for the WS attempt to time out before falling
+        // back (minutes-long / failed connects). Polling-first connects fast for
+        // everyone; WS-capable clients still end up on WS via the upgrade.
+        transports: ['polling', 'websocket'],
         auth: {
             telegramUserId: opts.telegramUserId,
             sessionJwt: opts.sessionJwt,
