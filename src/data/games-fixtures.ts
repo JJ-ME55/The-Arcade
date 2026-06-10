@@ -2,9 +2,11 @@
  * Game catalogue + placeholder feeds for the dashboard.
  * Sourced from design handoff portal.jsx PORTAL_GAMES et al.
  *
- * Per JJ's call: all TKT figures + live counts stay as static
- * placeholders until the real backend lands. Numbers below match
- * the prototype exactly for design fidelity.
+ * 2026-06-10 honesty pass: `players`, `hi`, `stake`, `yield` are no
+ * longer rendered anywhere user-facing (were fake live counts + fake
+ * stakes + non-existent Ticket yields). Kept on the type as 0/'—'
+ * defaults so downstream code doesn't break; wire to real backend
+ * figures when the endpoints land, or delete the fields entirely.
  */
 
 export type ArcadePlatform = 'mobile' | 'desktop' | 'both';

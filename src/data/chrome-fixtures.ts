@@ -43,19 +43,20 @@ export interface FloorStat {
   tone: 'ink' | 'blue' | 'brass' | 'win';
 }
 
+// Honest, player-facing stats only — no internal version jargon
+// (was "Wager V2 · Q3" / "Tickets V3", which meant nothing to a
+// visitor and signalled "not finished"). Leads with the live prize.
 export const FLOOR_STATS: FloorStat[] = [
-  { label: 'Cabinets',   value: '5 live',                  tone: 'ink' },
-  { label: 'Soon',       value: 'Pool · Shootout',         tone: 'ink' },
-  { label: 'Wager',      value: 'V2 · Q3',                 tone: 'brass' },
-  { label: 'Tickets',    value: 'V3',                      tone: 'brass' },
-  { label: 'Status',     value: 'Beta',                    tone: 'blue' },
+  { label: 'Cabinets', value: '5 live',          tone: 'ink' },
+  { label: 'Prize',    value: '1 SOL live',      tone: 'win' },
+  { label: 'Entry',    value: 'Free to play',    tone: 'blue' },
+  { label: 'Soon',     value: 'Pool · Shootout', tone: 'ink' },
 ];
 
 export const FLOOR_STATS_MOBILE: FloorStat[] = [
-  { label: 'Cabinets', value: '5 live',         tone: 'ink' },
-  { label: 'Wager',    value: 'V2 · Q3',        tone: 'brass' },
-  { label: 'Tickets',  value: 'V3',             tone: 'brass' },
-  { label: 'Status',   value: 'Beta',           tone: 'blue' },
+  { label: 'Cabinets', value: '5 live',     tone: 'ink' },
+  { label: 'Prize',    value: '1 SOL live', tone: 'win' },
+  { label: 'Entry',    value: 'Free',       tone: 'blue' },
 ];
 
 export interface TickerItem {
@@ -64,13 +65,16 @@ export interface TickerItem {
   text: string;
 }
 
+// Player-facing only. Dropped the stale "Privy login returns shortly"
+// line (login works) and "V1/Beta" jargon. Leads with the live prize.
+// No hard date baked in (caption/ comp page own the deadline) so the
+// strip stays evergreen across competitions.
 export const TICKER_ITEMS: TickerItem[] = [
-  { dot: 'var(--blue)',  text: 'Beta · The Arcade · The Floor is open' },
-  { dot: 'var(--win)',   text: 'Competition live · 1 SOL · Top Free Kicks score by 30 June' },
-  { dot: 'var(--brass)', text: 'Wager Mainnet · SolShot · V1' },
-  { dot: 'var(--ink)',   text: 'Solo skill mode · Basketball · Free Kicks · Keepie Uppies' },
+  { dot: 'var(--win)',   text: 'Competition live · Win 1 SOL · Top the Free Kicks board' },
+  { dot: 'var(--blue)',  text: 'Five cabinets open · Basketball · Free Kicks · Keepie Uppies · Critter Kart · SolShot' },
+  { dot: 'var(--brass)', text: 'SolShot · Real SOL wagering · 1v1 on Solana' },
+  { dot: 'var(--ink)',   text: 'Free to play · Climb the leaderboards' },
   { dot: 'var(--ink)',   text: 'Coming soon · 8-Ball Pool · Shootout' },
-  { dot: 'var(--blue)',  text: 'Sign in · V2 · Privy login returns shortly' },
 ];
 
 /** Placeholder balances. Render "—" until a real wallet is connected. */

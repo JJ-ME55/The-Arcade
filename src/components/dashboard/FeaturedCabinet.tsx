@@ -165,11 +165,11 @@ export function FeaturedCabinet({ activeIndex, setActiveIndex }: FeaturedCabinet
         <div style={{ flex: 1 }} />
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          {/* V1 CTA priority: FREE PLAY primary (filled-blue), WAGER
-              secondary (outline + V2 tag). Wager mode isn't live in
-              V1; primary slot should reflect what users can actually
-              do today. Note: this got reverted between earlier QA
-              cleanup (3764e46) and the domain swap — re-applying. */}
+          {/* Primary: Play (launches the game, or SolShot's detail since
+              its canvas is off-site). Secondary: context — the live 1 SOL
+              comp for Free Kicks, a real wager pitch for SolShot, plain
+              Details otherwise. Dropped the old "WAGER · V2" jargon button
+              (meant nothing to a visitor; wagering is SolShot-only). */}
           <button
             type="button"
             onClick={() =>
@@ -192,76 +192,47 @@ export function FeaturedCabinet({ activeIndex, setActiveIndex }: FeaturedCabinet
               cursor: 'pointer',
             }}
           >
-            Free Play
+            ▸ Play Free
           </button>
-          <button
-            type="button"
-            onClick={() => navigate(`/play/${featured.slug}`)}
-            style={{
-              padding: '12px 22px',
-              background: 'transparent',
-              color: 'var(--paper)',
-              border: '1.5px solid var(--paper)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            Wager
-            <span
+          {featured.slug === 'free-kicks' ? (
+            <button
+              type="button"
+              onClick={() => navigate('/competitions')}
               style={{
-                fontSize: 8,
-                padding: '2px 6px',
-                background: 'rgba(251,252,254,0.18)',
-                letterSpacing: '0.18em',
+                padding: '12px 22px',
+                background: 'var(--brass)',
+                color: 'var(--ink-deep)',
+                border: 'none',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 11,
                 fontWeight: 700,
+                letterSpacing: '0.18em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
               }}
             >
-              V2
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* HI score top-right (below the stamp) */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 18,
-          right: 22,
-          textAlign: 'right',
-          zIndex: 2,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 9,
-            letterSpacing: '0.22em',
-            color: 'rgba(251,252,254,0.55)',
-            textTransform: 'uppercase',
-            fontWeight: 700,
-          }}
-        >
-          HI · Top Score
-        </div>
-        <div
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 22,
-            fontWeight: 700,
-            color: 'var(--brass-glint)',
-            letterSpacing: '0.02em',
-            marginTop: 4,
-          }}
-        >
-          {featured.hi}
+              Win 1 SOL →
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => navigate(`/play/${featured.slug}`)}
+              style={{
+                padding: '12px 22px',
+                background: 'transparent',
+                color: 'var(--paper)',
+                border: '1.5px solid var(--paper)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.18em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}
+            >
+              {featured.slug === 'solshot' ? 'Wager 1v1' : 'Details'}
+            </button>
+          )}
         </div>
       </div>
 

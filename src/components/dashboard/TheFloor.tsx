@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Section } from '@/components/brand';
 import { SolanaPortal } from '@/components/brand/SolanaPortal';
-import { TicketGlyph } from '@/components/brand/TicketGlyph';
 import { PORTAL_GAMES, type ArcadeGame } from '@/data/games-fixtures';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
@@ -166,36 +165,32 @@ function CabinetTile({ game, hoverEnabled }: { game: ArcadeGame; hoverEnabled: b
           {PLATFORM_LABEL[game.platform]}
         </div>
 
-        {/* live player count pill — hidden when tagline drawer is up */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 6,
-            right: 6,
-            padding: '2px 7px',
-            background: 'rgba(14,26,46,0.85)',
-            color: 'var(--paper)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 8.5,
-            letterSpacing: '0.12em',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            opacity: lifted ? 0 : 1,
-            transition: 'opacity 180ms ease',
-          }}
-        >
-          <span
+        {/* Live competition flag — only on the game that has a real prize
+            attached right now (Free Kicks · 1 SOL). Replaces the old fake
+            live-player pill (hardcoded 248/412/… counts). Brass = money,
+            per the brand rule. Hidden on hover so the drawer reads clean. */}
+        {game.slug === 'free-kicks' && (
+          <div
             style={{
-              width: 5,
-              height: 5,
-              borderRadius: '50%',
-              background: 'var(--win)',
+              position: 'absolute',
+              bottom: 6,
+              right: 6,
+              padding: '2px 8px',
+              background: 'var(--brass)',
+              color: 'var(--ink-deep)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 8.5,
+              letterSpacing: '0.12em',
+              fontWeight: 700,
+              border: '1px solid var(--ink)',
+              whiteSpace: 'nowrap',
+              opacity: lifted ? 0 : 1,
+              transition: 'opacity 180ms ease',
             }}
-          />
-          {game.players}
-        </div>
+          >
+            1 SOL PRIZE
+          </div>
+        )}
 
         {/* Tagline drawer — peeks up from the bottom of the art on hover.
             Overlay (not layout) so the grid doesn't jitter when neighbouring
@@ -247,7 +242,10 @@ function CabinetTile({ game, hoverEnabled }: { game: ArcadeGame; hoverEnabled: b
         </div>
       </div>
 
-      {/* stake info */}
+      {/* Status row — honest. Was a fake "FROM 0.01 SOL · +50 TKT" stake/
+          yield line (wagering is SolShot-only, Tickets don't exist yet).
+          Now: every cabinet is free to play; SolShot is flagged as the
+          wager game, Free Kicks as the one paying a live prize. */}
       <div
         style={{
           display: 'flex',
@@ -257,17 +255,20 @@ function CabinetTile({ game, hoverEnabled }: { game: ArcadeGame; hoverEnabled: b
           fontFamily: 'var(--font-mono)',
           fontSize: 10,
           fontWeight: 700,
-          letterSpacing: '0.02em',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
         }}
       >
-        <span style={{ color: 'var(--ink-70)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <SolanaPortal size={10} gradId={`tile-${game.slug}`} />
-          FROM {game.stake}
-        </span>
-        <span style={{ color: 'var(--brass-deep)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <TicketGlyph size={10} color="var(--brass-deep)" />
-          +{game.yield} TKT
-        </span>
+        <span style={{ color: 'var(--ink-70)' }}>Free to play</span>
+        {game.slug === 'free-kicks' && (
+          <span style={{ color: 'var(--win)' }}>1 SOL Comp</span>
+        )}
+        {game.slug === 'solshot' && (
+          <span style={{ color: 'var(--brass-deep)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <SolanaPortal size={10} gradId={`tile-${game.slug}`} />
+            Wager 1v1
+          </span>
+        )}
       </div>
 
       {/* play button */}

@@ -243,7 +243,7 @@ function Marquee({ game, isMobile }: any) {
             flexWrap: 'wrap',
           }}
         >
-          <MarqueeStat label="Players Now" value={String(game.players)} accent="var(--win)" />
+          <MarqueeStat label="Network" value="Mainnet" accent="var(--win)" />
           <MarqueeStat label="Top K/D" value="—" accent="var(--brass)" />
           <MarqueeStat label="Match Rake" value="3%" accent="var(--paper)" />
           {!isMobile && (
