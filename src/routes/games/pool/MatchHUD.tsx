@@ -32,17 +32,32 @@ import './match.css';
  *   - Score updates as balls pot
  */
 
-type RackKind = 'solids' | 'stripes';
+type Group = 'solids' | 'stripes';
 
-function SpgRack({ kind, potted = 0 }: { kind: RackKind; potted?: number }) {
+/**
+ * Pot tray — shows a player's group balls, vivid = potted, dimmed =
+ * still on the table. Before group assignment (open table) the tray
+ * shows seven neutral slots.
+ */
+function SpgRack({ group, pottedIds }: { group: Group | null; pottedIds: number[] }) {
+    const ids = group === 'stripes'
+        ? [9, 10, 11, 12, 13, 14, 15]
+        : [1, 2, 3, 4, 5, 6, 7];
     return (
         <span className="rack">
-            {[1, 2, 3, 4, 5, 6, 7].map((b, i) => {
-                const c = `var(--ball-${b})`;
-                const bg = kind === 'stripes'
+            {ids.map((id) => {
+                if (group === null) {
+                    // Open table — neutral slots until the first pot
+                    // locks the groups in.
+                    return <i key={id} className="rem" style={{ background: '#56503f' }} />;
+                }
+                const colorIdx = id > 8 ? id - 8 : id;
+                const c = `var(--ball-${colorIdx})`;
+                const bg = group === 'stripes'
                     ? `linear-gradient(180deg,#fbfaf5 0 28%, ${c} 28% 72%, #fbfaf5 72%)`
                     : c;
-                return <i key={b} className={i < potted ? '' : 'rem'} style={{ background: bg }} />;
+                const potted = pottedIds.includes(id);
+                return <i key={id} className={potted ? '' : 'rem'} style={{ background: bg }} />;
             })}
         </span>
     );
@@ -52,6 +67,68 @@ export function MatchHUD() {
     const navigate = useNavigate();
     const [params] = useSearchParams();
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+    // ── Live match state, fed by the iframe's 'side-pocket-match'
+    // postMessage bridge (game-world.ts postMatch). Names/avatars stay
+    // mock until server matches land; pots/groups/turns/wins are real.
+    const [groups, setGroups] = useState<{ p0: Group | null; p1: Group | null }>({ p0: null, p1: null });
+    const [pottedIds, setPottedIds] = useState<number[]>([]);
+    const [current, setCurrent] = useState(0);
+    const [banner, setBanner] = useState<string | null>(null);
+    const [wins, setWins] = useState<[number, number]>([0, 0]);
+
+    useEffect(() => {
+        let bannerTimer: number | undefined;
+        const flashBanner = (text: string, ms: number) => {
+            setBanner(text);
+            window.clearTimeout(bannerTimer);
+            bannerTimer = window.setTimeout(() => setBanner(null), ms);
+        };
+        const onMsg = (e: MessageEvent) => {
+            const d = e.data as { type?: string; kind?: string; [k: string]: unknown };
+            if (!d || d.type !== 'side-pocket-match') return;
+            switch (d.kind) {
+                case 'pot': {
+                    const id = d.ballId as number;
+                    // Object balls only — cue (0) and the 8 don't sit in
+                    // either tray.
+                    if (id >= 1 && id <= 15 && id !== 8) {
+                        setPottedIds(prev => (prev.includes(id) ? prev : [...prev, id]));
+                    }
+                    break;
+                }
+                case 'groups': {
+                    const p0 = d.p0 as Group;
+                    const p1 = d.p1 as Group;
+                    setGroups({ p0, p1 });
+                    // JJ 2026-06-10: "when the first pot is in, a message
+                    // should say 'You're Stripes' so it's clear what the
+                    // player is aiming for."
+                    flashBanner(p0 === 'stripes' ? "You're Stripes" : "You're Solids", 2400);
+                    break;
+                }
+                case 'turn':
+                    setCurrent(d.current as number);
+                    break;
+                case 'gameover': {
+                    const w = d.winner as number;
+                    setWins(prev => (w === 0 ? [prev[0] + 1, prev[1]] : [prev[0], prev[1] + 1]));
+                    flashBanner(w === 0 ? 'You win the rack!' : 'Velvet Q takes the rack', 2600);
+                    break;
+                }
+                case 'reset':
+                    setGroups({ p0: null, p1: null });
+                    setPottedIds([]);
+                    setCurrent(0);
+                    break;
+            }
+        };
+        window.addEventListener('message', onMsg);
+        return () => {
+            window.removeEventListener('message', onMsg);
+            window.clearTimeout(bannerTimer);
+        };
+    }, []);
 
     // Stash arcade-bot session JWT (parent-side). The iframe also reads
     // it from its own URL query — double-write so either side works.
@@ -73,9 +150,12 @@ export function MatchHUD() {
         ? `/games/pool/index.html?session=${encodeURIComponent(session)}&hud=parent`
         : '/games/pool/index.html?hud=parent';
 
-    // V1 mock state — whose turn is it. Toggle to test the "opp" view by
-    // appending ?turn=opp to the URL.
-    const you = params.get('turn') !== 'opp';
+    // Turn state is live (game-world posts 'turn' on every pass);
+    // player 0 is always the human in the current vs-AI match shape.
+    const you = current === 0;
+
+    const p0Potted = pottedIds.filter(id => (groups.p0 === 'stripes' ? id > 8 : id < 8));
+    const p1Potted = pottedIds.filter(id => (groups.p1 === 'stripes' ? id > 8 : id < 8));
 
     return (
         <div className={'spg' + (you ? '' : ' opp')}>
@@ -94,9 +174,9 @@ export function MatchHUD() {
                             <span className="nm">jjk_55</span>
                             <span className="tier">Gold III</span>
                         </div>
-                        <SpgRack kind="solids" potted={3} />
+                        <SpgRack group={groups.p0} pottedIds={p0Potted} />
                     </div>
-                    <span className="sc">2</span>
+                    <span className="sc">{wins[0]}</span>
                 </div>
 
                 {/* Middle — room name / timer / turn indicator */}
@@ -120,15 +200,20 @@ export function MatchHUD() {
                             <span className="tier">Gold II</span>
                             <span className="nm">Velvet Q</span>
                         </div>
-                        <SpgRack kind="stripes" potted={2} />
+                        <SpgRack group={groups.p1} pottedIds={p1Potted} />
                     </div>
-                    <span className="sc">1</span>
+                    <span className="sc">{wins[1]}</span>
                 </div>
             </header>
 
             {/* ============= STAGE — iframe game canvas ============= */}
             <main className="spg-stage">
                 <div className="spg-board">
+                    {/* Group-assignment / rack-result banner — flashes
+                        over the board ("You're Stripes", "You win the
+                        rack!") then fades. key remounts the element so
+                        the CSS animation replays for each message. */}
+                    {banner && <div className="spg-banner" key={banner}>{banner}</div>}
                     <iframe
                         ref={iframeRef}
                         src={iframeSrc}

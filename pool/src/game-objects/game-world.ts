@@ -52,6 +52,20 @@ export class GameWorld {
     private _simPhysics: PhysicsConfig | null = null;
     private _simTick: number = 0;
 
+    // Sink ghosts — Miniclip-style pot animation. The sim hides a potted
+    // ball the instant its centre crosses the hole; the render keeps a
+    // ghost for ~240ms that accelerates into the pocket centre while
+    // shrinking and fading. Purely cosmetic — game logic sees the ball
+    // as potted immediately, so rules/turn flow are untouched.
+    private _sinkGhosts: Array<{
+        ballId: number;
+        from: { x: number; y: number };
+        to: { x: number; y: number };
+        start: number;
+        rollAngle: number;
+        motionAngle: number;
+    }> = [];
+
     //------Properties------//
 
     public get currentPlayer(): Player {
@@ -329,17 +343,49 @@ export class GameWorld {
     }
 
     private handleBallsInPockets(): void {
+        // NOTE: the old radial resolveBallInPocket() call was removed —
+        // the sim (stepWorld) is the single pot authority now. A second
+        // hide path here bypassed the sim's pocket_drop events, which
+        // the sink animation and the React HUD bridge both depend on.
         this._balls.forEach((ball: Ball) => {
-            this.resolveBallInPocket(ball);
             if (!ball.visible && !this._turnState.pocketedBalls.includes(ball)) {
                 Assets.playSound(sounds.paths.rail, 1);
                 if(!this.currentPlayer.color && this.isValidPlayerColor(ball.color)) {
                     this.currentPlayer.color = ball.color;
                     this.nextPlayer.color = ball.color === Color.yellow ? Color.red : Color.yellow;
+                    // Announce group assignment to the React HUD. The
+                    // internal colour enums are legacy UK-pool naming:
+                    // Color.yellow is the group RENDERED as solids
+                    // (ball ids 1-7), Color.red renders as stripes
+                    // (ids 9-15). JJ 2026-06-10: "when the first pot is
+                    // in, a message should say 'You're Stripes'".
+                    const groupOf = (c: Color): 'solids' | 'stripes' =>
+                        c === Color.yellow ? 'solids' : 'stripes';
+                    this.postMatch({
+                        kind: 'groups',
+                        p0: groupOf(this._players[0].color as Color),
+                        p1: groupOf(this._players[1].color as Color),
+                        assignedTo: this._currentPlayerIndex
+                    });
                 }
                 this._turnState.pocketedBalls.push(ball);
             }
         });
+    }
+
+    /**
+     * Post a match-state event to the parent React MatchHUD (when the
+     * iframe is wrapped with ?hud=parent). Same channel pattern as the
+     * power slider's 'side-pocket-power' messages.
+     */
+    private postMatch(payload: Record<string, unknown>): void {
+        if ((window as any).__SIDE_POCKET_PARENT_HUD && window.parent !== window) {
+            try {
+                window.parent.postMessage({ type: 'side-pocket-match', ...payload }, '*');
+            } catch {
+                /* same-origin iframe — postMessage never throws in practice */
+            }
+        }
     }
 
     private handleBallInHand(): void {
@@ -355,13 +401,20 @@ export class GameWorld {
     }
 
     private handleGameOver(): void {
+        const winnerIdx = this._turnState.isValid
+            ? this._currentPlayerIndex
+            : (this._currentPlayerIndex + 1) % this._players.length;
         if (this._turnState.isValid) {
             this.currentPlayer.overallScore++;
         }
         else {
             this.nextPlayer.overallScore++;
         }
+        this.postMatch({ kind: 'gameover', winner: winnerIdx });
         this.initMatch();
+        // initMatch starts a fresh rack — tell the HUD to clear its
+        // racks/groups (win counters persist on the React side).
+        this.postMatch({ kind: 'reset' });
     }
 
     private nextTurn(): void {
@@ -386,6 +439,10 @@ export class GameWorld {
 
         this._turnState = new State();
         this._turnState.ballInHand = foul;
+
+        // Turn change → React HUD (avatar highlight + "Your Shot" /
+        // "Opponent's Turn" + foul indicator).
+        this.postMatch({ kind: 'turn', current: this._currentPlayerIndex, ballInHand: foul });
 
         if (this.isAITurn()) {
             AI.startSession(this);
@@ -658,10 +715,37 @@ export class GameWorld {
                     }
                 }
             }
-            // cushion_hit, pocket_drop, cue_ball_potted, eight_ball_potted
-            // events are observed but don't drive client-side audio here —
-            // pocket sound is triggered by handleBallsInPockets's
-            // visibility-transition check (kept unchanged for now).
+            else if (evt.type === 'pocket_drop') {
+                // Sink ghost + HUD pot event. By this point the adapter
+                // has already hidden the Ball (visible=false), but it
+                // keeps its final position/roll state — exactly what the
+                // ghost needs to start from. The ghost pulls into the
+                // pocket centre (we know which pocket from the event).
+                const ball = this._balls.find(b => b.id === evt.ballId);
+                const pocket = this._simTable && evt.pocketIdx !== undefined
+                    ? this._simTable.pocketsPositions[evt.pocketIdx]
+                    : null;
+                if (ball && pocket) {
+                    this._sinkGhosts.push({
+                        ballId: ball.id,
+                        from: { x: ball.position.x, y: ball.position.y },
+                        to: { x: pocket.x, y: pocket.y },
+                        start: performance.now(),
+                        rollAngle: ball.rollAngle,
+                        motionAngle: ball.motionAngle
+                    });
+                }
+                if (evt.ballId !== undefined) {
+                    this.postMatch({
+                        kind: 'pot',
+                        ballId: evt.ballId,
+                        byPlayer: this._currentPlayerIndex
+                    });
+                }
+            }
+            // cushion_hit / cue_ball_potted / eight_ball_potted don't
+            // drive client-side audio here — pocket sound is triggered
+            // by handleBallsInPockets's visibility-transition check.
         }
     }
 
@@ -678,6 +762,29 @@ export class GameWorld {
             this.drawCurrentPlayerLabel();
             this.drawMatchScores();
             this.drawOverallScores();
+        }
+        // Sink ghosts — pot animation, drawn UNDER live balls so a ball
+        // rolling past a pocket can pass over a sinking one. Ease-in
+        // pull into the pocket centre with shrink + fade over 240ms.
+        if (this._sinkGhosts.length > 0) {
+            const SINK_MS = 240;
+            const now = performance.now();
+            this._sinkGhosts = this._sinkGhosts.filter(g => now - g.start < SINK_MS);
+            for (const g of this._sinkGhosts) {
+                const t = (now - g.start) / SINK_MS;
+                const ease = t * t;  // accelerate into the hole
+                const x = g.from.x + (g.to.x - g.from.x) * ease;
+                const y = g.from.y + (g.to.y - g.from.y) * ease;
+                Canvas2D.drawAmericanBall(
+                    { x, y },
+                    g.ballId,
+                    g.rollAngle,
+                    { x: 0, y: 0 },
+                    g.motionAngle,
+                    1 - 0.65 * ease,   // scale 1 → 0.35
+                    1 - ease           // alpha 1 → 0
+                );
+            }
         }
         this._balls.forEach((ball: Ball) => ball.draw());
         // Aim line + ghost ball preview — only when player is aiming

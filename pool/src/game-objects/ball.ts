@@ -221,6 +221,12 @@ export class Ball {
         return this._motionAngle;
     }
 
+    /** Current visual roll angle — read by GameWorld to freeze a sink
+     *  ghost's rotation frame at the moment a ball is potted. */
+    public get rollAngle(): number {
+        return this._rollAngle;
+    }
+
     public update(): void {
         if(this._moving) {
             // Two-regime constant-decel friction (deep-research workflow

@@ -770,9 +770,17 @@ class Canvas2D_Singleton {
          * a ball halts and twitches at crawl speeds).
          */
         motionAngle: number = 0,
+        /**
+         * Sink-ghost support (pot animation): uniform scale + opacity.
+         * GameWorld renders a fading, shrinking ghost of a potted ball
+         * pulling into the pocket centre for ~240ms after the sim has
+         * already hidden the real ball. Defaults render normally.
+         */
+        scale: number = 1,
+        alpha: number = 1,
     ): void {
         const ctx = this._context;
-        const R = GameConfig.ball.diameter / 2;  // 19
+        const R = (GameConfig.ball.diameter / 2) * scale;  // 19 at scale 1
         const isStripe = ballId >= 9 && ballId <= 15;
         const baseN = isStripe ? ballId - 8 : ballId;  // 1-7 color index
 
@@ -792,6 +800,7 @@ class Canvas2D_Singleton {
         ctx.save();
         ctx.scale(this._scale.x, this._scale.y);
         ctx.translate(RENDER_PADDING + position.x, RENDER_PADDING + position.y);
+        if (alpha < 1) ctx.globalAlpha = Math.max(0, alpha);
 
         // TOP-DOWN SHADOW under the ball, soft and small.
         const shadowGrad = ctx.createRadialGradient(0, 0, R * 0.98, 0, 0, R * 1.3);
