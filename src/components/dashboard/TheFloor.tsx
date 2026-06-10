@@ -30,6 +30,16 @@ const TAG_PALETTE: Record<string, { bg: string; fg: string }> = {
   TOP:      { bg: 'var(--brass)', fg: 'var(--ink-deep)' },
 };
 
+// Top-left art-area pill copy. Tells the player at a glance whether
+// they can play this cabinet on the device they're on right now
+// (per JJ 2026-06-07 — "what it's built for"). 'mobile' = TG-webview-
+// first, 'desktop' = keyboard-only or large-canvas, 'both' = responsive.
+const PLATFORM_LABEL: Record<'mobile' | 'desktop' | 'both', string> = {
+  mobile:  'MOBILE',
+  desktop: 'DESKTOP',
+  both:    'MOBILE + DESKTOP',
+};
+
 function CabinetTile({ game, hoverEnabled }: { game: ArcadeGame; hoverEnabled: boolean }) {
   const navigate = useNavigate();
   const [hovered, setHovered] = useState(false);
@@ -130,6 +140,31 @@ function CabinetTile({ game, hoverEnabled }: { game: ArcadeGame; hoverEnabled: b
             display: 'block',
           }}
         />
+
+        {/* platform pill — top-left of art area. Mirrors the player-count
+            pill at bottom-right; tells the user whether the cabinet is
+            built for their current device before they tap. Hidden on
+            hover (the tagline drawer reads cleaner without it). */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 6,
+            left: 6,
+            padding: '2px 7px',
+            background: 'rgba(251,252,254,0.92)',
+            color: 'var(--ink)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 8.5,
+            letterSpacing: '0.14em',
+            fontWeight: 700,
+            border: '1px solid var(--ink)',
+            whiteSpace: 'nowrap',
+            opacity: lifted ? 0 : 1,
+            transition: 'opacity 180ms ease',
+          }}
+        >
+          {PLATFORM_LABEL[game.platform]}
+        </div>
 
         {/* live player count pill — hidden when tagline drawer is up */}
         <div

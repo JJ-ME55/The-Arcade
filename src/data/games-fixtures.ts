@@ -7,6 +7,8 @@
  * the prototype exactly for design fidelity.
  */
 
+export type ArcadePlatform = 'mobile' | 'desktop' | 'both';
+
 export interface ArcadeGame {
   slug: 'solshot' | 'basketball' | 'free-kicks' | 'keepie-uppies' | 'pool' | 'critter-kart';
   name: string;
@@ -17,6 +19,12 @@ export interface ArcadeGame {
   stake: string;
   yield: number;
   hi: string;
+  /** Which input surface(s) the cabinet is built for. Surfaced as a small
+   *  pill on each Floor tile so players know before they tap. 'mobile'
+   *  for TG-webview-first games (Free Kicks, Keepie Uppies). 'desktop'
+   *  for keyboard-only / large-canvas games. 'both' for responsive games
+   *  that work cleanly on either input model. */
+  platform: ArcadePlatform;
   /** Wide hero illustration (16:7, ~2400×1050 target). Featured Cabinet
    *  + Game Detail Marquee. Always required. */
   heroSrc: string;
@@ -42,6 +50,7 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     stake: '0.01+',
     yield: 50,
     hi: '142,089',
+    platform: 'both',
     heroSrc: '/assets/games/hero/solshot.webp',
     tileSrc: '/assets/games/hero/solshot-tile.webp',
     splashSrc: '/assets/games/hero/solshot-splash.webp',
@@ -57,6 +66,7 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     stake: '0.01+',
     yield: 30,
     hi: '38',
+    platform: 'both',
     heroSrc: '/assets/games/hero/basketball.webp',
     tileSrc: '/assets/games/hero/basketball-tile.webp',
     splashSrc: '/assets/games/hero/basketball-splash.webp',
@@ -72,6 +82,7 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     stake: '0.01+',
     yield: 25,
     hi: '11',
+    platform: 'mobile',
     heroSrc: '/assets/games/hero/free-kicks.webp',
     tileSrc: '/assets/games/hero/free-kicks-tile.webp',
     splashSrc: '/assets/games/hero/free-kicks-splash.webp',
@@ -87,6 +98,7 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     stake: '0.01+',
     yield: 20,
     hi: '208',
+    platform: 'mobile',
     heroSrc: '/assets/games/hero/keepie-uppies.webp',
     tileSrc: '/assets/games/hero/keepie-uppies-tile.webp',
     splashSrc: '/assets/games/hero/keepie-uppies-splash.webp',
@@ -106,6 +118,7 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     stake: '0.01+',
     yield: 35,
     hi: '—',
+    platform: 'both',
     heroSrc: '/assets/games/hero/critter-kart.webp',
     tileSrc: '/assets/games/hero/critter-kart-tile.webp',
     splashSrc: '/assets/games/hero/critter-kart-splash.webp',
