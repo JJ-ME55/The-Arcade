@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Side Pocket 3D — scaffold</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0e0c; overflow: hidden;
+    font-family: system-ui, sans-serif; }
+  #c { display: block; width: 100vw; height: 100vh; }
+  #hint { position: fixed; left: 12px; bottom: 12px; color: #9aa; font-size: 13px;
+    letter-spacing: .02em; text-shadow: 0 1px 2px #000; }
+  #title { position: fixed; left: 12px; top: 12px; color: #f4ecdb; font-size: 15px;
+    font-weight: 600; text-shadow: 0 1px 2px #000; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="title">Side Pocket — 3D scaffold (phase 1 · static rack)</div>
+<div id="hint">drag to orbit · scroll to zoom · this renders our REAL table geometry + rack from game.config</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ──────────────────────────────────────────────────────────────────
+   SIDE POCKET 3D — SCAFFOLD (phase 1)
+
+   Renders the EXISTING table geometry + opening rack in 3D, to prove
+   the look and the sim→3D coordinate mapping before wiring the live
+   engine. All geometry below MIRRORS pool/src/game.config.ts — when
+   this graduates into the webpack project it will IMPORT GameConfig
+   instead of duplicating these literals (kept in sync for the spike).
+
+   Mapping: sim is a 1500×825 top-down plane in pixels; we centre it at
+   the origin and scale by 1/100 so the table is ~15×8.25 world units.
+   sim (x, y)  ->  world (x − W/2, ballR, y − H/2)  /  100
+   ────────────────────────────────────────────────────────────────── */
+
+// —— config mirror (game.config.ts) ——
+const GAME = { x: 1500, y: 825 };
+const TABLE = { cushionWidth: 78, feltInset: 48, cushionThickness: 30, pocketRadius: 34 };
+const POCKETS = [
+  { x: 62, y: 62 }, { x: 750, y: 56 }, { x: 1438, y: 62 },
+  { x: 62, y: 763 }, { x: 750, y: 769 }, { x: 1438, y: 763 },
+];
+const BALL_D = 38;
+const CUE = { x: 413, y: 413 };
+const EIGHT = { x: 1090, y: 413 };
+// ids 1-7 (solids) at the "red" group positions; ids 9-15 (stripes) at "yellow"
+const SOLID_POS = [
+  { x: 1056, y: 433 }, { x: 1090, y: 374 }, { x: 1126, y: 393 }, { x: 1126, y: 472 },
+  { x: 1162, y: 335 }, { x: 1162, y: 374 }, { x: 1162, y: 452 },
+];
+const STRIPE_POS = [
+  { x: 1022, y: 413 }, { x: 1056, y: 393 }, { x: 1090, y: 452 }, { x: 1126, y: 354 },
+  { x: 1126, y: 433 }, { x: 1162, y: 413 }, { x: 1162, y: 491 },
+];
+const PALETTE = ['#F4B924','#1F5BB3','#C6312A','#5B2680','#E2691C','#1E7A3A','#6E2618'];
+
+const S = 1 / 100;                 // px → world units
+const R = (BALL_D / 2) * S;        // ball radius in world units
+const wx = (sx) => (sx - GAME.x / 2) * S;
+const wz = (sy) => (sy - GAME.y / 2) * S;
+
+// —— renderer / scene / camera ——
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#0b0e0c');
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(0, 11, 9);
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 0, 0);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.49;
+
+// —— lighting (overhead arena lamp + soft fill) ——
+scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x202018, 0.5));
+const key = new THREE.DirectionalLight(0xfff2dc, 2.2);
+key.position.set(-6, 14, 5);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 1; key.shadow.camera.far = 50;
+key.shadow.camera.left = -12; key.shadow.camera.right = 12;
+key.shadow.camera.top = 8; key.shadow.camera.bottom = -8;
+scene.add(key);
+
+// —— table ——
+const feltW = (GAME.x - 2 * TABLE.cushionWidth) * S;
+const feltH = (GAME.y - 2 * TABLE.cushionWidth) * S;
+const railOuterW = GAME.x * S + 0.6;
+const railOuterH = GAME.y * S + 0.6;
+
+// cherry rail slab
+const rail = new THREE.Mesh(
+  new THREE.BoxGeometry(railOuterW, 0.5, railOuterH),
+  new THREE.MeshStandardMaterial({ color: '#6b1f18', roughness: 0.5, metalness: 0.1 })
+);
+rail.position.y = -0.25; rail.receiveShadow = true;
+scene.add(rail);
+
+// cobalt felt
+const felt = new THREE.Mesh(
+  new THREE.BoxGeometry(feltW, 0.12, feltH),
+  new THREE.MeshStandardMaterial({ color: '#1E5FA8', roughness: 0.95 })
+);
+felt.position.y = 0.001; felt.receiveShadow = true;
+scene.add(felt);
+
+// cushions — four boxes inset to the play boundary (rough; phase 2 does mouths)
+const cw = TABLE.cushionWidth * S;
+const cushMat = new THREE.MeshStandardMaterial({ color: '#17508f', roughness: 0.85 });
+function cushion(w, h, x, z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.22, h), cushMat);
+  m.position.set(x, 0.11, z); m.castShadow = true; m.receiveShadow = true; scene.add(m);
+}
+const halfW = GAME.x * S / 2, halfH = GAME.y * S / 2;
+cushion(feltW, cw, 0, -halfH + cw / 2);   // top
+cushion(feltW, cw, 0,  halfH - cw / 2);   // bottom
+cushion(cw, feltH, -halfW + cw / 2, 0);   // left
+cushion(cw, feltH,  halfW - cw / 2, 0);   // right
+
+// pockets — dark cylinders sunk into the felt
+const pocketMat = new THREE.MeshStandardMaterial({ color: '#05060a', roughness: 1 });
+for (const p of POCKETS) {
+  const hole = new THREE.Mesh(
+    new THREE.CylinderGeometry(TABLE.pocketRadius * S, TABLE.pocketRadius * S * 0.8, 0.3, 24),
+    pocketMat
+  );
+  hole.position.set(wx(p.x), 0.02, wz(p.y));
+  scene.add(hole);
+}
+
+// —— balls ——
+const ballGeo = new THREE.SphereGeometry(R, 48, 48);
+function addBall(pos, color) {
+  const m = new THREE.Mesh(
+    ballGeo,
+    new THREE.MeshPhysicalMaterial({
+      color, roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.04, metalness: 0,
+    })
+  );
+  m.position.set(wx(pos.x), R, wz(pos.y));
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m);
+}
+addBall(CUE, '#FAF6E4');
+addBall(EIGHT, '#0E0E10');
+SOLID_POS.forEach((p, i) => addBall(p, PALETTE[i]));
+STRIPE_POS.forEach((p, i) => addBall(p, PALETTE[i]));   // stripe band added in phase 2
+
+// —— loop ——
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+(function tick() {
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
