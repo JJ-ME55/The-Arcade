@@ -50,6 +50,11 @@ export const HOW_TO_PLAY: Record<ArcadeGame['slug'], HowToStep[]> = {
     { n: '02', title: 'Position', desc: 'Higher finish = more points. Grand Prix style: 1st pays 15, 2nd pays 12, down to 4.' },
     { n: '03', title: 'Climb',    desc: 'Points stack across races. Best lap tracked separately for the speedrun board.' },
   ],
+  shootout: [
+    { n: '01', title: 'Fight', desc: 'WASD + mouse-look. Red vs Blue rounds — first team to 3 takes the match.' },
+    { n: '02', title: 'Buy',   desc: 'Kills and round wins pay cash. Spend it between rounds: rifles, SMGs, armour, helmet.' },
+    { n: '03', title: 'Climb', desc: 'Wins rank you on the board. Quick Play 1v1, custom 2v2 lobbies, or solo vs bots.' },
+  ],
 };
 
 export interface PayoutRow {
