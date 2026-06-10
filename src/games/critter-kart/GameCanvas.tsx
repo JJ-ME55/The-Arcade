@@ -464,6 +464,10 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     let finishTimes: number[] = [];
     let projectiles: Projectile[] = [];
     let traps: Trap[] = [];
+    // Multiplayer: server-authoritative projectile/trap meshes keyed by the
+    // server's entity id, so we can spawn/move/despawn to match each snapshot.
+    const mpProjMeshes = new Map<number, THREE.Object3D>();
+    const mpTrapMeshes = new Map<number, THREE.Object3D>();
     let elapsed = -COUNTDOWN;
     let phaseLocal: 'countdown' | 'racing' | 'finished' = 'countdown';
     let steer = 0;
@@ -489,6 +493,10 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       for (const t of traps) { scene.remove(t.mesh); disposeObject(t.mesh); }
       projectiles = [];
       traps = [];
+      for (const m of mpProjMeshes.values()) { scene.remove(m); disposeObject(m); }
+      for (const m of mpTrapMeshes.values()) { scene.remove(m); disposeObject(m); }
+      mpProjMeshes.clear();
+      mpTrapMeshes.clear();
     };
 
     const pose = track.startPose();
@@ -790,6 +798,22 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                 slowTimer: k.slowTimer,
                 shield: k.shield,
               };
+            }
+            // Self kart: keep LOCAL position/feel, but overlay server-authoritative
+            // EFFECT + ITEM state so the player actually feels item hits (stun /
+            // slow / shield) and the HUD shows the server's held item. Position,
+            // heading + speed stay locally predicted for snappy control.
+            const selfSnap = (snap as any).karts?.find((kk: any) => kk.kartId === mp.selfKartId);
+            if (selfSnap) {
+              states[PLAYER] = {
+                ...states[PLAYER],
+                stunTimer: selfSnap.stunTimer ?? 0,
+                slowTimer: selfSnap.slowTimer ?? 0,
+                shield: !!selfSnap.shield,
+                boostTimer: Math.max(states[PLAYER].boostTimer ?? 0, selfSnap.boostTimer ?? 0),
+              };
+              heldItems[PLAYER] = selfSnap.heldItem ?? NO_ITEM;
+              heldCount[PLAYER] = selfSnap.heldCount ?? 0;
             }
           }
         } catch (e) {
@@ -1159,33 +1183,42 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
           const member = (mp.members as any[])?.find((m: any) => (m.slot ?? -1) === i);
           return !!(member && !member.isBot);
         };
-        for (let i = 0; i < NUM; i++) {
-          if (isRemoteHuman(i)) continue;
-          if (heldItems[i] !== NO_ITEM) continue;
-          for (const box of itemBoxes) {
-            if (elapsed < box.respawnAt) continue;
-            if (Math.hypot(states[i].x - box.x, states[i].z - box.z) < TUNING.itemPickupRadius) {
-              // Roll an item WITHIN the lane's category (red attack / blue speed / yellow defence),
-              // weighted by THIS kart's race position (back-markers get the bee / catch-up storm).
-              const pos = ranked.indexOf(i) + 1;
-              const rolled = rollCategoryItem(box.category, pos, NUM, Math.random());
-              heldItems[i] = rolled;
-              heldCount[i] = rolled === ITEM.ACORN ? 3 : 1; // Acorn = triple shots
-              box.respawnAt = elapsed + TUNING.itemBoxRespawn;
-              if (i !== PLAYER) botUseAt[i] = elapsed + BOT_PERSONAS[botPersonaForSlot(i)].useDelay;
-              break;
+        if (!mp) {
+          // SOLO: local item simulation — pickup + player use + bot use. Unchanged.
+          for (let i = 0; i < NUM; i++) {
+            if (heldItems[i] !== NO_ITEM) continue;
+            for (const box of itemBoxes) {
+              if (elapsed < box.respawnAt) continue;
+              if (Math.hypot(states[i].x - box.x, states[i].z - box.z) < TUNING.itemPickupRadius) {
+                // Roll an item WITHIN the lane's category (red attack / blue speed / yellow defence),
+                // weighted by THIS kart's race position (back-markers get the bee / catch-up storm).
+                const pos = ranked.indexOf(i) + 1;
+                const rolled = rollCategoryItem(box.category, pos, NUM, Math.random());
+                heldItems[i] = rolled;
+                heldCount[i] = rolled === ITEM.ACORN ? 3 : 1; // Acorn = triple shots
+                box.respawnAt = elapsed + TUNING.itemBoxRespawn;
+                if (i !== PLAYER) botUseAt[i] = elapsed + BOT_PERSONAS[botPersonaForSlot(i)].useDelay;
+                break;
+              }
             }
           }
-        }
-        const useEdge = raw.use && !prevUse;
-        if (useEdge && heldItems[PLAYER] !== NO_ITEM) useItem(PLAYER, ranked);
-        for (let i = 1; i < NUM; i++) {
-          if (isRemoteHuman(i)) continue;
-          if (heldItems[i] !== NO_ITEM && elapsed >= botUseAt[i]) useItem(i, ranked);
+          const useEdge = raw.use && !prevUse;
+          if (useEdge && heldItems[PLAYER] !== NO_ITEM) useItem(PLAYER, ranked);
+          for (let i = 1; i < NUM; i++) {
+            if (heldItems[i] !== NO_ITEM && elapsed >= botUseAt[i]) useItem(i, ranked);
+          }
+        } else {
+          // MULTIPLAYER: the server owns the entire item world (pickup, bot use,
+          // projectiles, hits). The client only forwards the player's use intent;
+          // heldItems[PLAYER] is synced from the snapshot in the MP block above.
+          const useEdge = raw.use && !prevUse;
+          if (useEdge && heldItems[PLAYER] !== NO_ITEM) mp.useItem();
         }
       }
       prevUse = raw.use;
 
+      if (!mp) {
+      // SOLO: local projectile + trap simulation (movement + hit detection).
       for (let p = projectiles.length - 1; p >= 0; p--) {
         const pr = projectiles[p];
         pr.life -= frame;
@@ -1242,8 +1275,38 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         }
         if (hit || tr.age > 25) { scene.remove(tr.mesh); disposeObject(tr.mesh); traps.splice(tIdx, 1); }
       }
+      } else {
+        // MULTIPLAYER: render server-authoritative projectiles + traps from the
+        // snapshot — spawn new ids, move existing, despawn vanished. No local hit
+        // detection (the server resolves hits; effects arrive via the snapshot).
+        const snapE = mp.latestSnapshot;
+        const liveProj = new Set<number>();
+        for (const p of (((snapE as any)?.projectiles) ?? [])) {
+          liveProj.add(p.id);
+          let m = mpProjMeshes.get(p.id);
+          if (!m) { m = makeProjectile(p.kind); scene.add(m); mpProjMeshes.set(p.id, m); }
+          m.position.set(p.x, p.y, p.z);
+          m.rotation.y += frame * 9; m.rotation.x += frame * 6;
+        }
+        for (const [id, m] of mpProjMeshes) { if (!liveProj.has(id)) { scene.remove(m); disposeObject(m); mpProjMeshes.delete(id); } }
+        const liveTrap = new Set<number>();
+        for (const t of (((snapE as any)?.traps) ?? [])) {
+          liveTrap.add(t.id);
+          let m = mpTrapMeshes.get(t.id);
+          if (!m) { m = makeTrap(); scene.add(m); mpTrapMeshes.set(t.id, m); }
+          m.position.set(t.x, m.position.y, t.z);
+        }
+        for (const [id, m] of mpTrapMeshes) { if (!liveTrap.has(id)) { scene.remove(m); disposeObject(m); mpTrapMeshes.delete(id); } }
+      }
 
-      for (const box of itemBoxes) { box.mesh.position.y = 5 + Math.sin(elapsed * 2 + box.x * 0.1) * 0.5; box.mesh.visible = elapsed >= box.respawnAt; }
+      // Item-box bob + visibility. In MP the active/respawning state is server-
+      // authoritative (snapshot.inactiveBoxes by box id); solo uses local respawnAt.
+      const mpSnapBox = mp ? mp.latestSnapshot : null;
+      const inactiveBoxSet = mpSnapBox ? new Set(((mpSnapBox as any).inactiveBoxes) ?? []) : null;
+      itemBoxes.forEach((box, bi) => {
+        box.mesh.position.y = 5 + Math.sin(elapsed * 2 + box.x * 0.1) * 0.5;
+        box.mesh.visible = inactiveBoxSet ? !inactiveBoxSet.has(bi) : (elapsed >= box.respawnAt);
+      });
       for (let i = 0; i < NUM; i++) { const rp = renderPose(i); shieldRings[i].visible = !!states[i].shield; shieldRings[i].position.set(rp.x, 3, rp.z); }
       for (let i = 0; i < NUM; i++) {
         const slowed = (states[i].slowTimer ?? 0) > 0;

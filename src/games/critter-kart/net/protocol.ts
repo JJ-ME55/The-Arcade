@@ -91,6 +91,25 @@ export interface KartSnapshot {
   lap: number;
   progress: number;
   finished: boolean;
+  // Item state (server-authoritative). heldItem = ITEM enum (-1 = none).
+  heldItem?: number;
+  heldCount?: number;
+}
+
+/** An in-flight projectile (acorn/bee) for client VFX. */
+export interface ProjectileSnapshot {
+  id: number;
+  kind: 'acorn' | 'bee';
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** A dropped trap (mud puddle) for client VFX. */
+export interface TrapSnapshot {
+  id: number;
+  x: number;
+  z: number;
 }
 
 /**
@@ -102,6 +121,11 @@ export interface RaceSnapshot {
   tick: number;
   tMs: number;
   karts: KartSnapshot[];
+  // Server-authoritative item world (optional for back-compat with any
+  // pre-item snapshot still in flight during a deploy).
+  inactiveBoxes?: number[];           // box ids currently respawning (hidden)
+  projectiles?: ProjectileSnapshot[];
+  traps?: TrapSnapshot[];
 }
 
 // =============================================================================
@@ -129,6 +153,9 @@ export interface ClientEvents {
 
   // ── In-race input — 30Hz fire-and-forget ──────────────────────────────────
   'race:input':       RaceInputFrame;
+
+  // ── In-race item use — low-frequency intent; server resolves authoritatively ─
+  'race:useItem':     { raceId: string; kartId: string };
 }
 
 // =============================================================================

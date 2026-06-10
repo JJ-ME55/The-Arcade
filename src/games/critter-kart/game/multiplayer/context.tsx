@@ -172,6 +172,16 @@ export function useMultiplayerSync() {
           drift: frame.drift,
         });
       },
+      // V2 (2026-06-10): fire the local player's held item. Server resolves
+      // the use + any hits authoritatively; effects + projectiles/traps come
+      // back via the snapshot. Solo mode never calls this (mp is null).
+      useItem() {
+        // @ts-ignore — emit is on the underlying NetClient
+        ctx.net.emit?.('race:useItem', {
+          raceId: ctx.roomId,
+          kartId: ctx.selfKartId,
+        });
+      },
     };
   }, [ctx]);
 }
