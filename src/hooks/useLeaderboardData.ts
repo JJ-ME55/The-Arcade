@@ -70,6 +70,8 @@ export interface UseLeaderboardOptions {
   myName?: string | null;
   /** Limit on rows returned. */
   limit?: number;
+  /** Bump to force a refetch (e.g. a "Retry" button after a timeout). */
+  reloadKey?: number;
 }
 
 export interface UseLeaderboardResult {
@@ -104,6 +106,7 @@ export function useLeaderboardData({
   window: timeWindow = 'all',
   myName,
   limit = 10,
+  reloadKey = 0,
 }: UseLeaderboardOptions): UseLeaderboardResult {
   const [rows, setRows] = useState<StandingRow[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -207,7 +210,7 @@ export function useLeaderboardData({
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [api, timeWindow, myName, limit, canFetch]);
+  }, [api, timeWindow, myName, limit, canFetch, reloadKey]);
 
   return {
     rows,

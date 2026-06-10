@@ -41,6 +41,7 @@ export function Leaderboards() {
 
   const [activeCabinet, setActiveCabinet] = useState(gameParam || 'overall');
   const [activeWindow, setActiveWindow] = useState<'24h' | '7d' | 'all'>('all');
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Real data when a specific cabinet is selected + window=all (server
   // only supports all-time). Placeholder otherwise.
@@ -50,6 +51,7 @@ export function Leaderboards() {
     window: activeWindow,
     myName: auth.callsign,
     limit: 10,
+    reloadKey,
   });
 
   const myStandingResult = useMyStanding({ api: activeCabinetDef?.api });
@@ -144,21 +146,59 @@ export function Leaderboards() {
           </span>
         </button>
       )}
-      {live.loading && (
+      {live.loading && <BoardSkeleton isMobile={isMobile} />}
+
+      {/* Cold-start / failure state. The server (Render free tier) can
+          sleep and take 30-60s to wake; the hook aborts at 15s. Without
+          this, a timed-out board renders blank and looks broken. Give an
+          honest message + a Retry that refetches (no full page reload). */}
+      {!live.loading && live.error && rows.length === 0 && (
         <div
           style={{
-            padding: '20px 0',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 11,
-            letterSpacing: '0.18em',
-            color: 'var(--ink-45)',
-            textTransform: 'uppercase',
-            fontWeight: 700,
+            margin: '24px 0',
+            padding: '22px 20px',
+            border: '1.5px dashed var(--ink-45)',
+            textAlign: 'center',
           }}
         >
-          · Loading standings ·
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+              color: 'var(--ink-70)',
+            }}
+          >
+            {live.error === 'timeout' ? 'The board is waking up' : "Couldn't load the board"}
+          </div>
+          <p style={{ margin: '8px 0 16px', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--ink-70)' }}>
+            {live.error === 'timeout'
+              ? 'The server was asleep — give it a moment and try again.'
+              : 'Something went wrong fetching the standings.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => setReloadKey((k) => k + 1)}
+            style={{
+              padding: '9px 20px',
+              background: 'var(--ink)',
+              color: 'var(--paper)',
+              border: 'none',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+            }}
+          >
+            ↻ Retry
+          </button>
         </div>
       )}
+
       {!live.loading && rows.length >= 3 && <Podium top3={top3} isMobile={isMobile} />}
 
       <div
@@ -174,6 +214,31 @@ export function Leaderboards() {
         <Rail myStanding={myStandingResult.standing} cabinetLabel={activeCabinetDef?.label} />
       </div>
     </main>
+  );
+}
+
+/* ============================================================
+   SKELETON — shown while standings load (replaces bare text so the
+   page has shape immediately instead of a flash of nothing)
+   ============================================================ */
+function BoardSkeleton({ isMobile }: { isMobile: boolean }) {
+  return (
+    <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 10 }} aria-label="Loading standings">
+      {Array.from({ length: isMobile ? 5 : 7 }).map((_, i) => (
+        <div
+          key={i}
+          className="blink"
+          style={{
+            height: 46,
+            background: 'var(--paper)',
+            border: '1px solid var(--hair)',
+            borderLeft: '3px solid var(--hair)',
+            animationDelay: `${i * 0.12}s`,
+            opacity: 0.6,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
