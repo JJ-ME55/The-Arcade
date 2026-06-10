@@ -96,11 +96,17 @@ export function RaceHud({ lap, position, heldItem, countdown, order, lapBanner, 
         <canvas ref={miniRef} width={150} height={117} style={{ display: 'block', width: 150, height: 117 }} />
       </div>
 
-      {/* race order strip */}
+      {/* race order strip — dedupe-by-racerId + clamp to RACERS.length so a
+          malformed `order` (duplicate kart IDs, stale entries leaking across a
+          race re-mount, snapshot-apply pollution, etc.) can NEVER render more
+          rows than there are racers. The screen has room for exactly six;
+          anything more is data poisoning we'd rather drop silently than
+          surface as ~20 stacked rows. Cheap O(N) — runs per HUD push only. */}
       <div className="panel" style={{ position: 'absolute', top: 200, right: 22, padding: '10px 12px', width: 174, display: 'grid', gap: 7 }}>
         <span className="tag" style={{ color: 'var(--accent)' }}>RACE ORDER</span>
-        {order.map((o, i) => {
-          const r = RACERS.find((x) => x.id === o.racerId)!;
+        {Array.from(new Map(order.map((o) => [o.racerId, o])).values()).slice(0, RACERS.length).map((o, i) => {
+          const r = RACERS.find((x) => x.id === o.racerId);
+          if (!r) return null; // unknown racerId → drop the row rather than crash
           const me = o.racerId === racerId;
           return (
             <div key={o.racerId} style={{ display: 'flex', alignItems: 'center', gap: 9, opacity: me ? 1 : 0.82 }}>

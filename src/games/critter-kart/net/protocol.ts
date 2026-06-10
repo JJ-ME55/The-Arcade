@@ -27,6 +27,7 @@
 /** A racer in a lobby or race. `slot` is assigned by the server on race start. */
 export interface Member {
   username: string;
+  telegramUserId?: number | null;  // bulletproof self-identification (added 2026-06-08)
   slot?: number;     // 0..5 (6-kart races as of 2026-06-04 — was 0..3)
   racerId?: string;  // chosen Rusty/Fish/etc; final value sent in race:start
   ready?: boolean;   // lobby-only: did this member tap Ready?

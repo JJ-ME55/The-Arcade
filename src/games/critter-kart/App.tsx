@@ -9,6 +9,7 @@ import { LoadingScreen } from './ui/LoadingScreen';
 import { MultiplayerMenu, Matching, CustomBrowse, CustomCreate, LobbyScreen } from './ui/multiplayer/screens';
 import { MultiplayerProvider, type MultiplayerRace } from './game/multiplayer/context';
 import { getNetClient } from './net/client';
+import { getArcadeIdentity } from './net/identity';
 import GameCanvas, { type GameHud } from './GameCanvas';
 import CoverShot from './CoverShot';
 import type { Screen, ResultRow } from './ui/data';
@@ -90,10 +91,61 @@ export default function App({ onRaceFinish }: { onRaceFinish?: (r: ResultRow[], 
   // Shared handler — both Matching and LobbyScreen route through this when the
   // server emits race:start. Builds the MultiplayerRace context and flips the
   // app onto the race screen.
-  const startMpRace = (roomId: string, startAtMs: number, members: Member[]) => {
-    const me = getNetClient().username();
-    const selfSlot = members.find((m) => m.username === me)?.slot ?? 0;
-    setMpRace({ roomId, selfSlot, startAtMs, members, net: getNetClient() });
+  const startMpRace = async (roomId: string, startAtMs: number, members: Member[]) => {
+    const net = getNetClient();
+    // V2 (2026-06-08): identify self by telegramUserId, NOT username.
+    // Username collisions are real — if two players share a TG first
+    // name (or share an account during dev testing), `.find(m => m.username
+    // === me)` returns the SAME member for both clients, both get
+    // selfSlot=0, and the "non-host has no controls" bug returns
+    // because PLAYER=0 ≠ the joiner's actual slot. telegramUserId is
+    // unique per TG account. Server-side memberWire now includes it
+    // on all 3 race:start emit sites (commit pairs with this one).
+    const ident = await getArcadeIdentity();
+    const myTgId = ident?.telegramUserId ?? null;
+    const me = net.username();
+    const selfMember =
+      (myTgId != null && members.find((m: any) => m.telegramUserId === myTgId)) ||
+      members.find((m) => m.username === me) ||
+      undefined;
+    const selfSlot = selfMember?.slot ?? 0;
+    // Server assigns racerId per slot from the regular roster
+    // (rusty/shelly/pip/bruno cycled). Pick up self's choice so the
+    // player sees themselves as the right character instead of the
+    // single-player default.
+    if (selfMember?.racerId) setRacer(selfMember.racerId);
+    // Build kartId → slot map and pull self's kartId.
+    const kartIdToSlot: Record<string, number> = {};
+    members.forEach((m, idx) => {
+      const k = m.kartId || `kart-${m.slot ?? idx}`;
+      kartIdToSlot[k] = m.slot ?? idx;
+    });
+    const selfKartId = selfMember?.kartId || `kart-${selfSlot}`;
+
+    // CRITICAL — bind this socket to the race broadcast room so
+    // `broadcastToRace(io, raceId, 'race:snapshot', snap)` from the
+    // server's RaceRunner reaches us. Without this emit, server still
+    // ticks the race and emits snapshots, but they never arrive at this
+    // socket → each client falls back to running Fish's local 6-kart
+    // sim independently → "they're in different races." The
+    // matchmaking-based MultiplayerLayer.tsx flow already did this; the
+    // lobby-based flow added in this session bypassed it.
+    try {
+      if (myTgId != null) {
+        net.emit('critterkart:joinRace' as any, {
+          raceId: roomId,
+          telegramUserId: myTgId,
+        } as any);
+      } else {
+        // No JWT identity available — multiplayer can't authenticate.
+        // Race screen will still mount but no snapshots will flow.
+        console.warn('[critter-kart/mp] no telegramUserId — race join skipped');
+      }
+    } catch (e) {
+      console.warn('[critter-kart/mp] joinRace emit failed:', e);
+    }
+
+    setMpRace({ roomId, selfSlot, selfKartId, startAtMs, members, net, kartIdToSlot });
     setActiveLobbyId(roomId);
     go('race');
   };

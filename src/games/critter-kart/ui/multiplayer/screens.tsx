@@ -290,7 +290,12 @@ export function LobbyScreen({ lobbyId, onLeave, onRaceStart }: {
     const offState = net.on('lobby:state', ({ lobby: l }) => { if (l.id === lobbyId) setLobby(l); });
     const offJoined = net.on('lobby:joined', ({ lobby: l }) => { if (l.id === lobbyId) setLobby(l); });
     const offClosed = net.on('lobby:closed', ({ lobbyId: id }) => { if (id === lobbyId) onLeave(); });
-    const offStart = net.on('race:start', ({ roomId, startAtMs, members }) => { if (roomId === lobbyId) onRaceStart(roomId, startAtMs, members); });
+    // Server emits race:start with roomId = race.raceId (NOT the lobby
+    // id), so the prior `if (roomId === lobbyId)` filter was always
+    // false and the race transition never fired. The socket room scope
+    // already guarantees this event is for the current lobby — server
+    // only emits race:start to lobby-room members. Trust the scope.
+    const offStart = net.on('race:start', ({ roomId, startAtMs, members }) => { onRaceStart(roomId, startAtMs, members); });
     return () => { offState(); offJoined(); offClosed(); offStart(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lobbyId]);
@@ -337,23 +342,49 @@ export function LobbyScreen({ lobbyId, onLeave, onRaceStart }: {
           </div>
         )}
 
+        {/* Status hint — surface what the player needs to do next, since
+            it wasn't obvious in playtest that non-hosts had to tap Ready. */}
+        {!isHost && !myMember?.ready && (
+          <div style={{ marginTop: 'auto', textAlign: 'center', paddingTop: 14, paddingBottom: 4 }}>
+            <span className="tag" style={{ color: 'var(--accent)', fontSize: 14 }}>
+              ↓ Tap "Ready up" so the host can start the race
+            </span>
+          </div>
+        )}
+        {isHost && !everyoneReady && lobby && lobby.members.length > 1 && (
+          <div style={{ marginTop: 'auto', textAlign: 'center', paddingTop: 14, paddingBottom: 4 }}>
+            <span className="tag" style={{ color: 'var(--muted)', fontSize: 14 }}>
+              Waiting for everyone to ready up…
+            </span>
+          </div>
+        )}
+        {isHost && lobby && lobby.members.length <= 1 && (
+          <div style={{ marginTop: 'auto', textAlign: 'center', paddingTop: 14, paddingBottom: 4 }}>
+            <span className="tag" style={{ color: 'var(--muted)', fontSize: 14 }}>
+              Waiting for racers to join… (bots will fill empty slots on Start)
+            </span>
+          </div>
+        )}
+
         {/* Footer actions */}
-        <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 22 }}>
+        <div style={{ marginTop: (!isHost && myMember?.ready) || (isHost && everyoneReady) ? 'auto' : 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 22 }}>
           <button className="ck-btn ghost" onClick={leave}>Leave lobby</button>
           <div style={{ display: 'flex', gap: 12 }}>
             {!isHost && (
               <button
                 className="ck-btn"
                 onClick={toggleReady}
-                style={myMember?.ready ? { background: '#2f9e44', boxShadow: '0 7px 0 #1e7330' } : undefined}
+                style={myMember?.ready
+                  ? { background: '#2f9e44', boxShadow: '0 7px 0 #1e7330' }
+                  // Make the unready Ready button stand out — accent
+                  // colour so it draws the eye on lobby entry.
+                  : { background: 'var(--accent)', boxShadow: '0 7px 0 rgba(0,0,0,.35)' }}
               >{myMember?.ready ? 'Ready ✓' : 'Ready up'}</button>
             )}
             {isHost && (
               <button
                 className="ck-btn"
                 onClick={startRace}
-                disabled={!everyoneReady}
-                style={!everyoneReady ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
               >Start race ›</button>
             )}
           </div>
