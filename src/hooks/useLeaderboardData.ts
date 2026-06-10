@@ -59,8 +59,9 @@ function estimatePrize(_rank: number): string {
 export interface UseLeaderboardOptions {
   /** API slug, or null to use placeholder.
    *  `overall` hits the cross-game aggregator endpoint. `solshot` hits
-   *  the K/D + W% scorecard endpoint (PvP, not single-score). */
-  api?: 'basketball' | 'keepieuppies' | 'freekicks' | 'overall' | 'solshot';
+   *  the K/D + W% scorecard endpoint (PvP, not single-score).
+   *  `critter-kart` keeps its hyphen (its endpoint does too). */
+  api?: 'basketball' | 'keepieuppies' | 'freekicks' | 'critter-kart' | 'overall' | 'solshot';
   /** Time window. `24h` / `7d` send a `?since=<iso>` param; the server
    *  filters to users whose all-time best was achieved in that window
    *  (semantic note documented in standaloneLeaderboard.js). */

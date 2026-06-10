@@ -12,10 +12,13 @@ import { useLeaderboardData } from '@/hooks/useLeaderboardData';
  * Arcade-side wrapper pending). SolShot has its own detail page so
  * skipped here.
  */
-const LB_API: Record<string, 'basketball' | 'keepieuppies' | 'freekicks' | undefined> = {
+// NB: critter-kart's endpoint keeps the hyphen (/api/games/critter-kart/)
+// unlike the others, so its api value is hyphenated too.
+const LB_API: Record<string, 'basketball' | 'keepieuppies' | 'freekicks' | 'critter-kart' | undefined> = {
   basketball: 'basketball',
   'keepie-uppies': 'keepieuppies',
   'free-kicks': 'freekicks',
+  'critter-kart': 'critter-kart',
 };
 
 /**
@@ -96,7 +99,11 @@ function Breadcrumb({ game }: { game: ArcadeGame }) {
       <span style={{ color: 'var(--ink)' }}>{game.name}</span>
       <span style={{ flex: 1 }} />
       <span style={{ color: 'var(--brass-deep)' }}>
-        V1 · Free Play · Wager V2
+        {game.slug === 'free-kicks'
+          ? 'Free Play · 1 SOL Comp'
+          : game.slug === 'solshot'
+          ? 'Free Play · Wager 1v1'
+          : 'Free to Play'}
       </span>
     </div>
   );
@@ -222,40 +229,42 @@ function Marquee({ game, isMobile }: { game: ArcadeGame; isMobile: boolean }) {
         >
           <MarqueeStat
             label="Players"
-            value={
-              typeof livePlayerCount === 'number'
-                ? String(livePlayerCount)
-                : apiSlug
-                ? '—'
-                : 'V2'
-            }
+            value={typeof livePlayerCount === 'number' ? String(livePlayerCount) : '—'}
             accent="var(--win)"
           />
           <MarqueeStat
             label="Hi Score"
-            value={liveTopScore ?? (apiSlug ? '—' : 'V2')}
+            value={liveTopScore ?? '—'}
             accent="var(--paper)"
           />
         </div>
       </div>
 
-      {/* "V2 · Wager Mode Coming" pill top-right — honest about state */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 18,
-          right: 24,
-          padding: '6px 12px',
-          border: '1.5px solid var(--brass)',
-          color: 'var(--brass)',
-          fontFamily: 'var(--font-mono)',
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: '0.22em',
-        }}
-      >
-        WAGER · V2
-      </div>
+      {/* Top-right flag — only on the cabinet with a live prize. Brass =
+          money. Other games get no pill (was a generic "WAGER · V2" on
+          every page, which is jargon for a feature that isn't live). */}
+      {game.slug === 'free-kicks' && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 18,
+            right: 24,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 7,
+            padding: '6px 12px',
+            background: 'var(--brass)',
+            color: 'var(--ink-deep)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.18em',
+          }}
+        >
+          <span className="blink" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ink-deep)' }} />
+          1 SOL COMP
+        </div>
+      )}
     </section>
   );
 }
@@ -298,8 +307,78 @@ function Main({ game, isMobile }: { game: ArcadeGame; isMobile: boolean }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28, minWidth: 0 }}>
       <HowToPlay game={game} isMobile={isMobile} />
-      <WagerModeStub isMobile={isMobile} />
+      {/* Free Kicks has a live 1 SOL prize — sell that instead of the
+          generic "wager mode coming" roadmap stub. */}
+      {game.slug === 'free-kicks' ? (
+        <CompCrossSell isMobile={isMobile} />
+      ) : (
+        <WagerModeStub isMobile={isMobile} />
+      )}
     </div>
+  );
+}
+
+/**
+ * CompCrossSell — on the Free Kicks detail page, point at the live 1 SOL
+ * competition. This board IS the entry, so close the loop here.
+ */
+function CompCrossSell({ isMobile }: { isMobile: boolean }) {
+  const navigate = useNavigate();
+  return (
+    <Section title="Live Competition" sub="1 SOL · Free Kicks">
+      <button
+        type="button"
+        onClick={() => navigate('/competitions')}
+        style={{
+          appearance: 'none',
+          textAlign: 'left',
+          cursor: 'pointer',
+          width: '100%',
+          border: '1.5px solid var(--ink)',
+          borderTop: '4px solid var(--brass)',
+          background: 'var(--ink-deep)',
+          color: 'var(--paper)',
+          padding: isMobile ? '20px 18px' : '24px 26px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 9,
+            fontFamily: 'var(--font-display)',
+            fontSize: isMobile ? 22 : 28,
+            textTransform: 'uppercase',
+            letterSpacing: '0.01em',
+            color: 'var(--brass-glint)',
+            lineHeight: 1,
+          }}
+        >
+          Win 1 SOL
+        </span>
+        <span style={{ fontFamily: 'var(--font-body)', fontSize: isMobile ? 14 : 15, lineHeight: 1.5, color: 'rgba(251,252,254,0.8)', maxWidth: 520 }}>
+          Top the Free Kicks leaderboard when the competition closes and we
+          pay 1 SOL straight to your wallet. Every score you submit is an
+          entry — free to play.
+        </span>
+        <span
+          style={{
+            marginTop: 4,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: 'var(--brass)',
+          }}
+        >
+          See the competition →
+        </span>
+      </button>
+    </Section>
   );
 }
 
@@ -444,247 +523,6 @@ function HowToPlay({ game, isMobile }: any) {
   );
 }
 
-function PayoutTable({ isMobile }: { isMobile: boolean }) {
-  return (
-    <Section
-      title="Payout Table"
-      sub="House edge 4.2%"
-      trailing={
-        !isMobile && (
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 9.5,
-              color: 'var(--brass-deep)',
-              letterSpacing: '0.16em',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-            }}
-          >
-            Provably Fair · On-chain RNG
-          </span>
-        )
-      }
-    >
-      <div
-        style={{
-          border: '1.5px solid var(--ink)',
-          borderTop: '4px solid var(--brass)',
-          background: 'var(--paper)',
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '110px 1fr 70px 60px' : '160px 1fr 100px 90px',
-            padding: '10px 16px',
-            background: 'var(--ink)',
-            color: 'var(--paper)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 10,
-            letterSpacing: '0.18em',
-            textTransform: 'uppercase',
-            fontWeight: 700,
-          }}
-        >
-          <span>Tier</span>
-          <span>Description</span>
-          <span style={{ textAlign: 'right' }}>Payout</span>
-          <span style={{ textAlign: 'right' }}>Odds</span>
-        </div>
-        {PAYOUT_TABLE.map((r, i) => (
-          <div
-            key={r.tier}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '110px 1fr 70px 60px' : '160px 1fr 100px 90px',
-              padding: '12px 16px',
-              alignItems: 'baseline',
-              borderBottom: i < PAYOUT_TABLE.length - 1 ? '1px dotted var(--hair)' : 'none',
-              background: i % 2 === 0 ? 'var(--paper)' : 'rgba(21,32,58,0.025)',
-            }}
-          >
-            <span
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 14,
-                color: 'var(--ink)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.02em',
-              }}
-            >
-              {r.tier}
-            </span>
-            <span
-              style={{
-                fontSize: 13,
-                color: 'var(--ink-70)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {r.desc}
-            </span>
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 16,
-                fontWeight: 700,
-                color:
-                  r.mult === '0.0×'
-                    ? 'var(--lose)'
-                    : r.mult === '2.4×'
-                    ? 'var(--win)'
-                    : 'var(--ink)',
-                textAlign: 'right',
-              }}
-            >
-              {r.mult}
-            </span>
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-                color: 'var(--ink-45)',
-                textAlign: 'right',
-              }}
-            >
-              {r.odds}
-            </span>
-          </div>
-        ))}
-      </div>
-    </Section>
-  );
-}
-
-function YourHistory({ isMobile }: { isMobile: boolean }) {
-  return (
-    <Section
-      title="Your Recent Plays"
-      sub="Last 6 rounds"
-      trailing={
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 9.5,
-            color: 'var(--win)',
-            fontWeight: 700,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-          }}
-        >
-          Net {RECENT_PLAYS_NET}
-        </span>
-      }
-    >
-      <div>
-        {RECENT_PLAYS.map((p, i) => {
-          const win = p.payout.startsWith('+');
-          return (
-            <div
-              key={i}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: isMobile
-                  ? '50px 80px 1fr 70px'
-                  : '64px 110px 1fr 90px 90px 30px',
-                gap: 12,
-                alignItems: 'center',
-                padding: '10px 0',
-                borderBottom: i < RECENT_PLAYS.length - 1 ? '1px dotted var(--hair)' : 'none',
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 11,
-                  color: 'var(--ink-45)',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                {p.ago} ago
-              </span>
-              <span
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: 13,
-                  color: win ? 'var(--win)' : 'var(--lose)',
-                  letterSpacing: '0.02em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                {p.result}
-              </span>
-              {!isMobile && (
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 11,
-                    color: 'var(--ink-70)',
-                  }}
-                >
-                  score {p.score}
-                </span>
-              )}
-              {isMobile && (
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 11,
-                    color: 'var(--ink-70)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {p.score}
-                </span>
-              )}
-              {!isMobile && (
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 11,
-                    color: 'var(--ink-45)',
-                    textAlign: 'right',
-                  }}
-                >
-                  stake {p.stake}
-                </span>
-              )}
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: win ? 'var(--win)' : 'var(--lose)',
-                  textAlign: 'right',
-                }}
-              >
-                {p.payout}
-              </span>
-              {!isMobile && (
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 14,
-                    color: 'var(--ink-45)',
-                    textAlign: 'right',
-                  }}
-                >
-                  →
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </Section>
-  );
-}
-
 /* ============================================================
    RAIL — Free Play (primary) · V2 Wager Slip preview (deferred)
    ============================================================ */
@@ -698,254 +536,6 @@ function Rail({ game }: { game: ArcadeGame }) {
       <FreePlayCard game={game} />
     </div>
   );
-}
-
-function WagerSlip({ game }: { game: ArcadeGame }) {
-  const [stake, setStake] = useState(0.05);
-  const multiplier = 2.4;
-  const maxPayout = (stake * multiplier).toFixed(3);
-
-  return (
-    <div
-      style={{
-        position: 'relative',
-        background: 'var(--paper)',
-        border: '1.5px solid var(--ink)',
-        borderTop: '5px solid var(--brass)',
-        padding: '14px 16px 16px',
-      }}
-    >
-      {/* corner stamp */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 12,
-          right: 12,
-          padding: '3px 7px',
-          border: '1.5px solid var(--brass)',
-          color: 'var(--brass-deep)',
-          fontFamily: 'var(--font-mono)',
-          fontSize: 8,
-          fontWeight: 700,
-          letterSpacing: '0.16em',
-          transform: 'rotate(2deg)',
-        }}
-      >
-        SOL · MAINNET
-      </div>
-
-      <div
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 9,
-          letterSpacing: '0.22em',
-          color: 'var(--ink-45)',
-          textTransform: 'uppercase',
-          fontWeight: 700,
-          marginBottom: 2,
-        }}
-      >
-        The Arcade · Wager Slip
-      </div>
-      <h2
-        style={{
-          margin: 0,
-          fontFamily: 'var(--font-display)',
-          fontSize: 22,
-          color: 'var(--ink)',
-          letterSpacing: '0.02em',
-          textTransform: 'uppercase',
-          marginBottom: 14,
-          lineHeight: 1,
-        }}
-      >
-        Place Wager
-      </h2>
-
-      <label
-        style={{
-          display: 'block',
-          fontFamily: 'var(--font-mono)',
-          fontSize: 9.5,
-          letterSpacing: '0.18em',
-          color: 'var(--ink-70)',
-          textTransform: 'uppercase',
-          fontWeight: 700,
-          marginBottom: 6,
-        }}
-      >
-        Stake · SOL
-      </label>
-
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0,
-          borderBottom: '2px solid var(--ink)',
-          paddingBottom: 6,
-          marginBottom: 12,
-        }}
-      >
-        <button onClick={() => setStake((s) => Math.max(0.01, +(s - 0.01).toFixed(2)))} style={btnTiny()}>
-          −
-        </button>
-        <SolanaPortal size={16} gradId="wager" />
-        <input
-          value={stake.toFixed(2)}
-          onChange={(e) => setStake(parseFloat(e.target.value) || 0)}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            padding: '4px 8px',
-            background: 'transparent',
-            border: 'none',
-            outline: 'none',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 28,
-            fontWeight: 700,
-            color: 'var(--ink)',
-            letterSpacing: '0.01em',
-          }}
-        />
-        <button onClick={() => setStake((s) => +(s + 0.01).toFixed(2))} style={btnTiny()}>
-          +
-        </button>
-      </div>
-
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-        {WAGER_CHIPS.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => setStake(c)}
-            style={{
-              flex: 1,
-              padding: '6px 0',
-              background: stake === c ? 'var(--ink)' : 'transparent',
-              color: stake === c ? 'var(--paper)' : 'var(--ink)',
-              border: '1px solid var(--ink)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.06em',
-              cursor: 'pointer',
-            }}
-          >
-            {c.toFixed(2)}
-          </button>
-        ))}
-      </div>
-
-      <div
-        style={{
-          padding: '10px 0',
-          borderTop: '1px dashed var(--hair)',
-          borderBottom: '1px dashed var(--hair)',
-          marginBottom: 14,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-        }}
-      >
-        <SlipLine label="At Bullseye 2.4×" value={`+${maxPayout} SOL`} color="var(--win)" />
-        <SlipLine
-          label="At Splash 1.2×"
-          value={`+${(stake * 1.2).toFixed(3)} SOL`}
-          color="var(--ink-70)"
-        />
-        <SlipLine
-          label="At Miss 0.0×"
-          value={`-${stake.toFixed(3)} SOL`}
-          color="var(--lose)"
-          dim
-        />
-      </div>
-
-      <button
-        type="button"
-        onClick={() => alert('Wager Mode — Coming Soon. UI only for v1.')}
-        style={{
-          width: '100%',
-          padding: '14px 12px',
-          background: 'var(--brass)',
-          color: 'var(--ink)',
-          border: '1.5px solid var(--ink)',
-          fontFamily: 'var(--font-display)',
-          fontSize: 16,
-          letterSpacing: '0.04em',
-          textTransform: 'uppercase',
-          cursor: 'pointer',
-          lineHeight: 1,
-        }}
-      >
-        ▸ Place Wager · {stake.toFixed(2)} SOL
-      </button>
-
-      <div
-        style={{
-          marginTop: 8,
-          fontFamily: 'var(--font-mono)',
-          fontSize: 9,
-          color: 'var(--ink-45)',
-          letterSpacing: '0.06em',
-          textAlign: 'center',
-        }}
-      >
-        Coming Soon · UI Only · v2 ships on-chain
-      </div>
-    </div>
-  );
-}
-
-function SlipLine({ label, value, color, dim }: any) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'baseline',
-        opacity: dim ? 0.7 : 1,
-      }}
-    >
-      <span
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 10,
-          color: 'var(--ink-70)',
-          letterSpacing: '0.06em',
-        }}
-      >
-        {label}
-      </span>
-      <span
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 12,
-          fontWeight: 700,
-          color,
-        }}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function btnTiny(): React.CSSProperties {
-  return {
-    width: 28,
-    height: 28,
-    background: 'transparent',
-    color: 'var(--ink)',
-    border: '1.5px solid var(--ink)',
-    fontFamily: 'var(--font-display)',
-    fontSize: 14,
-    cursor: 'pointer',
-    lineHeight: 1,
-    marginRight: 8,
-    flexShrink: 0,
-  };
 }
 
 function FreePlayCard({ game }: { game: ArcadeGame }) {

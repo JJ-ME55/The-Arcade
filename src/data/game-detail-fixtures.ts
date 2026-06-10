@@ -57,36 +57,9 @@ export const HOW_TO_PLAY: Record<ArcadeGame['slug'], HowToStep[]> = {
   ],
 };
 
-export interface PayoutRow {
-  tier: string;
-  desc: string;
-  mult: string;
-  odds: string;
-}
-
-export const PAYOUT_TABLE: PayoutRow[] = [
-  { tier: 'Bullseye', desc: 'Direct hit on target', mult: '2.4×', odds: '~8%' },
-  { tier: 'Splash',   desc: 'Splash damage hit',    mult: '1.2×', odds: '~22%' },
-  { tier: 'Edge',     desc: 'Glancing blow',        mult: '0.8×', odds: '~14%' },
-  { tier: 'Miss',     desc: 'No connection',        mult: '0.0×', odds: '~56%' },
-];
-
-export interface RecentPlay {
-  ago: string;
-  result: 'Bullseye' | 'Splash' | 'Edge' | 'Miss';
-  stake: string;
-  payout: string;
-  score: string;
-}
-
-export const RECENT_PLAYS: RecentPlay[] = [
-  { ago: '12m', result: 'Bullseye', stake: '0.05', payout: '+0.12',  score: '142,089' },
-  { ago: '24m', result: 'Splash',   stake: '0.05', payout: '+0.06',  score: '118,440' },
-  { ago: '38m', result: 'Miss',     stake: '0.02', payout: '-0.02',  score: '94,200'  },
-  { ago: '52m', result: 'Bullseye', stake: '0.05', payout: '+0.12',  score: '139,118' },
-  { ago: '1h',  result: 'Edge',     stake: '0.02', payout: '+0.016', score: '102,805' },
-  { ago: '2h',  result: 'Splash',   stake: '0.04', payout: '+0.048', score: '129,720' },
-];
-
-export const RECENT_PLAYS_NET = '+0.292 SOL ▲';
-export const WAGER_CHIPS = [0.01, 0.05, 0.10, 0.25];
+// Removed 2026-06-10: PAYOUT_TABLE / RECENT_PLAYS / RECENT_PLAYS_NET /
+// WAGER_CHIPS were fictional wager data (a "2.4× Bullseye" house-edge
+// payout table + fake recent plays with SOL amounts). Their only
+// consumers were the dead PayoutTable / YourHistory / WagerSlip
+// components in GameDetail, now deleted. Real payout structure ships
+// with the wager economy, sourced from the server.
