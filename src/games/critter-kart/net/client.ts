@@ -167,7 +167,11 @@ function createRealClient(): NetClient {
 
         const io = await loadSocketIo();
         socket = io(SERVER_BASE, {
-            transports: ['websocket'],
+            // Try WebSocket first (low-latency, what most clients get), but FALL
+        // BACK to HTTP long-polling when the network/proxy/extension blocks raw
+        // WSS — otherwise those clients can't connect at all (no socket → no
+        // lobby/race). Socket.io upgrades polling→WS automatically when possible.
+        transports: ['websocket', 'polling'],
             auth: {
                 telegramUserId: identity.telegramUserId,
                 telegramUsername: identity.telegramUsername,
@@ -415,7 +419,11 @@ export async function createCritterKartNet(opts: NetOptions): Promise<CritterKar
     const base = opts.serverBase || SERVER_BASE;
 
     const socket = io(base, {
-        transports: ['websocket'],
+        // Try WebSocket first (low-latency, what most clients get), but FALL
+        // BACK to HTTP long-polling when the network/proxy/extension blocks raw
+        // WSS — otherwise those clients can't connect at all (no socket → no
+        // lobby/race). Socket.io upgrades polling→WS automatically when possible.
+        transports: ['websocket', 'polling'],
         auth: {
             telegramUserId: opts.telegramUserId,
             sessionJwt: opts.sessionJwt,
