@@ -1474,7 +1474,17 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       // + a track.nearest each) instead of the 3× it used to be called per frame.
       const st = standings();
       const ranked = rankRacers(st);
-      const order = ranked.map((id, k) => ({ racerId: gridRacers[id].id, pos: k + 1 }));
+      const order = ranked.map((id, k) => {
+        // In multiplayer, label HUMAN karts with their username (so you can see
+        // WHERE each person is) instead of the character name. Bots keep the
+        // character name. id is the kart slot index; mp.members maps slot→member.
+        let label: string | undefined;
+        if (mp) {
+          const mem = (mp.members as any[])?.find((m: any) => (m.slot ?? -1) === id);
+          if (mem && !mem.isBot && mem.username) label = mem.username;
+        }
+        return { racerId: gridRacers[id].id, pos: k + 1, label };
+      });
       const cd = elapsed < 0 ? Math.ceil(-elapsed) : elapsed < 0.6 ? 0 : null;
       // Beat-change SFX: warm beep on 3/2/1, fanfare on GO. Only after loading is done,
       // so the synth doesn't fire while elapsed is still parked at -3 on the loading screen.

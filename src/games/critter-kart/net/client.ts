@@ -288,9 +288,15 @@ function createRealClient(): NetClient {
         isStub: false,
         sendInput(frame: RaceInputFrame) {
             // Same socket as the lobby — input frames go on race:input.
-            // Fire-and-forget; if the socket isn't connected yet, drop
-            // (the rAF tick fires 30Hz so the next frame will retry).
+            // Fire-and-forget; if the socket isn't connected yet, drop.
             if (socket && socket.connected) {
+                // Throttle to ~30Hz. GameCanvas calls this EVERY rAF frame
+                // (~60Hz); long-polling clients (WS-blocked networks) choke on
+                // that flood and desync mid-race. The server applies latest-
+                // input-per-60Hz-tick anyway, so 30Hz loses nothing perceptible.
+                const now = Date.now();
+                if (now - ((socket as any)._lastInputEmit || 0) < 33) return;
+                (socket as any)._lastInputEmit = now;
                 try { socket.emit('race:input', frame); } catch { /* ignore */ }
             }
         },

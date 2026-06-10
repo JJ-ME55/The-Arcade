@@ -15,7 +15,7 @@ export interface HudState {
   position: number;
   heldItem: number | null; // game item index 0-5 or null
   countdown: number | null; // 3/2/1/0(GO) during countdown, null while racing
-  order: { racerId: string; pos: number }[];
+  order: { racerId: string; pos: number; label?: string }[];
   /** True while assets (GLBs, textures) are still being fetched + decoded. The countdown
    *  is paused until this clears, so the race doesn't go GO! over a half-rendered scene. */
   loading: boolean;
@@ -112,7 +112,7 @@ export function RaceHud({ lap, position, heldItem, countdown, order, lapBanner, 
             <div key={o.racerId} style={{ display: 'flex', alignItems: 'center', gap: 9, opacity: me ? 1 : 0.82 }}>
               <span style={{ fontFamily: "'Lilita One',sans-serif", fontSize: 14, color: me ? ACCENT : 'var(--muted)', width: 14 }}>{i + 1}</span>
               <div style={{ width: 11, height: 11, borderRadius: 4, background: r.color }} />
-              <span style={{ fontFamily: 'Nunito', fontWeight: me ? 900 : 700, fontSize: 13, color: me ? '#fff' : 'var(--paper)' }}>{r.name}</span>
+              <span style={{ fontFamily: 'Nunito', fontWeight: me ? 900 : 700, fontSize: 13, color: me ? '#fff' : 'var(--paper)' }}>{(o as any).label || r.name}</span>
             </div>
           );
         })}
