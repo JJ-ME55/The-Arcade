@@ -1,24 +1,30 @@
 // @ts-nocheck — JSX-heavy route, Competitions surface.
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { Section, SolanaPortal } from '@/components/brand';
+import { useLeaderboardData } from '@/hooks/useLeaderboardData';
 import { COMPETITIONS, type Competition } from '@/data/competitions-fixtures';
 import { PORTAL_GAMES } from '@/data/games-fixtures';
 
 /**
- * Competitions — `/competitions`.
- *
- * Replaces the placeholder Prizes surface as the live SOL-earning page.
- * One card per competition; cards stack on mobile, 2-up on desktop when
- * we add more. For now there's one entry (Free Kicks · 1 SOL · June).
- *
- * Cards are mostly editorial: title + game art + prize + closing
- * countdown + rule + how-to-enter + launch CTA. No live leaderboard
- * embedded — that lives on /leaderboard/<game>; we link to it.
+ * Competitions — `/competitions`. The money page; the whole funnel
+ * points here. Each card leads with the two things that drive entries:
+ * the PRIZE (big, brass) and the CLOSING COUNTDOWN (big, ticking), then
+ * the live "score to beat" + entrant count pulled from the real
+ * leaderboard so a visitor knows exactly what they're up against.
  */
+
+// Comp game slug (hyphenated) → leaderboard API slug (no hyphen).
+const GAME_TO_API: Record<string, 'basketball' | 'keepieuppies' | 'freekicks'> = {
+  'free-kicks': 'freekicks',
+  basketball: 'basketball',
+  'keepie-uppies': 'keepieuppies',
+};
+
 export function Competitions() {
   const isMobile = useIsMobile();
+  const liveCount = COMPETITIONS.filter((c) => c.status === 'live').length;
 
   return (
     <main
@@ -30,11 +36,11 @@ export function Competitions() {
       }}
     >
       <CompetitionsHero isMobile={isMobile} />
-      <Section title="Live Competitions" sub={`${COMPETITIONS.filter((c) => c.status === 'live').length} open`}>
+      <Section title="Live Competitions" sub={`${liveCount} open`}>
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(420px, 1fr))',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(460px, 1fr))',
             gap: 20,
           }}
         >
@@ -49,7 +55,7 @@ export function Competitions() {
 }
 
 /* ============================================================
-   HERO — what is a competition, where does the prize come from
+   HERO
    ============================================================ */
 function CompetitionsHero({ isMobile }: { isMobile: boolean }) {
   return (
@@ -73,7 +79,7 @@ function CompetitionsHero({ isMobile }: { isMobile: boolean }) {
           marginBottom: 6,
         }}
       >
-        New · The Floor
+        Real prizes · The Floor
       </div>
       <h1
         style={{
@@ -99,8 +105,8 @@ function CompetitionsHero({ isMobile }: { isMobile: boolean }) {
           maxWidth: 620,
         }}
       >
-        Competitions run on individual cabinets. Hold the high score at
-        close and we pay the prize to the wallet linked to your account.
+        Competitions run on individual cabinets. Hold the high score when
+        the clock hits zero and we pay the prize straight to your wallet.
         Free to enter — every score you submit is automatically an entry.
       </p>
     </header>
@@ -108,7 +114,7 @@ function CompetitionsHero({ isMobile }: { isMobile: boolean }) {
 }
 
 /* ============================================================
-   CARD — the actual unit
+   CARD
    ============================================================ */
 function CompetitionCard({ comp, isMobile }: { comp: Competition; isMobile: boolean }) {
   const navigate = useNavigate();
@@ -116,6 +122,11 @@ function CompetitionCard({ comp, isMobile }: { comp: Competition; isMobile: bool
   const remaining = useCountdown(comp.closes);
   const closed = comp.status === 'ended' || remaining === 'CLOSED';
   const live = comp.status === 'live' && !closed;
+
+  // Live "score to beat" + entrant count from the real leaderboard.
+  const api = GAME_TO_API[comp.game];
+  const { rows, totalPlayers } = useLeaderboardData({ api, limit: 1 });
+  const leader = rows && rows[0];
 
   return (
     <article
@@ -133,7 +144,7 @@ function CompetitionCard({ comp, isMobile }: { comp: Competition; isMobile: bool
       <div
         style={{
           position: 'relative',
-          paddingTop: '38%',
+          paddingTop: '34%',
           background: 'var(--ink-deep)',
           borderBottom: '2px solid var(--ink)',
         }}
@@ -154,12 +165,14 @@ function CompetitionCard({ comp, isMobile }: { comp: Competition; isMobile: bool
             }}
           />
         )}
-        {/* Status pill */}
         <span
           style={{
             position: 'absolute',
             top: 10,
             left: 10,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
             padding: '4px 9px',
             background: live ? 'var(--win)' : 'var(--ink)',
             color: 'var(--paper)',
@@ -170,72 +183,110 @@ function CompetitionCard({ comp, isMobile }: { comp: Competition; isMobile: bool
             textTransform: 'uppercase',
           }}
         >
-          {live ? '● Live' : 'Closed'}
-        </span>
-        {/* Prize chip */}
-        <span
-          style={{
-            position: 'absolute',
-            top: 10,
-            right: 10,
-            padding: '4px 10px',
-            background: 'var(--brass)',
-            color: 'var(--ink-deep)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 10,
-            letterSpacing: '0.16em',
-            fontWeight: 700,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
-        >
-          <SolanaPortal size={11} gradId={`comp-${comp.id}`} />
-          {comp.prize}
+          {live && (
+            <span className="blink" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--paper)' }} />
+          )}
+          {live ? 'Live' : 'Closed'}
         </span>
       </div>
 
-      {/* Body */}
-      <div style={{ padding: isMobile ? '18px 18px 20px' : '20px 22px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-          <h3
+      {/* PRIZE + COUNTDOWN — the two heroes, side by side on an ink band */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          background: 'var(--ink-deep)',
+          color: 'var(--paper)',
+          borderBottom: '2px solid var(--ink)',
+        }}
+      >
+        <div style={{ padding: isMobile ? '14px 16px' : '16px 20px', borderRight: '1px solid rgba(251,252,254,0.12)' }}>
+          <div style={heroLabel}>Prize</div>
+          <div
             style={{
-              margin: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
               fontFamily: 'var(--font-display)',
-              fontSize: 19,
-              fontWeight: 400,
-              letterSpacing: '0.01em',
-              textTransform: 'uppercase',
-              color: 'var(--ink)',
-              lineHeight: 1.1,
+              fontSize: isMobile ? 26 : 32,
+              lineHeight: 1,
+              color: 'var(--brass-glint)',
+              marginTop: 6,
             }}
           >
-            {comp.title}
-          </h3>
-          <span
+            <SolanaPortal size={isMobile ? 20 : 24} gradId={`comp-${comp.id}`} />
+            {comp.prize}
+          </div>
+        </div>
+        <div style={{ padding: isMobile ? '14px 16px' : '16px 20px' }}>
+          <div style={heroLabel}>{live ? 'Closes in' : 'Status'}</div>
+          <div
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 9,
-              letterSpacing: '0.18em',
-              color: 'var(--ink-70)',
-              fontWeight: 700,
-              textTransform: 'uppercase',
+              fontFamily: 'var(--font-display)',
+              fontSize: isMobile ? 26 : 32,
+              lineHeight: 1,
+              color: 'var(--paper)',
+              marginTop: 6,
             }}
           >
-            {live ? `Closes in ${remaining}` : 'Closed'}
-          </span>
-        </header>
+            {live ? remaining : 'Closed'}
+          </div>
+        </div>
+      </div>
 
-        <div
+      {/* Score to beat + entrants — real leaderboard data */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          padding: isMobile ? '12px 16px' : '12px 20px',
+          background: 'var(--cream)',
+          borderBottom: '1.5px solid var(--ink)',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div>
+          <div style={statLabel}>Score to beat</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 700, color: 'var(--ink)', marginTop: 3 }}>
+            {leader ? (
+              <>
+                {leader.score}{' '}
+                <span style={{ color: 'var(--ink-45)', fontWeight: 700 }}>· {leader.name}</span>
+              </>
+            ) : (
+              <span style={{ color: 'var(--ink-45)' }}>Be the first →</span>
+            )}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={statLabel}>Entrants</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 700, color: 'var(--ink)', marginTop: 3 }}>
+            {typeof totalPlayers === 'number' ? totalPlayers : '—'}
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: isMobile ? '16px 16px 18px' : '18px 20px 20px', display: 'flex', flexDirection: 'column', gap: 13 }}>
+        <h3
           style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr',
-            gap: 10,
+            margin: 0,
+            fontFamily: 'var(--font-display)',
+            fontSize: 17,
+            fontWeight: 400,
+            letterSpacing: '0.01em',
+            textTransform: 'uppercase',
+            color: 'var(--ink)',
+            lineHeight: 1.1,
           }}
         >
-          <LabelRow label="Rule"     value={comp.rule} />
-          <LabelRow label="How to enter" value={comp.howToEnter} />
-        </div>
+          {comp.title}
+        </h3>
+
+        <LabelRow label="Rule" value={comp.rule} />
+        <LabelRow label="How to enter" value={comp.howToEnter} />
 
         <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
           <button
@@ -243,31 +294,33 @@ function CompetitionCard({ comp, isMobile }: { comp: Competition; isMobile: bool
             onClick={() => navigate(comp.launchPath)}
             disabled={!live}
             style={{
-              padding: '10px 18px',
-              background: live ? 'var(--ink)' : 'var(--ink-45)',
-              color: 'var(--paper)',
+              flex: 1,
+              minWidth: 150,
+              padding: '12px 18px',
+              background: live ? 'var(--brass)' : 'var(--ink-45)',
+              color: 'var(--ink-deep)',
               border: 'none',
               fontFamily: 'var(--font-mono)',
-              fontSize: 10,
-              letterSpacing: '0.20em',
+              fontSize: 10.5,
+              letterSpacing: '0.18em',
               fontWeight: 700,
               textTransform: 'uppercase',
               cursor: live ? 'pointer' : 'not-allowed',
             }}
           >
-            Play to enter
+            ▸ Play to enter
           </button>
           <button
             type="button"
             onClick={() => navigate(comp.leaderboardPath)}
             style={{
-              padding: '10px 18px',
+              padding: '12px 18px',
               background: 'transparent',
               color: 'var(--ink)',
               border: '1.5px solid var(--ink)',
               fontFamily: 'var(--font-mono)',
-              fontSize: 10,
-              letterSpacing: '0.20em',
+              fontSize: 10.5,
+              letterSpacing: '0.18em',
               fontWeight: 700,
               textTransform: 'uppercase',
               cursor: 'pointer',
@@ -280,6 +333,24 @@ function CompetitionCard({ comp, isMobile }: { comp: Competition; isMobile: bool
     </article>
   );
 }
+
+const heroLabel = {
+  fontFamily: 'var(--font-mono)',
+  fontSize: 8.5,
+  letterSpacing: '0.22em',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  color: 'rgba(251,252,254,0.5)',
+};
+
+const statLabel = {
+  fontFamily: 'var(--font-mono)',
+  fontSize: 8,
+  letterSpacing: '0.20em',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  color: 'var(--ink-45)',
+};
 
 function LabelRow({ label, value }: { label: string; value: string }) {
   return (
@@ -324,22 +395,21 @@ function PayoutNote({ isMobile }: { isMobile: boolean }) {
         fontSize: 10,
         letterSpacing: '0.06em',
         color: 'var(--ink-70)',
-        lineHeight: 1.55,
+        lineHeight: 1.6,
       }}
     >
       <strong style={{ color: 'var(--ink)', letterSpacing: '0.16em' }}>Payouts:</strong>{' '}
-      prize SOL is paid to the wallet linked to your account within 48
-      hours of close. Funded from the SolShot operations vault. One
-      winner per competition (the high-score holder at close); ties
-      broken by earliest submission timestamp.
+      the prize is paid to the wallet linked to your account within 48
+      hours of close. One winner per competition — the top-score holder
+      when the clock hits zero; ties broken by earliest submission.{' '}
+      <Link to="/terms" style={{ color: 'var(--blue)', textDecoration: 'none', fontWeight: 700 }}>
+        Full terms ↗
+      </Link>
     </div>
   );
 }
 
-/* ============================================================
-   Live countdown — refreshes every second. Returns "2d 4h",
-   "13h 22m", "47m", or "CLOSED" when past `closes`.
-   ============================================================ */
+/* Live countdown — "2d 4h" / "13h 22m" / "47m" / "CLOSED". */
 function useCountdown(iso: string): string {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {

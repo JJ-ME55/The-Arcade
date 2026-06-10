@@ -47,14 +47,12 @@ function colorFor(name: string): string {
   return palette[hash % palette.length];
 }
 
-/** Estimate a prize SOL amount per rank — placeholder ladder, brass-deep
- *  tiered. Real prize structure ships once the server supports it. */
-function estimatePrize(rank: number): string {
-  if (rank === 1) return '0.36 SOL';
-  if (rank === 2) return '0.22 SOL';
-  if (rank === 3) return '0.14 SOL';
-  if (rank <= 10) return '0.05 SOL';
-  if (rank <= 50) return '0.02 SOL';
+/** Per-rank prize. There is NO per-rank prize ladder — the only real
+ *  prize is the single 1 SOL competition (top score, paid once). The old
+ *  version fabricated "0.36 SOL / 0.22 SOL…" per rank and rendered it
+ *  next to real player names, implying payouts that don't exist. Honest
+ *  default is '—'; wire real values here if/when a prize ledger ships. */
+function estimatePrize(_rank: number): string {
   return '—';
 }
 
@@ -135,7 +133,13 @@ export function useLeaderboardData({
         ? `&since=${encodeURIComponent(new Date(Date.now() - windowMs).toISOString())}`
         : '';
 
-    fetch(`${API_BASE}${path}?limit=${limit}${sinceParam}`)
+    // Render (free tier) can cold-start for 30-60s. Without a timeout the
+    // UI hangs on "Loading standings" indefinitely. Abort at 15s and
+    // surface an honest error so the caller can show a retry/empty state.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    fetch(`${API_BASE}${path}?limit=${limit}${sinceParam}`, { signal: controller.signal })
       .then((r) => r.json() as Promise<ServerResponse>)
       .then((data) => {
         if (cancelled) return;
@@ -188,15 +192,19 @@ export function useLeaderboardData({
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err?.message || 'network_error');
+        // AbortError = our 15s timeout fired (cold start / dead server).
+        setError(err?.name === 'AbortError' ? 'timeout' : err?.message || 'network_error');
         setRows(null);
       })
       .finally(() => {
+        clearTimeout(timeoutId);
         if (!cancelled) setLoading(false);
       });
 
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
+      controller.abort();
     };
   }, [api, timeWindow, myName, limit, canFetch]);
 
