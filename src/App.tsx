@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { CabinetLanding } from '@/routes/CabinetLanding';
 import { Dashboard } from '@/routes/Dashboard';
@@ -14,24 +15,55 @@ import { Status } from '@/routes/Status';
 import { RequireAuth } from '@/routes/RequireAuth';
 import { AppShell } from '@/components/chrome/AppShell';
 import { GameDetail } from '@/routes/games/GameDetail';
-import { KeepieUppies } from '@/routes/games/KeepieUppies';
-import { Basketball } from '@/routes/games/Basketball';
-import { FreeKicks } from '@/routes/games/FreeKicks';
-import { CritterKart } from '@/routes/games/CritterKart';
-import { Shootout } from '@/routes/games/Shootout';
-// Pool (legacy chromeless iframe wrapper) replaced by MatchHUD below.
-import { PoolLobby } from '@/routes/games/pool/Lobby';
-import { MatchHUD } from '@/routes/games/pool/MatchHUD';
-import { Marathon } from '@/routes/games/pool/Marathon';
-import { MarathonRun } from '@/routes/games/pool/MarathonRun';
-import { Tournament } from '@/routes/games/pool/Tournament';
-import { Wager } from '@/routes/games/pool/Wager';
-import { Async as PoolAsync } from '@/routes/games/pool/Async';
-import { Settings as PoolSettings } from '@/routes/games/pool/Settings';
-import { Splash as PoolSplash } from '@/routes/games/pool/Splash';
+
+// Game-engine routes are lazy-loaded. Each pulls in a heavy runtime —
+// Phaser (basketball, keepie-uppies), Three.js (free-kicks, critter-kart,
+// shootout), socket.io — that a visitor browsing the floor never needs.
+// Before this they were static imports bundled into the single 3.4 MB
+// entry chunk; now each engine ships only when its /launch route is hit.
+const KeepieUppies = lazy(() => import('@/routes/games/KeepieUppies').then((m) => ({ default: m.KeepieUppies })));
+const Basketball = lazy(() => import('@/routes/games/Basketball').then((m) => ({ default: m.Basketball })));
+const FreeKicks = lazy(() => import('@/routes/games/FreeKicks').then((m) => ({ default: m.FreeKicks })));
+const CritterKart = lazy(() => import('@/routes/games/CritterKart').then((m) => ({ default: m.CritterKart })));
+const Shootout = lazy(() => import('@/routes/games/Shootout').then((m) => ({ default: m.Shootout })));
+// Pool screens (designer JSX + pool canvas) — also lazy.
+const PoolLobby = lazy(() => import('@/routes/games/pool/Lobby').then((m) => ({ default: m.PoolLobby })));
+const MatchHUD = lazy(() => import('@/routes/games/pool/MatchHUD').then((m) => ({ default: m.MatchHUD })));
+const Marathon = lazy(() => import('@/routes/games/pool/Marathon').then((m) => ({ default: m.Marathon })));
+const MarathonRun = lazy(() => import('@/routes/games/pool/MarathonRun').then((m) => ({ default: m.MarathonRun })));
+const Tournament = lazy(() => import('@/routes/games/pool/Tournament').then((m) => ({ default: m.Tournament })));
+const Wager = lazy(() => import('@/routes/games/pool/Wager').then((m) => ({ default: m.Wager })));
+const PoolAsync = lazy(() => import('@/routes/games/pool/Async').then((m) => ({ default: m.Async })));
+const PoolSettings = lazy(() => import('@/routes/games/pool/Settings').then((m) => ({ default: m.Settings })));
+const PoolSplash = lazy(() => import('@/routes/games/pool/Splash').then((m) => ({ default: m.Splash })));
+
+/** Full-screen brand loading state while a game chunk streams in. */
+function GameLoading() {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'var(--bg)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: 'var(--font-mono)',
+        fontSize: 11,
+        letterSpacing: '0.28em',
+        textTransform: 'uppercase',
+        fontWeight: 700,
+        color: 'var(--ink-45)',
+      }}
+    >
+      · Loading cabinet ·
+    </div>
+  );
+}
 
 export function App() {
   return (
+    <Suspense fallback={<GameLoading />}>
     <Routes>
       {/* Pre-auth — cabinet landing, no chrome */}
       <Route path="/" element={<CabinetLanding />} />
@@ -108,5 +140,6 @@ export function App() {
           Surface broken links honestly + give a path back. */}
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
   );
 }
