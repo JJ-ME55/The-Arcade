@@ -105,13 +105,18 @@ function createRealClient(): NetClient {
     // surfaced via getLatestSnapshot() so GameCanvas's rAF tick can pull
     // remote-kart state without subscribing through the listener map.
     let latestSnapshot: RaceSnapshot | null = null;
-    // Snapshot history for interpolation — track the second-most-recent
-    // alongside latest, with arrival wall-clock timestamps, so we can
-    // lerp kart positions smoothly between them. Without this, remote
-    // karts visibly teleport every 33ms at 30Hz snapshot rate.
-    let prevSnap: RaceSnapshot | null = null;
-    let prevSnapAt = 0;
-    let curSnapAt = 0;
+    // Snapshot ring buffer for interpolation. The previous design tracked
+    // only prevSnap + latestSnapshot, but with a 100ms render-delay and
+    // snapshots arriving at 30Hz (~33ms apart), `renderTime` was almost
+    // always OLDER than prevSnapAt → the lerp `t` clamped to 0, so karts
+    // rendered exactly at prevSnap's position and "stepped" every 33ms
+    // instead of lerping. That's the "jumpy / not clean" JJ reported
+    // 2026-06-09. Fix: keep ~1s of snapshot history and pick the two
+    // entries that BRACKET the renderTime — canonical Glenn Fiedler /
+    // Source-engine snapshot interpolation.
+    const SNAP_BUFFER_MS = 1000;
+    type SnapEntry = { snap: RaceSnapshot; at: number };
+    const snapBuffer: SnapEntry[] = [];
     // Server's locked race-start wall-clock. Updated when
     // `race:countdownLocked` arrives — that's AFTER all humans have
     // emitted critterkart:ready (or after the 15s fallback fires on
@@ -197,10 +202,15 @@ function createRealClient(): NetClient {
         for (const ev of proxyEvents) {
             socket.on(ev as string, (payload: any) => {
                 if (ev === ('race:snapshot' as ServerEventKey)) {
-                    prevSnap = latestSnapshot;
-                    prevSnapAt = curSnapAt;
                     latestSnapshot = payload as RaceSnapshot;
-                    curSnapAt = Date.now();
+                    const now = Date.now();
+                    snapBuffer.push({ snap: payload as RaceSnapshot, at: now });
+                    // Trim entries older than SNAP_BUFFER_MS so we don't
+                    // grow unbounded over a 5-minute race.
+                    const cutoff = now - SNAP_BUFFER_MS;
+                    while (snapBuffer.length > 0 && snapBuffer[0].at < cutoff) {
+                        snapBuffer.shift();
+                    }
                 }
                 // Capture the all-clients-ready locked startAtMs so
                 // GameCanvas's elapsed anchors to the same wall-clock
@@ -249,35 +259,83 @@ function createRealClient(): NetClient {
             return raceStartAtMs;
         },
         getInterpolatedKart(kartId: string, interpDelayMs: number = 100) {
-            // Two-snapshot lerp (canonical Glenn Fiedler / Source-engine
-            // pattern). We aim to render INTERP_DELAY_MS behind real-time
-            // so we always have a "future" snapshot to lerp toward — no
-            // extrapolation, no overshoot.
+            // Snapshot-buffered interpolation (Glenn Fiedler pattern).
+            // Render renderTime = now - interpDelayMs and pick the two
+            // buffered snapshots that bracket it: kart position lerps
+            // smoothly between them. At 30Hz snapshots + 100ms delay we
+            // typically have ~3 snapshots of buffer on the "past" side
+            // and 0 on the "future" side, so jitter is absorbed and the
+            // motion stays glassy.
             //
-            // Edge cases:
-            //   - No snapshots → null
-            //   - Only one snapshot → return its kart as-is
-            //   - dt <= 0 (simultaneous arrival, shouldn't happen) → use latest
-            //   - kartId missing in either → fallback to the one with it
-            if (!latestSnapshot) return null;
+            // Previous design tracked only prevSnap+latest (2 entries),
+            // which gave only one snapshot-period of bracket coverage.
+            // With 100ms delay, renderTime fell BEFORE prevSnapAt almost
+            // always → t clamped to 0 → karts visibly stepped instead of
+            // lerping. JJ 2026-06-09 "jumpy / not clean" report.
+            //
+            // Edge cases handled below:
+            //   - No buffered snapshots → null
+            //   - renderTime older than oldest sample → use oldest
+            //     (race just started, only one snapshot received)
+            //   - renderTime newer than newest sample → extrapolate the
+            //     last pair, capped at 1.5x to mask brief packet loss
+            //     without launching the kart into orbit
+            //   - kartId missing in one of the pair → fall back to the
+            //     side that has it
+            if (snapBuffer.length === 0) return null;
+
             const findKart = (s: RaceSnapshot | null) =>
                 s?.karts.find((k: any) => k.kartId === kartId) ?? null;
-            if (!prevSnap) return findKart(latestSnapshot);
-            const dt = curSnapAt - prevSnapAt;
-            if (dt <= 0) return findKart(latestSnapshot);
+
             const renderTime = Date.now() - interpDelayMs;
-            // t = 0 → use prev, t = 1 → use cur. Allow slight extrapolation
-            // (up to +50%) to mask brief packet loss without flying off
-            // into space if a snapshot drops entirely.
-            const t = Math.max(0, Math.min(1.5, (renderTime - prevSnapAt) / dt));
-            const ka: any = findKart(prevSnap);
-            const kb: any = findKart(latestSnapshot);
+
+            // Find leftIdx = largest i with snapBuffer[i].at <= renderTime.
+            // Walk from newest backward — typical case it's the second-to-last.
+            let leftIdx = -1;
+            for (let i = snapBuffer.length - 1; i >= 0; i--) {
+                if (snapBuffer[i].at <= renderTime) { leftIdx = i; break; }
+            }
+
+            if (leftIdx < 0) {
+                // renderTime older than every buffered sample (race just
+                // started — only one snapshot in buffer, or interpDelayMs
+                // is larger than the buffer span). Show oldest.
+                return findKart(snapBuffer[0].snap);
+            }
+
+            // Pick the bracket pair. If leftIdx is the very last entry,
+            // there's no "future" sample — extrapolate against the
+            // previous pair so the kart keeps moving while we wait for
+            // the next snapshot to land.
+            const isLast = leftIdx === snapBuffer.length - 1;
+            const ai = isLast ? Math.max(0, leftIdx - 1) : leftIdx;
+            const bi = isLast ? leftIdx : leftIdx + 1;
+
+            if (ai === bi) {
+                // Only one snapshot in buffer.
+                return findKart(snapBuffer[ai].snap);
+            }
+
+            const aEntry = snapBuffer[ai];
+            const bEntry = snapBuffer[bi];
+            const dt = bEntry.at - aEntry.at;
+            if (dt <= 0) return findKart(bEntry.snap);
+
+            // Allow extrapolation up to 1.5x past `b` (one extra snap
+            // interval) to bridge a single missing packet; cap so a
+            // long drop doesn't propel the kart off the track.
+            const t = Math.max(0, Math.min(1.5, (renderTime - aEntry.at) / dt));
+
+            const ka: any = findKart(aEntry.snap);
+            const kb: any = findKart(bEntry.snap);
             if (!ka || !kb) return kb || ka || null;
-            // Heading lerp — handle 2π wrap so karts don't spin the
-            // long way around when crossing the discontinuity.
+
+            // Heading lerp — handle 2π wrap so karts don't spin the long
+            // way around when crossing the discontinuity.
             let dh = kb.heading - ka.heading;
             while (dh > Math.PI) dh -= 2 * Math.PI;
             while (dh < -Math.PI) dh += 2 * Math.PI;
+
             return {
                 ...kb,
                 x: ka.x + (kb.x - ka.x) * t,
