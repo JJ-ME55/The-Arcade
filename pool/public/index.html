@@ -58,6 +58,9 @@
                 window.__SIDE_POCKET_SET_SPIN = function(x, y){
                     window.__SIDE_POCKET_BUFFER.push(['spin', x, y]);
                 };
+                window.__SIDE_POCKET_TIMEOUT = function(){
+                    window.__SIDE_POCKET_BUFFER.push(['timeout']);
+                };
             }
         })();
     </script>

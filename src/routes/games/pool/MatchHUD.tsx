@@ -77,6 +77,27 @@ export function MatchHUD() {
     const [banner, setBanner] = useState<string | null>(null);
     const [wins, setWins] = useState<[number, number]>([0, 0]);
 
+    // Shot clock — Miniclip-style per-turn countdown. The deadline lives
+    // in a ref (mutated from the message handler), and a rAF loop renders
+    // the remaining seconds + fires the iframe timeout handler at zero.
+    const TURN_SECONDS = 30;
+    const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+    const deadlineRef = useRef<number | null>(null);
+    const timedOutRef = useRef(false);
+
+    // Spin reset signal — bumped on each turn/shot so the spin widget
+    // recentres its impact dot (a fresh shot starts at dead-centre).
+    const [spinReset, setSpinReset] = useState(0);
+
+    const startShotClock = () => {
+        deadlineRef.current = performance.now() + TURN_SECONDS * 1000;
+        timedOutRef.current = false;
+    };
+    const stopShotClock = () => {
+        deadlineRef.current = null;
+        setSecondsLeft(null);
+    };
+
     useEffect(() => {
         let bannerTimer: number | undefined;
         const flashBanner = (text: string, ms: number) => {
@@ -107,19 +128,32 @@ export function MatchHUD() {
                     flashBanner(p0 === 'stripes' ? "You're Stripes" : "You're Solids", 2400);
                     break;
                 }
-                case 'turn':
-                    setCurrent(d.current as number);
+                case 'turn': {
+                    const cur = d.current as number;
+                    setCurrent(cur);
+                    setSpinReset(n => n + 1);
+                    // Shot clock runs only on the human's turn (player 0).
+                    if (cur === 0) startShotClock();
+                    else stopShotClock();
+                    break;
+                }
+                case 'shot':
+                    // Human took the shot — stop the clock + recentre spin.
+                    stopShotClock();
+                    setSpinReset(n => n + 1);
                     break;
                 case 'gameover': {
                     const w = d.winner as number;
                     setWins(prev => (w === 0 ? [prev[0] + 1, prev[1]] : [prev[0], prev[1] + 1]));
                     flashBanner(w === 0 ? 'You win the rack!' : 'Velvet Q takes the rack', 2600);
+                    stopShotClock();
                     break;
                 }
                 case 'reset':
                     setGroups({ p0: null, p1: null });
                     setPottedIds([]);
                     setCurrent(0);
+                    stopShotClock();
                     break;
             }
         };
@@ -128,6 +162,30 @@ export function MatchHUD() {
             window.removeEventListener('message', onMsg);
             window.clearTimeout(bannerTimer);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Shot-clock rAF loop — renders remaining seconds and forfeits the
+    // turn (via the iframe's __SIDE_POCKET_TIMEOUT) when it hits zero.
+    useEffect(() => {
+        let raf = 0;
+        const tick = () => {
+            const dl = deadlineRef.current;
+            if (dl !== null) {
+                const ms = dl - performance.now();
+                const s = Math.max(0, Math.ceil(ms / 1000));
+                setSecondsLeft(prev => (prev === s ? prev : s));
+                if (ms <= 0 && !timedOutRef.current) {
+                    timedOutRef.current = true;
+                    deadlineRef.current = null;
+                    const win = iframeRef.current?.contentWindow as { __SIDE_POCKET_TIMEOUT?: () => void } | null;
+                    win?.__SIDE_POCKET_TIMEOUT?.();
+                }
+            }
+            raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
     }, []);
 
     // Stash arcade-bot session JWT (parent-side). The iframe also reads
@@ -179,13 +237,10 @@ export function MatchHUD() {
                     <span className="sc">{wins[0]}</span>
                 </div>
 
-                {/* Middle — room name / timer / turn indicator */}
+                {/* Middle — room name / shot clock / turn indicator */}
                 <div className="spg-mid">
                     <span className="room">The Velvet Room · Ranked · Best of 3</span>
-                    <div className="tm">
-                        <span className="ring2" />
-                        <span className="t">0:42</span>
-                    </div>
+                    <ShotClock seconds={secondsLeft} total={TURN_SECONDS} active={you} />
                     <span className="turn">{you ? 'Your Shot' : "Opponent's Turn"}</span>
                 </div>
 
@@ -222,13 +277,10 @@ export function MatchHUD() {
                         allow="fullscreen"
                         className="spg-iframe"
                     />
+                    {/* Spin widget — cue-ball impact-point picker, only on
+                        the human's turn. Drives __SIDE_POCKET_SET_SPIN. */}
+                    {you && <SpinWidget iframeRef={iframeRef} resetSignal={spinReset} />}
                 </div>
-                {/* Spin widget removed from here in Phase B_pool_v5 — it
-                    was a static decoration overlapping the iframe and
-                    competing with the iframe's real spin widget (now
-                    hidden via hud=parent). A working React spin widget
-                    that drives __SIDE_POCKET_SET_SPIN can return as a
-                    separate slice. */}
             </main>
 
             {/* ============= ACTION SHELF — power + shoot ============= */}
@@ -372,6 +424,120 @@ function PowerBar({ iframeRef }: { iframeRef: React.RefObject<HTMLIFrameElement>
                 <span className="mark" style={{ left: pct + '%' }} />
             </div>
             <span className="pct">{Math.round(pct)}%</span>
+        </div>
+    );
+}
+
+/**
+ * Shot clock — SVG depletion ring + mm:ss readout. `seconds` is the live
+ * remaining count (null when idle), `total` the full turn budget, and
+ * `active` whether it's the human's turn (greyed otherwise). Goes
+ * urgent (red + pulse) under 6s.
+ */
+function ShotClock({ seconds, total, active }: { seconds: number | null; total: number; active: boolean }) {
+    const R = 13;
+    const C = 2 * Math.PI * R;
+    const frac = seconds !== null ? Math.max(0, Math.min(1, seconds / total)) : 1;
+    const urgent = active && seconds !== null && seconds <= 6;
+    const label = seconds !== null ? `0:${String(seconds).padStart(2, '0')}` : '0:00';
+    return (
+        <div className={'tm' + (urgent ? ' urgent' : '') + (active ? '' : ' idle')}>
+            <svg className="tmring" viewBox="0 0 32 32" width="32" height="32" aria-hidden>
+                <circle cx="16" cy="16" r={R} className="tmtrack" />
+                <circle
+                    cx="16" cy="16" r={R} className="tmprog"
+                    strokeDasharray={C}
+                    strokeDashoffset={C * (1 - frac)}
+                    transform="rotate(-90 16 16)"
+                />
+            </svg>
+            <span className="t">{label}</span>
+        </div>
+    );
+}
+
+/**
+ * Spin widget — cue-ball impact-point picker (Miniclip "English"
+ * control). A small cue-ball button at the board's top-right; tap to
+ * open a larger ball face with a draggable red impact dot. The dot's
+ * normalised offset drives __SIDE_POCKET_SET_SPIN(x, y):
+ *   x = +right / −left   (side english)
+ *   y = +top  / −bottom  → topspin (follow) / backspin (draw)
+ * Screen-up is topspin, so y = −(dragY / radius). Recentres whenever
+ * `resetSignal` changes (each turn/shot starts at dead-centre).
+ */
+function SpinWidget({ iframeRef, resetSignal }: { iframeRef: React.RefObject<HTMLIFrameElement>; resetSignal: number }) {
+    const [open, setOpen] = useState(false);
+    const [pt, setPt] = useState<{ x: number; y: number }>({ x: 0, y: 0 });  // normalised −1..1
+    const padRef = useRef<HTMLDivElement | null>(null);
+
+    const sendSpin = (x: number, y: number) => {
+        const win = iframeRef.current?.contentWindow as { __SIDE_POCKET_SET_SPIN?: (x: number, y: number) => void } | null;
+        win?.__SIDE_POCKET_SET_SPIN?.(x, y);
+    };
+
+    // Recentre on each new turn / shot.
+    useEffect(() => {
+        setPt({ x: 0, y: 0 });
+        sendSpin(0, 0);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [resetSignal]);
+
+    const setFromClient = (clientX: number, clientY: number) => {
+        const el = padRef.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const r = rect.width / 2;
+        let dx = (clientX - (rect.left + r)) / r;
+        let dy = (clientY - (rect.top + r)) / r;
+        // Clamp into the unit disc so the dot stays on the ball face.
+        const len = Math.hypot(dx, dy);
+        if (len > 1) { dx /= len; dy /= len; }
+        setPt({ x: dx, y: dy });
+        sendSpin(dx, -dy);  // screen-up → topspin (+y)
+    };
+
+    useEffect(() => {
+        const el = padRef.current;
+        if (!el || !open) return;
+        let dragging = false;
+        const down = (e: PointerEvent) => {
+            dragging = true;
+            setFromClient(e.clientX, e.clientY);
+            (e.target as Element)?.setPointerCapture?.(e.pointerId);
+        };
+        const move = (e: PointerEvent) => { if (dragging) setFromClient(e.clientX, e.clientY); };
+        const up = () => { dragging = false; };
+        el.addEventListener('pointerdown', down);
+        document.addEventListener('pointermove', move);
+        document.addEventListener('pointerup', up);
+        document.addEventListener('pointercancel', up);
+        return () => {
+            el.removeEventListener('pointerdown', down);
+            document.removeEventListener('pointermove', move);
+            document.removeEventListener('pointerup', up);
+            document.removeEventListener('pointercancel', up);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
+
+    const hasSpin = Math.hypot(pt.x, pt.y) > 0.03;
+
+    return (
+        <div className={'spg-spin' + (open ? ' open' : '')}>
+            <button
+                className={'spin-toggle' + (hasSpin ? ' lit' : '')}
+                title="Spin / English"
+                onClick={() => setOpen(o => !o)}
+            >
+                <span className="spin-mini" style={{ left: `calc(50% + ${pt.x * 38}%)`, top: `calc(50% + ${pt.y * 38}%)` }} />
+            </button>
+            {open && (
+                <div className="spin-pad" ref={padRef}>
+                    <span className="spin-cross" />
+                    <span className="spin-dot" style={{ left: `calc(50% + ${pt.x * 50}%)`, top: `calc(50% + ${pt.y * 50}%)` }} />
+                </div>
+            )}
         </div>
     );
 }

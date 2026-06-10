@@ -145,6 +145,9 @@ export class Game {
             (window as any).__SIDE_POCKET_SET_SPIN = (x: number, y: number) => {
                 this._poolGame?.setSpinFromHud(x, y);
             };
+            (window as any).__SIDE_POCKET_TIMEOUT = () => {
+                this._poolGame?.forfeitTurn();
+            };
             // Debug probe — expose internal state so playtest can diagnose
             // why force_shoot does nothing. JJ 2026-06: "yet to see a ball
             // moving since the gap analysis." This lets a Claude_in_Chrome
@@ -184,6 +187,11 @@ export class Game {
             }
             if (lastPower !== null) this._poolGame.setStickPowerFromHud(lastPower);
             if (lastSpin !== null) this._poolGame.setSpinFromHud(lastSpin[0], lastSpin[1]);
+
+            // Announce the opening turn now that the table is live, so the
+            // React shot clock starts against an interactive game (not at
+            // React mount, which races the asset load).
+            this._poolGame.announceInitialTurn();
         } else {
             this._menu.active = true;
             this._poolGame = new GameWorld();

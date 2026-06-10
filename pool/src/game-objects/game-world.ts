@@ -623,6 +623,32 @@ export class GameWorld {
         SpinHud.setFromExternal(cx, cy);
     }
 
+    /**
+     * Shot-clock timeout from the React HUD. Treated as a foul forfeit:
+     * the human's cue is hidden, and the normal post-shot path in
+     * update() (which runs when !ballsMoving && !stick.visible) then
+     * concludes the turn — with no ball contact the referee marks it a
+     * foul and the opponent gets ball-in-hand, exactly like Miniclip.
+     * Guarded so it only ever forfeits the human's own aiming turn.
+     */
+    public forfeitTurn(): void {
+        if (!AI.finishedSession) return;        // not during the AI's turn/training
+        if (this.isBallsMoving) return;          // can't forfeit mid-shot
+        if (this._currentPlayerIndex !== 0) return;  // only the human auto-forfeits
+        if (!this._stick.visible) return;        // only while actually aiming
+        this._stick.hide();
+    }
+
+    /**
+     * Emit the opening turn to the React HUD once the match is live, so
+     * the shot clock starts the moment the table is interactive (not at
+     * React mount, which races the iframe's asset load). Called from
+     * game.ts after initMatch in the parent-HUD path.
+     */
+    public announceInitialTurn(): void {
+        this.postMatch({ kind: 'turn', current: this._currentPlayerIndex, ballInHand: false });
+    }
+
     public shootCueBall(power: number, rotation: number, spinX?: number, spinY?: number): void {
         if(power > 0) {
             this._stick.rotation = rotation;
@@ -637,6 +663,14 @@ export class GameWorld {
             SpinHud.reset();
             this._stick.movable = false;
             setTimeout(() => this._stick.hide(), GameConfig.timeoutToHideStickAfterShot);
+            // Tell the React HUD a real (human) shot was taken so it can
+            // stop the shot clock and reset the spin dot. AI.finishedSession
+            // is true only on the human's live turn — during AI training
+            // and the AI's own playTurn it's false, so this fires for the
+            // human shot only.
+            if (AI.finishedSession) {
+                this.postMatch({ kind: 'shot' });
+            }
         }
     }
 

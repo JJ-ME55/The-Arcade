@@ -171,19 +171,36 @@
     align-items: center;
     gap: 10px;
 }
-.spg-mid .tm .ring2 {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: conic-gradient(var(--c-brass) 0 280deg, rgba(255, 255, 255, 0.12) 0);
-    -webkit-mask: radial-gradient(circle, transparent 7px, #000 8px);
-    mask: radial-gradient(circle, transparent 7px, #000 8px);
+/* Shot-clock depletion ring (SVG). track = faint full circle, prog =
+   brass arc shrinking as the clock runs down. */
+.spg-mid .tm .tmring { display: block; }
+.spg-mid .tm .tmtrack {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.12);
+    stroke-width: 3;
+}
+.spg-mid .tm .tmprog {
+    fill: none;
+    stroke: var(--c-brass);
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.25s linear, stroke 0.2s ease;
+}
+.spg-mid .tm.idle { opacity: 0.4; }
+.spg-mid .tm.urgent .tmprog { stroke: #E2533A; }
+.spg-mid .tm.urgent .t { color: #FF6A4D; }
+.spg-mid .tm.urgent { animation: tmPulse 0.7s ease-in-out infinite; }
+@keyframes tmPulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.08); }
 }
 .spg-mid .tm .t {
     font-family: "Space Mono", monospace;
     font-weight: 700;
     font-size: 22px;
     color: var(--c-cream);
+    min-width: 44px;
+    text-align: left;
 }
 .spg-mid .turn {
     font-weight: 800;
@@ -231,45 +248,79 @@
     display: block;
 }
 
-/* Spin node — cue-ball impact picker, top-right of the playfield.
-   V1 visual only — non-interactive. The iframe's own #spinHud is the
-   real input until we wire postMessage. */
+/* Spin widget — interactive cue-ball impact picker, top-right INSIDE
+   the playfield. The toggle is a mini cue ball; tapping opens a larger
+   ball face with a draggable red impact dot. Drives the iframe's
+   __SIDE_POCKET_SET_SPIN. */
 .spg-spin {
     position: absolute;
-    z-index: 6;
-    top: 30px;
-    right: 40px;
-    width: 64px;
-    height: 64px;
+    z-index: 7;
+    top: 12px;
+    right: 12px;
+}
+.spg-spin .spin-toggle {
+    position: relative;
+    width: 46px;
+    height: 46px;
     border-radius: 50%;
     cursor: pointer;
+    padding: 0;
     background: radial-gradient(circle at 36% 30%, #ffffff, #ded8c8 68%, #aca693);
     box-shadow:
-        0 6px 14px rgba(0, 0, 0, 0.5),
-        inset 0 -5px 9px rgba(0, 0, 0, 0.22);
-    border: 2px solid rgba(7, 12, 9, 0.65);
+        0 5px 12px rgba(0, 0, 0, 0.5),
+        inset 0 -4px 8px rgba(0, 0, 0, 0.22);
+    border: 2px solid rgba(7, 12, 9, 0.55);
+    transition: box-shadow 0.15s ease;
 }
-.spg-spin .dot {
+.spg-spin .spin-toggle.lit {
+    box-shadow:
+        0 0 0 2px var(--c-brass),
+        0 5px 12px rgba(0, 0, 0, 0.5),
+        inset 0 -4px 8px rgba(0, 0, 0, 0.22);
+}
+.spg-spin .spin-mini {
     position: absolute;
-    left: 50%;
-    top: 36%;
     transform: translate(-50%, -50%);
-    width: 14px;
-    height: 14px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     background: #C6312A;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7), 0 1px 2px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.75);
 }
-.spg-spin .lab {
+/* The open impact pad — a big cue-ball face, opens below the toggle so
+   it stays inside the board (which clips overflow). */
+.spg-spin .spin-pad {
     position: absolute;
-    left: 50%;
-    bottom: -16px;
-    transform: translateX(-50%);
-    font-family: "Space Mono", monospace;
-    font-size: 8px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--c-cream-d);
+    top: 54px;
+    right: 0;
+    width: 116px;
+    height: 116px;
+    border-radius: 50%;
+    cursor: crosshair;
+    touch-action: none;
+    background: radial-gradient(circle at 38% 30%, #ffffff, #e7e1d2 66%, #b3ad99);
+    box-shadow:
+        0 10px 24px rgba(0, 0, 0, 0.6),
+        inset 0 -7px 14px rgba(0, 0, 0, 0.2);
+    border: 2px solid rgba(7, 12, 9, 0.55);
+}
+.spg-spin .spin-cross {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background:
+        linear-gradient(rgba(0,0,0,0.16), rgba(0,0,0,0.16)) center / 1px 70% no-repeat,
+        linear-gradient(rgba(0,0,0,0.16), rgba(0,0,0,0.16)) center / 70% 1px no-repeat;
+}
+.spg-spin .spin-dot {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #C6312A;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 2px 4px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
 }
 
 /* ============= ACTION SHELF ============= */
