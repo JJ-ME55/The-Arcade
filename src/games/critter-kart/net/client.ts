@@ -124,6 +124,20 @@ function createRealClient(): NetClient {
     // mpRace.startAtMs from race:start so both clients agree on the
     // race-time anchor regardless of asset-load asymmetry.
     let raceStartAtMs: number | null = null;
+    // Last critterkart:joinRace payload — kept so a RECONNECT can
+    // automatically rejoin the race room. Safari App Nap (and other
+    // background-tab suspensions) kill the websocket ~2min after the
+    // window goes idle; socket.io re-establishes the TRANSPORT when
+    // the tab wakes, but socket.io rooms are per-connection server
+    // state — without re-emitting joinRace the revived client gets no
+    // snapshots and the world looks frozen. JJ's 2026-06-10 test:
+    // race 5imikBtO35Y ran clean for ~90s, then the idle Mac Safari
+    // died ("transport close") and never recovered. Server-side,
+    // joinRace cancels the reconnect grace (kart saved if within 30s)
+    // and replays race:countdownLocked (anchor restored) — so this
+    // one re-emit makes wake-up recovery fully seamless.
+    let lastJoinRacePayload: any = null;
+    let hadConnectedOnce = false;
 
     function dispatch(type: ServerEventKey, payload: unknown): void {
         const set = listeners.get(type);
@@ -174,6 +188,18 @@ function createRealClient(): NetClient {
                 const ev = pendingEmits.shift()!;
                 socket.emit(ev.event, ev.payload);
             }
+            // RECONNECT (not first connect) while a race was active →
+            // rejoin the race room. The server cancels reconnect grace
+            // and replays race:countdownLocked, so snapshots + anchor
+            // resume immediately.
+            if (hadConnectedOnce && lastJoinRacePayload) {
+                socket.emit('critterkart:joinRace', lastJoinRacePayload);
+                console.log(
+                    '[critter-kart/diag] socket reconnected → auto re-joined race',
+                    lastJoinRacePayload?.raceId,
+                );
+            }
+            hadConnectedOnce = true;
         });
         socket.on('disconnect', () => {
             dispatch('net:error' as any, { message: 'disconnected' } as any);
@@ -219,6 +245,10 @@ function createRealClient(): NetClient {
                     raceStartAtMs = payload.startAtMs;
                     console.log('[critter-kart/diag] race:countdownLocked → startAtMs', payload.startAtMs);
                 }
+                // Race over → stop auto-rejoining it on reconnect.
+                if (ev === ('critterkart:final' as any) || ev === ('race:final' as ServerEventKey)) {
+                    lastJoinRacePayload = null;
+                }
                 dispatch(ev, payload);
             });
         }
@@ -228,6 +258,11 @@ function createRealClient(): NetClient {
         ready: () => ready,
         username: () => usernameValue,
         emit(event, payload) {
+            // Remember the joinRace payload for reconnect auto-rejoin
+            // (see lastJoinRacePayload above).
+            if ((event as string) === 'critterkart:joinRace') {
+                lastJoinRacePayload = payload;
+            }
             if (socket && socket.connected) {
                 socket.emit(event as string, payload);
             } else {
