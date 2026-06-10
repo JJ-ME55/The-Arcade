@@ -258,34 +258,57 @@ function genSpecials(scene: Phaser.Scene): void {
   g.destroy();
 }
 
-/** The mining pod — body, cockpit, drill, thrusters. ~TILE wide. */
+/** The mining pod — industrial hull, glowing visor, hazard stripe. ~TILE wide. */
 function genPod(scene: Phaser.Scene): void {
   const g = scene.make.graphics({ x: 0, y: 0 }, false);
   const W = TILE;
   const H = TILE;
   g.clear();
-  // thruster nubs
-  g.fillStyle(0x3a3f4a, 1);
-  g.fillRect(W * 0.16, H * 0.62, W * 0.12, H * 0.22);
-  g.fillRect(W * 0.72, H * 0.62, W * 0.12, H * 0.22);
-  // body
-  g.fillStyle(0xf0c63a, 1);
-  g.fillRoundedRect(W * 0.16, H * 0.18, W * 0.68, H * 0.52, 8);
-  g.fillStyle(0xffe066, 1);
-  g.fillRoundedRect(W * 0.2, H * 0.2, W * 0.6, H * 0.2, 6);
-  // body shading
-  g.fillStyle(0xb8902a, 0.6);
-  g.fillRoundedRect(W * 0.16, H * 0.52, W * 0.68, H * 0.18, 6);
-  // cockpit glass
-  g.fillStyle(0x12202e, 1);
-  g.fillCircle(W * 0.5, H * 0.36, W * 0.17);
-  g.fillStyle(0x4fd0ff, 0.9);
-  g.fillCircle(W * 0.5, H * 0.36, W * 0.13);
-  g.fillStyle(0xd6f6ff, 0.9);
-  g.fillCircle(W * 0.45, H * 0.31, W * 0.045);
+  // thruster pods (dark steel with inner vent)
+  g.fillStyle(0x2e333e, 1);
+  g.fillRoundedRect(W * 0.13, H * 0.58, W * 0.15, H * 0.26, 4);
+  g.fillRoundedRect(W * 0.72, H * 0.58, W * 0.15, H * 0.26, 4);
+  g.fillStyle(0x171a22, 1);
+  g.fillRect(W * 0.155, H * 0.76, W * 0.1, H * 0.06);
+  g.fillRect(W * 0.745, H * 0.76, W * 0.1, H * 0.06);
+  // antenna
+  g.lineStyle(2, 0x8a93a0, 1);
+  g.lineBetween(W * 0.7, H * 0.2, W * 0.78, H * 0.06);
+  g.fillStyle(0xff5a5a, 1);
+  g.fillCircle(W * 0.78, H * 0.055, 2.4);
+  // main hull — two-tone with a soft top sheen
+  g.fillStyle(0xf2c63c, 1);
+  g.fillRoundedRect(W * 0.15, H * 0.17, W * 0.7, H * 0.54, 9);
+  g.fillStyle(0xffe372, 1);
+  g.fillRoundedRect(W * 0.18, H * 0.19, W * 0.64, H * 0.16, 7);
+  g.fillStyle(0xc9982c, 1);
+  g.fillRoundedRect(W * 0.15, H * 0.5, W * 0.7, H * 0.21, { tl: 0, tr: 0, bl: 9, br: 9 });
+  // hazard chevrons on the skid plate
+  g.fillStyle(0x23262e, 1);
+  g.fillRect(W * 0.18, H * 0.585, W * 0.64, H * 0.075);
+  g.fillStyle(0xffb347, 1);
+  for (let i = 0; i < 4; i++) {
+    const x0 = W * (0.2 + i * 0.16);
+    g.fillTriangle(x0, H * 0.66, x0 + W * 0.07, H * 0.585, x0 + W * 0.14, H * 0.66);
+  }
+  // rivets
+  g.fillStyle(0xa57f22, 1);
+  g.fillCircle(W * 0.2, H * 0.23, 1.6);
+  g.fillCircle(W * 0.8, H * 0.23, 1.6);
+  g.fillCircle(W * 0.2, H * 0.46, 1.6);
+  g.fillCircle(W * 0.8, H * 0.46, 1.6);
+  // cockpit visor — dark ring, glowing core, twin glints
+  g.fillStyle(0x10171f, 1);
+  g.fillCircle(W * 0.5, H * 0.37, W * 0.185);
+  g.fillStyle(0x2ec4ff, 1);
+  g.fillCircle(W * 0.5, H * 0.37, W * 0.135);
+  g.fillStyle(0x9fe8ff, 0.85);
+  g.fillCircle(W * 0.475, H * 0.345, W * 0.05);
+  g.fillStyle(0xffffff, 0.9);
+  g.fillCircle(W * 0.455, H * 0.325, W * 0.022);
   // hull outline
-  g.lineStyle(2, 0x7a5e16, 1);
-  g.strokeRoundedRect(W * 0.16, H * 0.18, W * 0.68, H * 0.52, 8);
+  g.lineStyle(2, 0x6e5414, 1);
+  g.strokeRoundedRect(W * 0.15, H * 0.17, W * 0.7, H * 0.54, 9);
   // drill mount nub (the drill itself is a separate, orientable sprite)
   g.fillStyle(0x6b7280, 1);
   g.fillRect(W * 0.42, H * 0.66, W * 0.16, H * 0.09);
@@ -411,6 +434,113 @@ function genSky(scene: Phaser.Scene): void {
   ct.refresh();
 }
 
+/**
+ * Edge-relief masks ("ambient occlusion"). For each open-neighbour bitmask (1=top, 2=bottom,
+ * 4=left, 8=right) bake a 48px overlay: an inner shadow fading in from every open side plus
+ * a thin rim — light on top/left, dark on bottom/right (top-left key light). Laid over solid
+ * tiles that border tunnels, this gives the world carved, 3-D relief instead of flat squares.
+ */
+function genEdgeShades(scene: Phaser.Scene): void {
+  const D = 10; // shadow reach in px
+  for (let mask = 1; mask < 16; mask++) {
+    const key = `edge_${mask}`;
+    if (scene.textures.exists(key)) continue;
+    const ct = scene.textures.createCanvas(key, TILE, TILE);
+    if (!ct) continue;
+    const ctx = ct.getContext();
+    if (mask & 1) {
+      const g = ctx.createLinearGradient(0, 0, 0, D);
+      g.addColorStop(0, 'rgba(0,0,0,0.45)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, TILE, D);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillRect(0, 0, TILE, 2);
+    }
+    if (mask & 2) {
+      const g = ctx.createLinearGradient(0, TILE, 0, TILE - D);
+      g.addColorStop(0, 'rgba(0,0,0,0.5)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, TILE - D, TILE, D);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(0, TILE - 2, TILE, 2);
+    }
+    if (mask & 4) {
+      const g = ctx.createLinearGradient(0, 0, D, 0);
+      g.addColorStop(0, 'rgba(0,0,0,0.45)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, D, TILE);
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(0, 0, 2, TILE);
+    }
+    if (mask & 8) {
+      const g = ctx.createLinearGradient(TILE, 0, TILE - D, 0);
+      g.addColorStop(0, 'rgba(0,0,0,0.5)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(TILE - D, 0, D, TILE);
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(TILE - 2, 0, 2, TILE);
+    }
+    ct.refresh();
+  }
+}
+
+/** Additive thruster flame (teardrop gradient, flickered via scale at runtime). */
+function genFlame(scene: Phaser.Scene): void {
+  const key = 'flame';
+  if (scene.textures.exists(key)) return;
+  const W = 28;
+  const H = 44;
+  const ct = scene.textures.createCanvas(key, W, H);
+  if (!ct) return;
+  const ctx = ct.getContext();
+  let g = ctx.createRadialGradient(W / 2, H * 0.3, 2, W / 2, H * 0.42, H * 0.62);
+  g.addColorStop(0, 'rgba(255,240,180,0.95)');
+  g.addColorStop(0.35, 'rgba(255,160,48,0.8)');
+  g.addColorStop(0.75, 'rgba(255,80,20,0.35)');
+  g.addColorStop(1, 'rgba(255,60,10,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  g = ctx.createRadialGradient(W / 2, H * 0.26, 1, W / 2, H * 0.3, 9);
+  g.addColorStop(0, 'rgba(255,255,255,0.95)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  ct.refresh();
+}
+
+/** Tiling parallax rock layer seen through tunnels/caves — slow-scrolling depth. */
+function genCaveParallax(scene: Phaser.Scene): void {
+  const key = 'cave_bg';
+  if (scene.textures.exists(key)) return;
+  const S = 256;
+  const ct = scene.textures.createCanvas(key, S, S);
+  if (!ct) return;
+  const ctx = ct.getContext();
+  ctx.fillStyle = '#0b0b13';
+  ctx.fillRect(0, 0, S, S);
+  let s = 777;
+  const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+  // big soft boulders-in-shadow blobs (kept off the edges so the tile repeats cleanly)
+  for (let i = 0; i < 26; i++) {
+    const x = 24 + rnd() * (S - 48);
+    const y = 24 + rnd() * (S - 48);
+    const r = 8 + rnd() * 22;
+    ctx.fillStyle = rnd() > 0.5 ? 'rgba(28,28,44,0.5)' : 'rgba(6,6,12,0.6)';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.025)';
+    ctx.beginPath();
+    ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ct.refresh();
+}
+
 /** Soft radial light brush used to "erase" holes in the underground darkness overlay. */
 function genLightMask(scene: Phaser.Scene): void {
   const key = 'lightmask';
@@ -432,6 +562,9 @@ function genLightMask(scene: Phaser.Scene): void {
 export function generateAllTextures(scene: Phaser.Scene): void {
   genTiles(scene);
   genStaticTiles(scene);
+  genEdgeShades(scene);
+  genFlame(scene);
+  genCaveParallax(scene);
   genLightMask(scene);
   genOres(scene);
   genSpecials(scene);

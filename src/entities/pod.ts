@@ -41,6 +41,8 @@ export class Pod {
   sprite: Phaser.GameObjects.Image;
   private drill: Phaser.GameObjects.Image;
   private prop: Phaser.GameObjects.Image;
+  private flame: Phaser.GameObjects.Image;
+  private flameOut = 0;
   private propOut = 0;
   private animTime = 0;
   private lastDigDir: DigDir = 'down';
@@ -67,6 +69,12 @@ export class Pod {
     this.py = py;
     this.thrustForcePerHp = (PHYS.thrustAccel * PHYS.podMass) / 100;
     this.drill = scene.add.image(px, py + this.hh * 0.7, 'drill').setDepth(49);
+    this.flame = scene.add
+      .image(px, py + this.hh, 'flame')
+      .setDepth(48)
+      .setOrigin(0.5, 0.12)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setVisible(false);
     this.sprite = scene.add.image(px, py, 'pod').setDepth(50);
     this.prop = scene.add.image(px, py - this.hh, 'propellor').setDepth(51).setScale(1, 0).setVisible(false);
   }
@@ -193,6 +201,18 @@ export class Pod {
       this.prop.setPosition(Math.round(this.px), Math.round(this.py - this.hh - 2 - this.propOut * 6));
       this.prop.setScale(Math.cos(this.animTime * 48), this.propOut); // scaleX spin, scaleY pop
       this.prop.setAlpha(this.propOut);
+    }
+
+    // thruster flame — flickering additive jet under the pod while lifting
+    this.flameOut += (target - this.flameOut) * Math.min(1, dt * 16);
+    if (this.flameOut < 0.04) {
+      this.flame.setVisible(false);
+    } else {
+      const fl = 0.85 + 0.35 * Math.abs(Math.sin(this.animTime * 31)) + 0.12 * Math.sin(this.animTime * 53);
+      this.flame.setVisible(true);
+      this.flame.setPosition(Math.round(this.px), Math.round(this.py + this.hh * 0.55));
+      this.flame.setScale((0.8 + 0.2 * Math.sin(this.animTime * 47)) * this.flameOut, fl * this.flameOut * 1.25);
+      this.flame.setAlpha(Math.min(1, this.flameOut * 1.2));
     }
   }
 

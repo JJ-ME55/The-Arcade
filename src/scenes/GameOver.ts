@@ -7,12 +7,15 @@ import type { RunState, ScoreBreakdown, DeathCause } from '../core/types';
 import { App, randomSeedString } from '../core/state';
 import { submitScore, makeEntry } from '../net/leaderboard';
 import { Sound } from '../systems/audio';
+import type { GoalDef } from '../config/goals';
 
 interface GOData {
   run: RunState;
   score: ScoreBreakdown;
   cause: DeathCause;
   coresEarned: number;
+  streak?: { count: number; ticketsAwarded: number };
+  goals?: GoalDef[];
 }
 
 const HEADLINE: Record<DeathCause, [string, number]> = {
@@ -36,7 +39,7 @@ export class GameOver extends Phaser.Scene {
   }
 
   create(): void {
-    const { run, score, cause, coresEarned } = this.goData;
+    const { run, score, cause, coresEarned, streak, goals } = this.goData;
     const cx = BASE_W / 2;
     const bg = this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
     fitDesign(this, bg);
@@ -54,6 +57,12 @@ export class GameOver extends Phaser.Scene {
     if (score.total >= App.meta.bestScore && score.total > 0) {
       this.add.text(cx + 150, 158, 'NEW BEST', textStyle(13, COL.success)).setOrigin(0.5);
       Sound.jackpot();
+    } else if (score.total > 0) {
+      // "so close" — the gap to your best is the strongest one-more-run pull there is
+      const gap = App.meta.bestScore - score.total;
+      this.add
+        .text(cx, 226, `best ${App.meta.bestScore.toLocaleString()} — ${gap.toLocaleString()} short`, textStyle(12, COL.faint))
+        .setOrigin(0.5);
     }
 
     // breakdown
@@ -85,6 +94,28 @@ export class GameOver extends Phaser.Scene {
     const rankText = this.add.text(cx + 200, y + 22, 'ranking…', textStyle(18, COL.brand)).setOrigin(1, 0.5);
     y += 84;
 
+    // streak + freshly-completed goals (staggered pop-ins — the reward parade)
+    if (streak && streak.ticketsAwarded > 0) {
+      const t = this.add
+        .text(cx, y, `🔥 DAY ${streak.count} STREAK  +🎟 ${streak.ticketsAwarded}`, textStyle(17, COL.warn))
+        .setOrigin(0.5)
+        .setAlpha(0);
+      this.tweens.add({ targets: t, alpha: 1, scale: { from: 0.7, to: 1 }, delay: 500, duration: 300, ease: 'Back.out' });
+      y += 30;
+    }
+    if (goals && goals.length > 0) {
+      for (let i = 0; i < Math.min(goals.length, 3); i++) {
+        const g = goals[i];
+        const t = this.add
+          .text(cx, y, `✓ GOAL: ${g.desc}   +◈${g.cores} +🎟${g.tickets}`, textStyle(15, COL.success))
+          .setOrigin(0.5)
+          .setAlpha(0);
+        this.tweens.add({ targets: t, alpha: 1, scale: { from: 0.7, to: 1 }, delay: 750 + i * 220, duration: 300, ease: 'Back.out' });
+        Sound.milestone();
+        y += 26;
+      }
+    }
+
     // submit to leaderboard
     const entry = makeEntry(App.meta.playerName, score.total, run.depthMax, run.cashBanked, run.mode, run.seed);
     submitScore(entry).then((rank) => rankText.setText(`#${rank} ${run.mode}`));
@@ -97,6 +128,11 @@ export class GameOver extends Phaser.Scene {
     });
     new Button(this, cx - 92, BASE_H - 80, 176, 50, 'RETRY SEED', () => this.again(true), { fontSize: 16 });
     new Button(this, cx + 92, BASE_H - 80, 176, 50, 'MAIN MENU', () => this.scene.start('MainMenu'), { fontSize: 16 });
+    this.add.text(cx, BASE_H - 36, 'R — instant retry', textStyle(11, COL.faint)).setOrigin(0.5);
+
+    // zero-friction restart: R = new run, ENTER = same seed
+    this.input.keyboard?.once('keydown-R', () => this.again(false));
+    this.input.keyboard?.once('keydown-ENTER', () => this.again(true));
   }
 
   private tweenCount(text: Phaser.GameObjects.Text, to: number, dur: number): void {

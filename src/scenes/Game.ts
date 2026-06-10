@@ -5,15 +5,16 @@ import {
 import { Terrain, type DeathCause, type Tile, type ItemId } from '../core/types';
 import { App, type RunConfig, randomSeedString } from '../core/state';
 import { World } from '../world/world';
-import { TileRenderer } from '../world/tileRenderer';
+import { TileRenderer, type GlowCell } from '../world/tileRenderer';
 import { BoulderSystem } from '../world/hazards';
 import { Pod, type PodInput } from '../entities/pod';
 import { Hud } from '../ui/hud';
 import { TouchControls } from '../ui/touch';
 import { SurfaceMenu } from '../ui/shop';
 import { Fx } from '../systems/fx';
-import { Darkness } from '../systems/darkness';
+import { Darkness, type GlintPoint } from '../systems/darkness';
 import { Sound } from '../systems/audio';
+import { tickStreak, claimCompletedGoals } from '../systems/retention';
 import { createRun, addOre, cargoValue } from '../systems/run';
 import { deriveStats, type DerivedStats } from '../systems/stats';
 import { biomeAt, biomeIndexAt, BIOMES } from '../config/biomes';
@@ -64,6 +65,9 @@ export class GameScene extends Phaser.Scene {
   private commsRoot?: Phaser.GameObjects.Container;
   private outpostBtn?: Button;
   private outpostHint?: Phaser.GameObjects.Text;
+  private parallax!: Phaser.GameObjects.TileSprite;
+  private glowBuf: GlowCell[] = [];
+  private glintBuf: GlintPoint[] = [];
 
   constructor() {
     super('Game');
@@ -100,6 +104,14 @@ export class GameScene extends Phaser.Scene {
     this.bgImgs = order.map((k, i) =>
       this.add.image(0, 0, k).setOrigin(0).setDisplaySize(this.scale.width, this.scale.height).setScrollFactor(0).setDepth(-100).setAlpha(i === 0 ? 1 : 0),
     );
+
+    // slow parallax rock layer seen through tunnels — spatial depth underground
+    this.parallax = this.add
+      .tileSprite(0, 0, this.scale.width, this.scale.height, 'cave_bg')
+      .setOrigin(0)
+      .setScrollFactor(0)
+      .setDepth(-50)
+      .setAlpha(0);
 
     this.tiles = new TileRenderer(this, this.world);
     this.drawSurface();
@@ -337,6 +349,7 @@ export class GameScene extends Phaser.Scene {
     // hit-stop: brief freeze on big impacts for weight (render only, no sim)
     if (time < this.hitStopUntil) {
       this.tiles.update();
+      this.updateDarkness(dt);
       this.touch.draw();
       return;
     }
@@ -344,6 +357,12 @@ export class GameScene extends Phaser.Scene {
     this.run.elapsedMs += delta;
     const input = this.gatherInput();
     const status = this.pod.update(dt, input);
+
+    // dynamic look-ahead: bias the view toward where you're going — down while digging
+    // or falling, up while flying. (Positive followOffset.y shifts the view up.)
+    const offTarget = status.digDir === 'down' || this.pod.vy > 150 ? -120 : this.pod.vy < -120 ? 56 : -16;
+    const cam0 = this.cameras.main;
+    cam0.followOffset.y += (offTarget - cam0.followOffset.y) * Math.min(1, dt * 2.2);
 
     // fuel drain
     let burn = FUEL.idleDrainPerSec;
@@ -390,12 +409,13 @@ export class GameScene extends Phaser.Scene {
     });
     this.refreshItemBar();
 
-    // underground darkness + pod lamp (lamp widens with the Scanner upgrade)
+    // parallax drift + fade-in below the surface
     const cam = this.cameras.main;
-    const darkAmt = Phaser.Math.Clamp((depth - 25) / 1150, 0, 0.92);
-    const lightR = (4.4 + this.stats.scannerRange * 0.7) * TILE;
-    this.darkness.update(darkAmt, this.pod.px - cam.scrollX, this.pod.py - cam.scrollY, lightR, dt);
+    this.parallax.tilePositionX = cam.scrollX * 0.45;
+    this.parallax.tilePositionY = cam.scrollY * 0.45;
+    this.parallax.setAlpha(Phaser.Math.Clamp((depth - 2) / 50, 0, 0.85));
 
+    this.updateDarkness(dt);
     this.touch.draw();
 
     // death checks
@@ -787,6 +807,40 @@ export class GameScene extends Phaser.Scene {
     this.hitStopUntil = Math.max(this.hitStopUntil, this.time.now + ms);
   }
 
+  /** Darkness + pod lamp + headlight + treasure glints (lamp widens with the Scanner). */
+  private updateDarkness(dt: number): void {
+    const cam = this.cameras.main;
+    const depth = this.world.depthMeters(Math.floor(this.pod.py / TILE));
+    const darkAmt = Phaser.Math.Clamp((depth - 25) / 1150, 0, 0.92);
+    const lightR = (4.4 + this.stats.scannerRange * 0.7) * TILE;
+    this.glintBuf.length = 0;
+    if (darkAmt > 0.02) {
+      this.tiles.getGlowCells(this.glowBuf);
+      const litR2 = lightR * 0.85 * (lightR * 0.85); // already inside the lamp → no glint needed
+      for (const g of this.glowBuf) {
+        if (this.glintBuf.length >= 80) break;
+        const dx = g.wx - this.pod.px;
+        const dy = g.wy - this.pod.py;
+        if (dx * dx + dy * dy < litR2) continue;
+        this.glintBuf.push({
+          sx: g.wx - cam.scrollX,
+          sy: g.wy - cam.scrollY,
+          kind: g.kind,
+          phase: g.wx * 0.013 + g.wy * 0.029,
+        });
+      }
+    }
+    this.darkness.update(
+      darkAmt,
+      this.pod.px - cam.scrollX,
+      this.pod.py - cam.scrollY,
+      lightR,
+      dt,
+      this.pod.facing,
+      this.glintBuf,
+    );
+  }
+
   private updateBackground(dt: number): void {
     const depth = this.world.depthMeters(Math.floor(this.pod.py / TILE));
     const active = depth <= 0 ? 0 : biomeIndexAt(depth) + 1;
@@ -934,13 +988,27 @@ export class GameScene extends Phaser.Scene {
     const coresEarned =
       Math.floor(score.total / 50000) + Math.floor(this.run.depthMax / 400);
     m.cores += coresEarned;
+
+    // comeback systems: daily streak (real runs only) + auto-claim completed goals
+    const streak =
+      this.run.depthMax >= 10 ? tickStreak() : { count: m.streak.count, ticketsAwarded: 0 };
+    const goals = claimCompletedGoals();
     App.saveNow();
 
     this.pauseRoot?.destroy(true);
+    // Phaser ignores fadeOut while another fade is mid-flight (e.g. the spawn fadeIn on an
+    // instant death) and the completion event never fires — reset first, and keep a failsafe
+    // timer so the death screen can never soft-lock.
+    let started = false;
+    const go = () => {
+      if (started) return;
+      started = true;
+      this.scene.start('GameOver', { run: this.run, score, cause, coresEarned, streak, goals });
+    };
+    this.cameras.main.fadeEffect.reset();
     this.cameras.main.fadeOut(400, 0, 0, 0);
-    this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('GameOver', { run: this.run, score, cause, coresEarned });
-    });
+    this.cameras.main.once('camerafadeoutcomplete', go);
+    this.time.delayedCall(700, go);
   }
 
   /** Reposition screen-anchored UI when the window resizes (RESIZE mode). */
@@ -948,6 +1016,7 @@ export class GameScene extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
     for (const img of this.bgImgs) img.setDisplaySize(w, h).setPosition(0, 0);
+    this.parallax?.setSize(w, h);
     for (let i = 0; i < this.itemBar.length; i++) this.itemBar[i].cont.setPosition(w - 38, 150 + i * 64);
     this.outpostBtn?.setPosition(w / 2, 134);
     this.outpostHint?.setPosition(w / 2, 168);

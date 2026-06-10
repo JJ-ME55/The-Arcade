@@ -125,6 +125,8 @@ export interface MetaState {
   seasonPoints: Record<string, number>; // seasonId -> points
   seasonUnlocks: string[];
   achievements: string[];
+  goalsClaimed: string[]; // goal-ladder ids already claimed
+  streak: { count: number; lastDay: string }; // daily comeback streak
   settings: GameSettings;
   stats: {
     totalDepth: number;

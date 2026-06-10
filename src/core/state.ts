@@ -30,6 +30,8 @@ export function defaultMeta(): MetaState {
     seasonPoints: {},
     seasonUnlocks: [],
     achievements: [],
+    goalsClaimed: [],
+    streak: { count: 0, lastDay: '' },
     settings: defaultSettings(),
     stats: { totalDepth: 0, totalDug: 0, deaths: 0, bestCashRun: 0 },
   };
@@ -91,6 +93,8 @@ export function mergeMeta(local: MetaState, cloud: MetaState): MetaState {
     unlockedPods: union(local.unlockedPods, cloud.unlockedPods),
     seasonUnlocks: union(local.seasonUnlocks, cloud.seasonUnlocks),
     achievements: union(local.achievements, cloud.achievements),
+    goalsClaimed: union(local.goalsClaimed, cloud.goalsClaimed),
+    streak: (local.streak?.count ?? 0) >= (cloud.streak?.count ?? 0) ? local.streak : cloud.streak,
     metaUpgrades: maxMerge(local.metaUpgrades, cloud.metaUpgrades),
     seasonPoints: maxMerge(local.seasonPoints, cloud.seasonPoints),
     collection: {

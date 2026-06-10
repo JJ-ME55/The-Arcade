@@ -98,9 +98,10 @@ export class Hud {
     this.biomeT.setText(data.biomeName.toUpperCase());
     this.haulT.setText(data.haulValue > 0 ? `haul $${data.haulValue.toLocaleString()}` : '');
 
-    // fuel-to-return warning (telegraph the squeeze)
-    const estReturn = data.depth * 0.82 + 6;
-    if (data.depth > 30 && run.fuel < estReturn * 1.2) {
+    // fuel-to-return warning. Climbing costs ~0.4 fuel/m (thrust drain ÷ climb speed);
+    // 0.45 + a small buffer keeps the warning honest instead of permanently-on deep down.
+    const estReturn = data.depth * 0.45 + 8;
+    if (data.depth > 30 && run.fuel < estReturn * 1.25) {
       const crit = run.fuel < estReturn;
       this.warnT.setText(crit ? '⚠  FUEL CRITICAL — RETURN NOW' : '⚠  fuel low — plan your climb');
       this.warnT.setColor(css(crit ? COL.danger : COL.warn));

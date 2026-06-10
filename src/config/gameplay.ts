@@ -22,8 +22,8 @@ export const PHYS = {
   moveAccel: 1650, // px/s^2 horizontal
   airControl: 0.85, // horizontal accel multiplier while airborne
   maxFall: 660, // px/s terminal velocity
-  maxRise: 460, // px/s max upward speed
-  maxHoriz: 250, // px/s max horizontal speed
+  maxRise: 485, // px/s max upward speed
+  maxHoriz: 268, // px/s max horizontal speed
   groundFriction: 2400, // px/s^2 decel when not pressing horizontally on ground
   airFriction: 600, // px/s^2 decel horizontally in air
   podMass: 1980, // base mass (kg) — matches Motherload; cargo adds to this

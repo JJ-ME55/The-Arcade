@@ -116,6 +116,13 @@ export class BoulderSystem {
   }
 
   private settle(f: Falling, row: number): void {
+    // never entomb the pod inside solid rock — the boulder shatters against it instead
+    const pc = this.getPodCell();
+    if (f.col === pc.col && row === pc.row) {
+      this.onCrush?.(8);
+      f.sprite.destroy();
+      return;
+    }
     this.world.setTile(f.col, row, { t: Terrain.Boulder });
     this.renderer.markDirty(f.col, row);
     f.sprite.destroy();

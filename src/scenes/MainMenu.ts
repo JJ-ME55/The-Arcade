@@ -8,6 +8,7 @@ import { getActiveSeason } from '../config/seasons';
 import { loadRun, clearRun, type RunSave } from '../systems/runsave';
 import { dailyModifier } from '../config/modifiers';
 import { fitDesign } from '../ui/layout';
+import { nextGoal, playedToday } from '../systems/retention';
 
 export class MainMenu extends Phaser.Scene {
   private loadoutIdx = 0;
@@ -105,6 +106,17 @@ export class MainMenu extends Phaser.Scene {
     void this.checkResume();
 
     fitDesign(this, sky);
+
+    // comeback strip: streak status + the next goal carrot
+    const goal = nextGoal();
+    const streakTxt =
+      App.meta.streak.count > 0
+        ? `🔥 ${App.meta.streak.count}-day streak${playedToday() ? '' : ' — play today!'}`
+        : '🔥 play today to start a streak';
+    const goalTxt = goal ? `NEXT: ${goal.desc} → ◈${goal.cores} 🎟${goal.tickets}` : 'all goals complete — legend';
+    this.add
+      .text(cx, BASE_H - 44, `${streakTxt}   ·   ${goalTxt}`, textStyle(12, COL.dim))
+      .setOrigin(0.5);
 
     // footer
     this.add
