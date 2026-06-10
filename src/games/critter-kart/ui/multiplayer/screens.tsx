@@ -295,7 +295,7 @@ export function LobbyScreen({ lobbyId, onLeave, onRaceStart }: {
     // false and the race transition never fired. The socket room scope
     // already guarantees this event is for the current lobby — server
     // only emits race:start to lobby-room members. Trust the scope.
-    const offStart = net.on('race:start', ({ roomId, startAtMs, members }) => { onRaceStart(roomId, startAtMs, members); });
+    const offStart = net.on('race:start', ({ roomId, startAtMs, members, selfKartId }: any) => { onRaceStart(roomId, startAtMs, members, selfKartId); });
     return () => { offState(); offJoined(); offClosed(); offStart(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lobbyId]);

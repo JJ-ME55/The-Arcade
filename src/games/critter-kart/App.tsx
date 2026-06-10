@@ -91,7 +91,7 @@ export default function App({ onRaceFinish }: { onRaceFinish?: (r: ResultRow[], 
   // Shared handler — both Matching and LobbyScreen route through this when the
   // server emits race:start. Builds the MultiplayerRace context and flips the
   // app onto the race screen.
-  const startMpRace = async (roomId: string, startAtMs: number, members: Member[]) => {
+  const startMpRace = async (roomId: string, startAtMs: number, members: Member[], serverSelfKartId?: string) => {
     const net = getNetClient();
     // V2 (2026-06-08): identify self by telegramUserId, NOT username.
     // Username collisions are real — if two players share a TG first
@@ -104,10 +104,19 @@ export default function App({ onRaceFinish }: { onRaceFinish?: (r: ResultRow[], 
     const ident = await getArcadeIdentity();
     const myTgId = ident?.telegramUserId ?? null;
     const me = net.username();
+    // AUTHORITATIVE first: the server now tells THIS socket its own kart on
+    // race:start (selfKartId). That removes the client guessing that caused
+    // both players to fall back to slot 0 (→ "different races"). The tgId /
+    // username matches stay as fallbacks for any path that omits selfKartId.
     const selfMember =
-      (myTgId != null && members.find((m: any) => m.telegramUserId === myTgId)) ||
+      (serverSelfKartId && members.find((m: any) => (m.kartId || `kart-${m.slot}`) === serverSelfKartId)) ||
+      (myTgId != null && members.find((m: any) => Number(m.telegramUserId) === Number(myTgId))) ||
       members.find((m) => m.username === me) ||
       undefined;
+    if (!selfMember) {
+      console.warn('[critter-kart/mp] could NOT resolve self in members — defaulting slot 0',
+        { serverSelfKartId, myTgId, me, members });
+    }
     const selfSlot = selfMember?.slot ?? 0;
     // Server assigns racerId per slot from the regular roster
     // (rusty/shelly/pip/bruno cycled). Pick up self's choice so the
