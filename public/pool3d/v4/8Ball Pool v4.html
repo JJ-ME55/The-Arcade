@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>8Ball Pool v4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --slate:#1B2236; --slate-deep:#14192A; --slate-lo:#0B0F1B;
+    --paper:#F4ECDB; --paper-dim:#B7AE94;
+    --active:#7BD53A; --action:#F5A623; --hot:#FF6B35;
+    --mono:"IBM Plex Mono", ui-monospace, monospace;
+    --body:"Inter", system-ui, sans-serif;
+  }
+  html, body { margin:0; height:100%; background:#0a0c12; overflow:hidden; font-family:var(--body); }
+  #c { display:block; width:100vw; height:100vh; }
+
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:10;
+    font-family:var(--body); -webkit-font-smoothing:antialiased; }
+  #hud .pe { pointer-events:auto; }
+
+  .scorebar{ position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    display:flex; align-items:stretch; gap:0;
+    background:linear-gradient(180deg, rgba(34,42,66,.96), rgba(20,25,42,.96));
+    border:1px solid rgba(120,135,170,.28); border-radius:10px;
+    box-shadow:0 6px 20px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.10);
+    padding:6px 8px; }
+  .seg{ display:flex; align-items:center; gap:8px; padding:4px 12px; }
+  .pname{ font-weight:800; font-size:13px; letter-spacing:.12em; color:#cdd3e1;
+    text-transform:uppercase; white-space:nowrap; }
+  .pscore{ font-family:var(--mono); font-weight:600; font-size:14px; color:#fff;
+    background:rgba(0,0,0,.35); border-radius:6px; padding:2px 7px; line-height:1; }
+  .rack{ display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:3px 14px; margin:0 4px; border-radius:7px;
+    background:linear-gradient(180deg, rgba(123,213,58,.22), rgba(74,132,32,.22));
+    border:1px solid rgba(123,213,58,.45); }
+  .rack .rk{ font-weight:800; font-size:11px; letter-spacing:.14em; color:var(--active); text-transform:uppercase; }
+  .seg.active .pname{ color:var(--active); text-shadow:0 0 10px rgba(123,213,58,.5); }
+  .seg.active{ background:rgba(123,213,58,.10); border-radius:8px; box-shadow:inset 0 0 0 1px rgba(123,213,58,.35); }
+  .divider{ width:1px; background:rgba(120,135,170,.22); margin:4px 0; }
+
+  .chips{ position:absolute; top:64px; left:50%; transform:translateX(-50%);
+    display:flex; gap:5px; align-items:center;
+    background:rgba(11,15,27,.78); border:1px solid rgba(120,135,170,.22);
+    border-radius:999px; padding:5px 11px; box-shadow:0 4px 14px rgba(0,0,0,.5); }
+  .chip{ width:17px; height:17px; border-radius:50%; position:relative;
+    box-shadow:inset -2px -3px 4px rgba(0,0,0,.45), inset 2px 2px 3px rgba(255,255,255,.4), 0 1px 2px rgba(0,0,0,.5);
+    display:flex; align-items:center; justify-content:center; }
+  .chip.stripe{ background:#fff !important; }
+  .chip.stripe::before{ content:""; position:absolute; inset:0; border-radius:50%;
+    background:var(--cc); clip-path:inset(30% 0 30% 0); }
+  .chip .num{ position:relative; z-index:2; width:9px; height:9px; border-radius:50%;
+    background:#fff; color:#111; font-family:var(--mono); font-weight:600; font-size:6px;
+    display:flex; align-items:center; justify-content:center; box-shadow:inset 0 0 0 .5px rgba(0,0,0,.15); }
+  .chip.eight{ background:#111 !important; }
+
+  .power{ position:absolute; right:16px; bottom:18px; width:64px;
+    display:flex; flex-direction:column; align-items:center; gap:7px;
+    background:linear-gradient(180deg, rgba(34,42,66,.92), rgba(20,25,42,.94));
+    border:1px solid rgba(120,135,170,.26); border-radius:11px; padding:9px 8px;
+    box-shadow:0 8px 22px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.09); }
+  .power .plabel{ font-weight:800; font-size:9px; letter-spacing:.18em; color:#aeb6c8; }
+  .ptrack{ position:relative; width:18px; height:118px; border-radius:9px;
+    background:var(--slate-lo); box-shadow:inset 0 2px 5px rgba(0,0,0,.7); overflow:hidden; }
+  .pfill{ position:absolute; left:2px; right:2px; bottom:2px; border-radius:8px;
+    background:linear-gradient(0deg, #B07210, #F5A623 45%, #FFB840 70%, #FF6B35);
+    box-shadow:0 0 12px rgba(255,107,53,.55); }
+  .ppct{ font-family:var(--mono); font-weight:600; font-size:13px; color:#fff; }
+  .strike{ width:100%; text-align:center; font-weight:800; font-size:11px; letter-spacing:.12em;
+    color:#fff; padding:6px 0; border-radius:7px; text-transform:uppercase; border:1px solid rgba(255,255,255,.18);
+    background:linear-gradient(180deg, #E8473e, #b5251c); cursor:pointer;
+    box-shadow:0 3px 0 rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.25); font-family:var(--body); }
+
+  .spin{ position:absolute; left:16px; bottom:18px; width:64px;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    background:linear-gradient(180deg, rgba(34,42,66,.92), rgba(20,25,42,.94));
+    border:1px solid rgba(120,135,170,.26); border-radius:11px; padding:9px 8px;
+    box-shadow:0 8px 22px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.09); }
+  .spin .slabel{ font-weight:800; font-size:9px; letter-spacing:.18em; color:#aeb6c8; }
+  .sball{ position:relative; width:42px; height:42px; border-radius:50%;
+    background:radial-gradient(circle at 38% 32%, #fff, #e7e2cf 70%, #cfc8b0);
+    box-shadow:inset -3px -4px 8px rgba(0,0,0,.25), 0 2px 5px rgba(0,0,0,.5); }
+  .sball::before, .sball::after{ content:""; position:absolute; background:rgba(60,70,90,.35); }
+  .sball::before{ left:50%; top:5px; bottom:5px; width:1px; transform:translateX(-50%); }
+  .sball::after{ top:50%; left:5px; right:5px; height:1px; transform:translateY(-50%); }
+  .sdot{ position:absolute; left:50%; top:50%; width:8px; height:8px; border-radius:50%;
+    transform:translate(-50%,-50%); background:#d33; box-shadow:0 0 5px rgba(220,53,69,.6); }
+  .spin .scenter{ font-weight:800; font-size:9px; letter-spacing:.14em; color:#aeb6c8; }
+
+  .hint{ position:absolute; bottom:24px; left:50%; transform:translateX(-50%);
+    font-size:11px; letter-spacing:.06em; color:rgba(220,225,235,.6);
+    text-shadow:0 1px 3px rgba(0,0,0,.9); white-space:nowrap; }
+
+  .loading{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    font-family:var(--mono); font-size:12px; letter-spacing:.2em; color:rgba(220,225,235,.5); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div class="loading" id="loading">LOADING TABLE…</div>
+  <div class="scorebar pe">
+    <div class="seg active"><span class="pname">PLAYER 1</span><span class="pscore">00</span></div>
+    <div class="divider"></div>
+    <div class="rack"><span class="rk">RACK 1</span></div>
+    <div class="divider"></div>
+    <div class="seg"><span class="pscore">00</span><span class="pname">PLAYER 2</span></div>
+  </div>
+  <div class="chips pe" id="chips"></div>
+
+  <div class="power pe">
+    <div class="plabel">POWER</div>
+    <div class="ptrack"><div class="pfill" id="pfill" style="height:34%"></div></div>
+    <div class="ppct" id="ppct">35%</div>
+    <button class="strike">STRIKE</button>
+  </div>
+
+  <div class="spin pe">
+    <div class="slabel">SPIN</div>
+    <div class="sball"><div class="sdot"></div></div>
+    <div class="scenter">CENTER</div>
+  </div>
+
+  <div class="hint">Drag to orbit&nbsp;&nbsp;·&nbsp;&nbsp;Scroll to zoom&nbsp;&nbsp;·&nbsp;&nbsp;1 Overhead&nbsp;&nbsp;2 Player&nbsp;&nbsp;3 Cinematic</div>
+</div>
+
+<div id="tweaks-root"></div>
+
+<script>
+  // chip row: solids 1-7, the 8, stripes 9-15
+  (function(){
+    const COLS = {1:'#F4B924',2:'#1F5BB3',3:'#C6312A',4:'#5B2680',5:'#E2691C',6:'#1E7A3A',7:'#6E2618',
+                  9:'#F4B924',10:'#1F5BB3',11:'#C6312A',12:'#5B2680',13:'#E2691C',14:'#1E7A3A',15:'#6E2618'};
+    const wrap = document.getElementById('chips');
+    for(let n=1;n<=15;n++){
+      const c = document.createElement('div');
+      c.className = 'chip' + (n>=9?' stripe':'') + (n===8?' eight':'');
+      if(n<8) c.style.background = COLS[n];
+      if(n>=9) c.style.setProperty('--cc', COLS[n]);
+      const num = document.createElement('div'); num.className='num'; num.textContent = n;
+      c.appendChild(num);
+      wrap.appendChild(c);
+    }
+    window.addEventListener('pool-ready', () => {
+      const l = document.getElementById('loading'); if(l) l.remove();
+    });
+  })();
+</script>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module" src="pool-scene-v4.js"></script>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel">
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "feltColor": "#2F7D46",
+    "woodFinish": "Walnut",
+    "cameraPreset": "Overhead"
+  }/*EDITMODE-END*/;
+
+  function PoolTweaks(){
+    const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+    const [ready, setReady] = React.useState(false);
+    React.useEffect(() => {
+      const on = () => setReady(true);
+      if (window.pool && window.poolReady) on();
+      window.addEventListener('pool-ready', on);
+      return () => window.removeEventListener('pool-ready', on);
+    }, []);
+    React.useEffect(() => { if (ready) window.pool.setFelt(t.feltColor); }, [ready, t.feltColor]);
+    React.useEffect(() => { if (ready) window.pool.setWood(t.woodFinish); }, [ready, t.woodFinish]);
+    React.useEffect(() => { if (ready) window.pool.setCamera(t.cameraPreset); }, [ready, t.cameraPreset]);
+
+    return (
+      <TweaksPanel>
+        <TweakSection label="Table" />
+        <TweakColor label="Felt" value={t.feltColor}
+                    options={['#2F7D46', '#2A6FDB', '#6E1D2A', '#26282E']}
+                    onChange={(v) => setTweak('feltColor', v)} />
+        <TweakRadio label="Wood" value={t.woodFinish}
+                    options={['Cherry', 'Oak', 'Walnut', 'Black']}
+                    onChange={(v) => setTweak('woodFinish', v)} />
+        <TweakSection label="View" />
+        <TweakRadio label="Camera" value={t.cameraPreset}
+                    options={['Overhead', 'Player', 'Cinematic']}
+                    onChange={(v) => setTweak('cameraPreset', v)} />
+      </TweaksPanel>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('tweaks-root')).render(<PoolTweaks />);
+</script>
+</body>
+</html>
