@@ -139,6 +139,9 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     stake: '0.01+',
     yield: 35,
     hi: '—',
+    // Keyboard + mouse-look with pointer lock — no touch controls yet,
+    // so desktop-only on the floor filter.
+    platform: 'desktop',
     heroSrc: '/assets/games/hero/shootout.png',
     tileSrc: '/assets/games/hero/shootout-tile.png',
     splashSrc: '/assets/games/hero/shootout-splash.png',
