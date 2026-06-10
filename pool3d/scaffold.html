@@ -16,8 +16,8 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="title">Side Pocket — 3D scaffold (phase 1b · cushion mouths + pockets)</div>
-<div id="hint">drag to orbit · scroll to zoom · cushions now gap at the pockets (our real mouth geometry), sit flush, and the holes are cut through</div>
+<div id="title">Side Pocket — 3D scaffold (phase 1c · box rails)</div>
+<div id="hint">drag to orbit · scroll to zoom</div>
 
 <script type="importmap">
 { "imports": {
@@ -29,20 +29,13 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
-/* ──────────────────────────────────────────────────────────────────
-   SIDE POCKET 3D — SCAFFOLD (phase 1b)
-   Fixes from JJ's markup on 1a: (1) cushions floated above a thick
-   felt slab — now the felt is flush and the cushion inner face slopes
-   to the cloth; (2) pockets were hidden under a continuous cushion box
-   — now cushions are SEGMENTS with gaps at each pocket (our real mouth
-   geometry: chord where the pocket circle crosses the wood seam +
-   chamfer), and each pocket is a visible recessed cup with a brass rim.
-   Geometry mirrors pool/src/game.config.ts (imports it once this moves
-   into the webpack project).
-   ────────────────────────────────────────────────────────────────── */
+/* SIDE POCKET 3D — scaffold phase 1c.
+   Rebuilt from axis-aligned BOXES only (the rotated ExtrudeGeometry in
+   1b mis-oriented every rail). Geometry mirrors pool/src/game.config.ts.
+   Mapping: sim 1500×825 px plane, centred at origin, scaled 1/100.    */
 
-// —— config mirror (game.config.ts) ——
 const GAME = { x: 1500, y: 825 };
 const cushionWidth = 78, feltInset = 48, chamfer = 30, pocketR = 34;
 const POCKETS = [
@@ -81,6 +74,11 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#0b0e0c');
 
+// Studio environment for realistic PBR reflections on the balls + brass
+// (no external HDRI asset needed — RoomEnvironment is procedural).
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
 const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 100);
 camera.position.set(0, 10.5, 9.5);
 
@@ -90,7 +88,7 @@ controls.enableDamping = true;
 controls.maxPolarAngle = Math.PI * 0.49;
 
 // —— lighting ——
-scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x14140e, 0.45));
+scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x14140e, 0.5));
 const key = new THREE.DirectionalLight(0xfff2dc, 2.3);
 key.position.set(-6, 15, 5);
 key.castShadow = true;
@@ -103,31 +101,30 @@ scene.add(key);
 
 // —— materials ——
 const woodMat = new THREE.MeshStandardMaterial({ color: '#5a1a14', roughness: 0.45, metalness: 0.08 });
-const feltMat = new THREE.MeshStandardMaterial({ color: '#1E5FA8', roughness: 0.98 });
-const cushTopMat = new THREE.MeshStandardMaterial({ color: '#1c5598', roughness: 0.9 });
-const holeMat = new THREE.MeshStandardMaterial({ color: '#040507', roughness: 1 });
+const feltMat = new THREE.MeshStandardMaterial({ color: '#1E5FA8', roughness: 0.98, side: THREE.DoubleSide });
+const cushMat = new THREE.MeshStandardMaterial({ color: '#1a5292', roughness: 0.9 });
+const holeMat = new THREE.MeshStandardMaterial({ color: '#040507', roughness: 1, side: THREE.DoubleSide });
 const brassMat = new THREE.MeshStandardMaterial({ color: '#caa24a', roughness: 0.35, metalness: 0.7 });
 
-// —— wood body (flush border around the felt) ——
-const outerW = GAME.x * S + 0.9, outerH = GAME.y * S + 0.9;
-const body = new THREE.Mesh(new THREE.BoxGeometry(outerW, 0.7, outerH), woodMat);
-body.position.y = -0.35; body.receiveShadow = true; scene.add(body);
+// —— wood body (visible border + sides) ——
+const body = new THREE.Mesh(new THREE.BoxGeometry(GAME.x * S + 0.9, 0.7, GAME.y * S + 0.9), woodMat);
+body.position.y = -0.34; body.receiveShadow = true; scene.add(body);
 
-// —— felt (play area, top flush at y=0) ——
-const feltW = (GAME.x - 2 * cushionWidth) * S;
-const feltH = (GAME.y - 2 * cushionWidth) * S;
-const felt = new THREE.Mesh(new THREE.PlaneGeometry(feltW + cushionWidth*S, feltH + cushionWidth*S), feltMat);
-felt.rotation.x = -Math.PI / 2; felt.position.y = 0.002; felt.receiveShadow = true; scene.add(felt);
+// —— felt: flat bed, inner of the wood border (feltInset inset), top flush ——
+const feltW = (GAME.x - 2 * feltInset) * S;
+const feltH = (GAME.y - 2 * feltInset) * S;
+const felt = new THREE.Mesh(new THREE.BoxGeometry(feltW, 0.04, feltH), feltMat);
+felt.position.y = 0.0; felt.receiveShadow = true; scene.add(felt);   // top at +0.02
 
 // —— pocket mouths (mirror railMouths in sim/world.ts) ——
 function mouthsOnRail(rail) {
   const out = [];
   for (const p of POCKETS) {
     let onRail = false, seam = 0, perp = 0, along = 0;
-    if (rail === 'top')    { onRail = p.y <= cushionWidth;            seam = feltInset;          perp = p.y; along = p.x; }
-    if (rail === 'bottom') { onRail = p.y >= GAME.y - cushionWidth;   seam = GAME.y - feltInset; perp = p.y; along = p.x; }
-    if (rail === 'left')   { onRail = p.x <= cushionWidth;            seam = feltInset;          perp = p.x; along = p.y; }
-    if (rail === 'right')  { onRail = p.x >= GAME.x - cushionWidth;   seam = GAME.x - feltInset; perp = p.x; along = p.y; }
+    if (rail === 'top')    { onRail = p.y <= cushionWidth;          seam = feltInset;          perp = p.y; along = p.x; }
+    if (rail === 'bottom') { onRail = p.y >= GAME.y - cushionWidth; seam = GAME.y - feltInset; perp = p.y; along = p.x; }
+    if (rail === 'left')   { onRail = p.x <= cushionWidth;          seam = feltInset;          perp = p.x; along = p.y; }
+    if (rail === 'right')  { onRail = p.x >= GAME.x - cushionWidth; seam = GAME.x - feltInset; perp = p.x; along = p.y; }
     if (!onRail) continue;
     const d = seam - perp;
     const chord = Math.sqrt(Math.max(0, pocketR * pocketR - d * d));
@@ -138,69 +135,43 @@ function mouthsOnRail(rail) {
   return out;
 }
 
-// —— a cushion segment: a prism with a sloped inner nose, built in a
-// canonical frame (X = across rail [0 outer → depth inner], Y = up,
-// Z = along rail [0..len]) then rotated/placed per rail. ——
-const CUSH_H = 0.42;                  // rail height (a touch above ball top 0.38)
-const NOSE = 14 * S;                  // how far the top overhangs toward the felt
-function railSegment(rail, a, b) {
+// —— cushion segment: plain axis-aligned box, butted against the rail ——
+const CUSH_H = 0.32;
+const stripMidTop = (feltInset + cushionWidth) / 2;                 // 63 (top/left)
+const stripMidBot = (GAME.y - cushionWidth + GAME.y - feltInset) / 2; // 762 (bottom)
+const stripMidRgt = (GAME.x - cushionWidth + GAME.x - feltInset) / 2; // 1452-ish (right)
+const stripDepth = (cushionWidth - feltInset) * S;                 // 30px
+function addCushion(rail, a, b) {
   const len = (b - a) * S;
   if (len <= 0.001) return;
-  const depth = (cushionWidth - feltInset) * S;
-  const shape = new THREE.Shape();
-  shape.moveTo(0, 0);
-  shape.lineTo(0, CUSH_H);
-  shape.lineTo(depth - NOSE, CUSH_H);
-  shape.lineTo(depth, CUSH_H * 0.45);
-  shape.lineTo(depth, 0);
-  shape.closePath();
-  const geo = new THREE.ExtrudeGeometry(shape, { depth: len, bevelEnabled: false });
-  // canonical: X = across (0 outer → depth inner), Y = up, Z = along (0..len)
-  geo.translate(0, 0, 0);
-  const m = new THREE.Mesh(geo, cushTopMat);
-  m.castShadow = true; m.receiveShadow = true;
-
-  const mid = (a + b) / 2;
-  if (rail === 'top') {
-    // along = x, across = z, inner is +z. Place outer edge at z(feltInset).
-    m.rotation.y = -Math.PI / 2;                 // X(across)→ +Z, Z(along)→ +X
-    m.position.set(wx(a), 0, wz(feltInset));
-  } else if (rail === 'bottom') {
-    m.rotation.y = Math.PI / 2;
-    m.position.set(wx(b), 0, wz(GAME.y - feltInset));
-  } else if (rail === 'left') {
-    m.rotation.y = Math.PI;                       // across→ +X(inner), along→ -Z
-    m.position.set(wx(feltInset), 0, wz(b));
-  } else { // right
-    m.rotation.y = 0;
-    m.position.set(wx(GAME.x - feltInset), 0, wz(a));
-  }
-  scene.add(m);
+  let w, d, cx, cz;
+  if (rail === 'top')    { w = len; d = stripDepth; cx = wx((a + b) / 2); cz = wz(stripMidTop); }
+  if (rail === 'bottom') { w = len; d = stripDepth; cx = wx((a + b) / 2); cz = wz(stripMidBot); }
+  if (rail === 'left')   { w = stripDepth; d = len; cx = wx(stripMidTop); cz = wz((a + b) / 2); }
+  if (rail === 'right')  { w = stripDepth; d = len; cx = wx(stripMidRgt); cz = wz((a + b) / 2); }
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, CUSH_H, d), cushMat);
+  m.position.set(cx, CUSH_H / 2, cz);
+  m.castShadow = true; m.receiveShadow = true; scene.add(m);
 }
-
-// build segments between the mouths on each rail
 for (const rail of ['top', 'bottom', 'left', 'right']) {
   const mouths = mouthsOnRail(rail);
-  for (let i = 0; i < mouths.length - 1; i++) {
-    railSegment(rail, mouths[i][1], mouths[i + 1][0]);
-  }
+  for (let i = 0; i < mouths.length - 1; i++) addCushion(rail, mouths[i][1], mouths[i + 1][0]);
 }
 
-// —— pocket cups (recessed dark cup + brass rim) ——
+// —— pockets: dark mouth disc (reads as the hole) + recessed cup + brass rim ——
 for (const p of POCKETS) {
   const isCorner = (p.x < 200 || p.x > GAME.x - 200);
-  const rr = pocketR * S * (isCorner ? 1.12 : 1.0);
-  const cup = new THREE.Mesh(
-    new THREE.CylinderGeometry(rr, rr * 0.72, 0.7, 28, 1, true),
-    holeMat
-  );
-  cup.position.set(wx(p.x), -0.34, wz(p.y));
-  scene.add(cup);
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(rr * 0.72, 28), holeMat);
-  floor.rotation.x = -Math.PI / 2; floor.position.set(wx(p.x), -0.69, wz(p.y)); scene.add(floor);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.022, 10, 30), brassMat);
-  rim.rotation.x = Math.PI / 2; rim.position.set(wx(p.x), 0.012, wz(p.y));
-  rim.castShadow = true; scene.add(rim);
+  const rr = pocketR * S * (isCorner ? 1.18 : 1.04);
+  const x = wx(p.x), z = wz(p.y);
+  // flat dark disc just above the felt — the visible hole mouth
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(rr, 32), holeMat);
+  disc.rotation.x = -Math.PI / 2; disc.position.set(x, 0.03, z); scene.add(disc);
+  // recessed cup below (depth when viewed at an angle)
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(rr, rr * 0.7, 0.7, 28, 1, true), holeMat);
+  cup.position.set(x, -0.33, z); scene.add(cup);
+  // brass rim ring at the felt line
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.026, 10, 32), brassMat);
+  rim.rotation.x = Math.PI / 2; rim.position.set(x, 0.035, z); rim.castShadow = true; scene.add(rim);
 }
 
 // —— balls ——
@@ -211,8 +182,7 @@ function addBall(pos, color) {
     new THREE.MeshPhysicalMaterial({ color, roughness: 0.16, clearcoat: 1, clearcoatRoughness: 0.04, metalness: 0 })
   );
   m.position.set(wx(pos.x), R, wz(pos.y));
-  m.castShadow = true; m.receiveShadow = true;
-  scene.add(m);
+  m.castShadow = true; m.receiveShadow = true; scene.add(m);
 }
 addBall(CUE, '#FAF6E4');
 addBall(EIGHT, '#0E0E10');
