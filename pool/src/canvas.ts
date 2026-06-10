@@ -763,6 +763,13 @@ class Canvas2D_Singleton {
         ballId: number,
         rotation: number = 0,
         velocity: IVector2 = { x: 0, y: 0 },
+        /**
+         * Cached travel direction from Ball.motionAngle — aligns the
+         * baked rolling axis in the atlas path. Stable through stops;
+         * NOT derived from live velocity (which snaps to garbage when
+         * a ball halts and twitches at crawl speeds).
+         */
+        motionAngle: number = 0,
     ): void {
         const ctx = this._context;
         const R = GameConfig.ball.diameter / 2;  // 19
@@ -796,22 +803,28 @@ class Canvas2D_Singleton {
         ctx.arc(0, 0, R * 1.3, 0, Math.PI * 2);
         ctx.fill();
 
-        // AAA PATH — sprite atlas (3D-baked frames, 32 rotations per ball).
+        // AAA PATH — sprite atlas (3D-baked frames, 128 rotations per ball).
         // When the atlas is loaded, every ball renders as one drawImage of
         // the right pre-rendered frame. The marking IS in the 3D-baked
         // sprite, already correctly rotated — no procedural overlay needed.
         //
-        // Frame selection: rollAngle / (2π) * 32, then modulo 32.
-        // Motion-direction alignment: 2D-rotate the sprite by the motion
-        // angle so the baked rolling axis (X in 3D, which projects as a
-        // specific 2D direction) lines up with the ball's actual velocity
-        // direction on screen.
+        // Direction handling (JJ 2026-06-10 "always spins backwards" fix):
+        //   - The frame sequence ALWAYS plays forward (Ball._rollAngle is
+        //     monotone) — in the bake, increasing frames move the texture
+        //     toward sprite +y (verified frame 000→016→032: the disc
+        //     travels DOWN and exits the bottom edge).
+        //   - The sprite is rotated by motionAngle − π/2, which maps
+        //     sprite +y onto the travel direction → the visible (top)
+        //     surface flows WITH the motion, exactly like a real ball.
+        //   - motionAngle is the ball's CACHED travel angle (frozen at
+        //     stop, immune to crawl-speed noise), so the sprite never
+        //     snaps when a ball stops and never twitches at low speed.
+        //   - The bake's lighting is vertical/rotation-invariant, so this
+        //     rotation moves only the texture; the brand up-left specular
+        //     is layered screen-fixed afterwards.
         if (this._ballAtlasReady && this._ballAtlas[ballId]) {
             // 128 frames per ball, must match FRAMES_PER_BALL in
-            // scripts/bake-ball-atlas.js. Bumped 32→128 per JJ playtest
-            // 2026-06: "it's clinky, increase to as many as possible so
-            // it looks smooth." 128 gives 2.8°/frame — visually
-            // continuous at every roll speed we see in-game.
+            // scripts/bake-ball-atlas.js.
             const FRAMES = 128;
             // Wrap rollAngle into [0, 2π) and pick the frame.
             const twoPi = Math.PI * 2;
@@ -827,22 +840,37 @@ class Canvas2D_Singleton {
             const frameIdx = loaded > 0 ? Math.floor((fullIdx * loaded) / FRAMES) : 0;
             const frame = this._ballAtlas[ballId][frameIdx];
             if (frame) {
-                const speed = Math.hypot(velocity.x, velocity.y);
-                // Align the baked rolling-axis to motion direction. The bake
-                // renders the ball rolling along the screen-down direction
-                // (+y in canvas space). For a ball moving with velocity
-                // (vx, vy), atan2 gives the motion angle relative to +x;
-                // we want the sprite rotated so its baked "forward" lines
-                // up with the velocity vector. -π/2 offset because the
-                // bake's forward is +y in canvas (down), not +x (right).
-                const motionAngle = speed > 0.05
-                    ? Math.atan2(velocity.y, velocity.x) - Math.PI / 2
-                    : 0;
-                if (motionAngle !== 0) {
-                    ctx.rotate(motionAngle);
-                }
                 const drawR = R * 1.05;  // slight inflate to hide AA seam
+                ctx.save();
+                ctx.rotate(motionAngle - Math.PI / 2);
                 ctx.drawImage(frame, -drawR, -drawR, drawR * 2, drawR * 2);
+                ctx.restore();
+                // SCREEN-FIXED SHADING over the unlit albedo frame.
+                // The atlas is baked with no lighting at all (pure
+                // texture) so that rotating the sprite to the travel
+                // direction can never swing a baked highlight around.
+                // Form comes from these two un-rotated layers:
+                //  1. Limb shading — soft lift toward the upper-left
+                //     lamp, falling to a darkened silhouette edge,
+                //     deepest at the lower-right. Same light story as
+                //     the approved static-sphere look.
+                const limb = ctx.createRadialGradient(
+                    -R * 0.35, -R * 0.4, R * 0.15,
+                    0, 0, R
+                );
+                limb.addColorStop(0, 'rgba(255,255,255,0.16)');
+                limb.addColorStop(0.55, 'rgba(0,0,0,0)');
+                limb.addColorStop(0.85, 'rgba(0,0,0,0.18)');
+                limb.addColorStop(1, 'rgba(0,0,0,0.40)');
+                ctx.fillStyle = limb;
+                ctx.beginPath();
+                // Cover the sprite's full 1.05R footprint — beyond the
+                // gradient's R the last stop (0.40 black) clamps, which
+                // darkens the AA seam instead of leaving a bright rim.
+                ctx.arc(0, 0, drawR, 0, Math.PI * 2);
+                ctx.fill();
+                //  2. Brand specular (upper-left lamp ellipses).
+                this.drawBallSpecular(ctx, R);
             }
             ctx.restore();
             return;
