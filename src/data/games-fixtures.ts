@@ -8,7 +8,7 @@
  */
 
 export interface ArcadeGame {
-  slug: 'solshot' | 'basketball' | 'free-kicks' | 'keepie-uppies' | 'pool' | 'critter-kart';
+  slug: 'solshot' | 'basketball' | 'free-kicks' | 'keepie-uppies' | 'pool' | 'critter-kart' | 'shootout';
   name: string;
   tag: '' | 'FEATURED' | 'HOT' | 'NEW' | 'TOP';
   genre: string;
@@ -109,6 +109,26 @@ export const PORTAL_GAMES: ArcadeGame[] = [
     heroSrc: '/assets/games/hero/critter-kart.webp',
     tileSrc: '/assets/games/hero/critter-kart-tile.webp',
     splashSrc: '/assets/games/hero/critter-kart-splash.webp',
+    heroFocus: 'center',
+  },
+  {
+    // Shootout — Fish's Three.js browser FPS, promoted to the floor
+    // 2026-06-10. Self-hosted at shootout.pro (own Vercel project);
+    // the hub iframes it at /play/shootout/launch. Server-authoritative
+    // MP (1v1/2v2 rounds) on the SolShot server. Placeholder art —
+    // replace with real screenshots when Fish exports them.
+    slug: 'shootout',
+    name: 'SHOOTOUT',
+    tag: 'NEW',
+    genre: 'FPS',
+    tagline: 'Red vs Blue. Buy guns, win rounds.',
+    players: 0,
+    stake: '0.01+',
+    yield: 35,
+    hi: '—',
+    heroSrc: '/assets/games/hero/shootout.png',
+    tileSrc: '/assets/games/hero/shootout-tile.png',
+    splashSrc: '/assets/games/hero/shootout-splash.png',
     heroFocus: 'center',
   },
   // 8-Ball Pool removed from the public PORTAL_GAMES floor 2026-06-04.
