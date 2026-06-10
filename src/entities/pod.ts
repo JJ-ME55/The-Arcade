@@ -144,6 +144,12 @@ export class Pod {
     const impactVy = this.vy;
     this.py += this.vy * dt;
     const landed = this.resolveY();
+    // soft sky ceiling — a few tiles of headroom, then no higher (keeps the camera with you)
+    const ceil = -TILE * 7;
+    if (this.py < ceil) {
+      this.py = ceil;
+      this.vy = Math.max(0, this.vy);
+    }
     this.updateGround();
     if (landed && impactVy > PHYS.fallDamageSpeed) this.onLand?.(impactVy);
 

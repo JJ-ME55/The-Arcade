@@ -374,13 +374,10 @@ export class GameScene extends Phaser.Scene {
     if (status.driving) burn += FUEL.drivePerSec;
     this.run.fuel = Math.max(0, this.run.fuel - burn * dt * this.stats.fuelEff);
 
-    // thrust sound + fx
+    // thrust sound (the visual is the pod's flame jet alone — no particle splutter)
     if (status.thrusting !== this.thrustOn) {
       this.thrustOn = status.thrusting;
       Sound.setThrust(status.thrusting);
-    }
-    if (status.thrusting && Math.random() < 0.6) {
-      this.fx.digBurst(this.pod.px, this.pod.py + TILE * 0.4, 0xffa030);
     }
 
     this.boulders.update(dt);

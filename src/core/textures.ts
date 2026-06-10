@@ -29,8 +29,9 @@ function hex(c: number): string {
 
 /** Draw a single tile face: fill + bevel (light top-left, dark bottom-right) + speckles. */
 /**
- * A parcel of SOIL (not a raised brick). Flat, speckled earth with a faint square-grid
- * division on the bottom & right edges — like Motherload's ground. No 3D bevel.
+ * A patch of CONTINUOUS soil — no seams, no grid. Adjacent tiles must blend into one
+ * unbroken earth mass; the carved relief comes entirely from the edge-shade overlays at
+ * tunnel borders. Mottling is kept low-contrast so tile boundaries never read.
  */
 function tileFace(g: G, fill: number, edge: number, variant: number): void {
   g.clear();
@@ -40,39 +41,31 @@ function tileFace(g: G, fill: number, edge: number, variant: number): void {
   let s = (variant * 9301 + 49297) % 233280;
   const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
 
-  // soft organic mottling — patches of slightly lighter/darker earth
-  for (let i = 0; i < 5; i++) {
+  // soft organic mottling — barely-there patches of lighter/darker earth
+  for (let i = 0; i < 4; i++) {
     const x = rnd() * TILE;
     const y = rnd() * TILE;
-    const r = 7 + rnd() * 11;
-    g.fillStyle(rnd() > 0.5 ? darken(fill, 0.86) : lighten(fill, 10), 0.16);
+    const r = 8 + rnd() * 12;
+    g.fillStyle(rnd() > 0.5 ? darken(fill, 0.9) : lighten(fill, 7), 0.09);
     g.fillCircle(x, y, r);
   }
 
-  // fine soil grains
-  const n = 16 + Math.floor(rnd() * 10);
+  // fine soil grains — the actual texture of dirt
+  const n = 18 + Math.floor(rnd() * 10);
   for (let i = 0; i < n; i++) {
-    const x = 2 + rnd() * (TILE - 4);
-    const y = 2 + rnd() * (TILE - 4);
-    const r = 0.6 + rnd() * 1.4;
-    g.fillStyle(rnd() > 0.55 ? lighten(fill, 16) : darken(fill, 0.76), 0.4);
+    const x = rnd() * TILE;
+    const y = rnd() * TILE;
+    const r = 0.6 + rnd() * 1.3;
+    g.fillStyle(rnd() > 0.55 ? lighten(fill, 13) : darken(fill, 0.8), 0.3);
     g.fillCircle(x, y, r);
   }
 
   // a few small embedded pebbles (edge-tinted)
   const peb = Math.floor(rnd() * 3);
   for (let i = 0; i < peb; i++) {
-    g.fillStyle(darken(edge, 0.85), 0.5);
+    g.fillStyle(darken(edge, 0.85), 0.38);
     g.fillCircle(4 + rnd() * (TILE - 8), 4 + rnd() * (TILE - 8), 2 + rnd() * 1.5);
   }
-
-  // faint parcel grid — a thin darker seam on bottom + right (single line per boundary)
-  g.fillStyle(darken(fill, 0.55), 0.28);
-  g.fillRect(0, TILE - 1, TILE, 1);
-  g.fillRect(TILE - 1, 0, 1, TILE);
-  g.fillStyle(darken(fill, 0.7), 0.12);
-  g.fillRect(0, TILE - 2, TILE, 1);
-  g.fillRect(TILE - 2, 0, 1, TILE);
 }
 
 function genTiles(scene: Phaser.Scene): void {
