@@ -5,8 +5,11 @@
  * BillionaireBonkClub/shootout and ships as its own Vercel project; we just
  * frame it in. When that URL changes (subdomain switch, env split), swap it
  * here; eventually lift to import.meta.env.VITE_SHOOTOUT_URL.
+ *
+ * Custom domain since 2026-06-10 (was fps-staking-game.vercel.app —
+ * that URL stays live as a fallback for cached links).
  */
-const SHOOTOUT_GAME_URL = 'https://fps-staking-game.vercel.app/';
+const SHOOTOUT_GAME_URL = 'https://shootout.pro/';
 
 /**
  * Full-bleed iframe of the Shootout game. Mounted at /play/shootout/launch

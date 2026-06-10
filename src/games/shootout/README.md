@@ -2,7 +2,8 @@
 
 A browser 3D FPS by Fish. The game itself lives as a self-contained Three.js + Vite
 app at `BillionaireBonkClub/shootout` (mirror dev tree: `c:\Users\jacob\fps-staking-game\`),
-deployed standalone at `fps-staking-game.vercel.app`.
+deployed standalone at `shootout.pro` (custom domain since 2026-06-10;
+`fps-staking-game.vercel.app` stays live as a fallback).
 
 The Arcade integrates it via a chromeless iframe at `/play/shootout/launch`.
 
@@ -23,7 +24,7 @@ result was visibly broken. Reset to scaffold; switched to iframe integration.
 
 | Concern | Where it lives |
 |---|---|
-| Game code (rendering, bots, audio, weapons, match loop, all tuning) | `BillionaireBonkClub/shootout` (deployed at `fps-staking-game.vercel.app`) |
+| Game code (rendering, bots, audio, weapons, match loop, all tuning) | `BillionaireBonkClub/shootout` (deployed at `shootout.pro`) |
 | Multiplayer netcode (client side: net/client.ts, prediction, interpolation) | Also `BillionaireBonkClub/shootout` — the same app gains an MP code path |
 | Multiplayer netcode (server side) | `JJ-ME55/SolShot` `arcade/shootout` branch (Checkpoint 1 already there) |
 | The Arcade integration | This dir — just the route wrapper |

@@ -3,7 +3,7 @@ import { ShootoutScreen } from '@/games/shootout/ShootoutScreen';
 
 /**
  * Mounts Shootout at /play/shootout/launch. The screen iframes the standalone
- * Three.js + Vite app deployed at fps-staking-game.vercel.app. See
+ * Three.js + Vite app deployed at shootout.pro. See
  * `src/games/shootout/README.md` for the iframe-vs-port rationale.
  */
 export function Shootout() {
