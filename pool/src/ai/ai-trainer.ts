@@ -75,6 +75,18 @@ export class AITrainer {
         return new AIOpponent(power, rotation);
     }
 
+    // Hard cap on physics ticks per training simulation. The genetic
+    // trainer runs SYNCHRONOUSLY on the main thread (opponentTrainingLoop
+    // is a while loop) — under the two-regime physics a shot's rolling
+    // tail runs 600-900 ticks to full quiescence, which froze the
+    // renderer for tens of seconds per AI turn (JJ playtest 2026-06-10,
+    // CDP probes timed out mid-freeze). 400 ticks is past the slide
+    // phase and most of the roll: ball positions are settled enough to
+    // evaluate, at less than half the cost. Combined with the lowered
+    // aiConfig.trainIterations this keeps an AI turn well under a second.
+    private static readonly MAX_SIM_TICKS_PER_ITERATION = 400;
+    private _iterTicks: number = 0;
+
     private train(): void {
 
         if(this._iteration === aiConfig.trainIterations){
@@ -84,7 +96,8 @@ export class AITrainer {
             return;
         }
 
-        if(this._gameWorld.isBallsMoving) return;
+        if(this._gameWorld.isBallsMoving && ++this._iterTicks < AITrainer.MAX_SIM_TICKS_PER_ITERATION) return;
+        this._iterTicks = 0;
         this._gameWorld.concludeTurn();
 
         this._currentOpponent.evaluation = this._policy.evaluate(this._gameWorld);

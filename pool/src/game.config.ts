@@ -329,7 +329,7 @@ export const GameConfig : IGameConfig = {
 
     ai: {
         on: true,
-        trainIterations: 30,
+        trainIterations: 8,   // was 30 — synchronous trainer froze the renderer for tens of seconds per AI turn under two-regime physics (each sim ~3x longer); 8 iterations + the 400-tick cap in ai-trainer.ts keeps an opponent turn under ~1s
         playerIndex: 1,
         ballDistanceBonus: 1/5800,
         validTurnBonus: 5000,

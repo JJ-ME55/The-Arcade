@@ -56,11 +56,18 @@ class Canvas2D_Singleton {
     private _scale: Vector2;
     private _sphereSprites: Partial<Record<SphereSpriteName, HTMLImageElement>> = {};
     private _sphereSpritesReady: boolean = false;
-    // AAA atlas — 16 balls × 32 rotation frames. Indexed [ballId][frameIdx].
-    // Loaded by preloadBallAtlas(); if loading fails, falls back to the
-    // older preloadSphereSprites() path which uses static-sphere bases
-    // plus procedural marking overlays.
+    // AAA atlas — 16 balls × 128 rotation frames. Indexed [ballId][frameIdx].
+    // Loaded PROGRESSIVELY by preloadBallAtlas(): frame 0 of every ball
+    // eagerly (16 images — the await in game.init() returns after just
+    // these), the remaining 2,032 in background chunks. The previous
+    // all-at-once preload decoded 63MB of PNGs before the game loop
+    // started — blank canvas + frozen tab for 30s+ on a cold cache
+    // (JJ "not clean" playtest, 2026-06-10).
     private _ballAtlas: HTMLImageElement[][] = [];
+    // Contiguous count of loaded frames per ball (frames load in order,
+    // so [0..count-1] are always usable). drawAmericanBall maps the
+    // wanted frame onto this prefix while the background fill runs.
+    private _atlasFramesLoaded: number[] = [];
     private _ballAtlasReady: boolean = false;
 
     //------Properties------//
@@ -101,52 +108,75 @@ class Canvas2D_Singleton {
      * first frame the player sees already uses the 3D-baked spheres.
      */
     /**
-     * AAA atlas preload — 16 balls × 32 rotation frames = 512 PNGs.
-     * Each frame is a fully 3D-baked textured ball at one rotation
-     * step around its rolling axis. drawAmericanBall picks the right
-     * frame based on Ball._rollAngle and just drawImage's it — no
-     * procedural marking overlay needed, since the marking IS in the
-     * 3D-baked sprite.
+     * AAA atlas preload — 16 balls × 128 rotation frames = 2,048 PNGs
+     * (~63MB), loaded PROGRESSIVELY:
      *
-     * Soft-fails: any missing/failed image leaves the atlas not-ready,
-     * and drawAmericanBall falls back to the static-sphere + procedural
-     * marking path (preloadSphereSprites).
+     *   EAGER      frame 0 of every ball (16 images). The returned
+     *              promise resolves after these — game.init() awaits
+     *              only this, so the table + 3D balls render at once.
+     *   BACKGROUND the remaining 127 frame-indices, one index across
+     *              all 16 balls per chunk, sequentially. The main
+     *              thread decodes 16 images at a time instead of
+     *              2,048 — no decode storm, no frozen tab.
+     *
+     * _atlasFramesLoaded[ballId] tracks the contiguous loaded prefix;
+     * drawAmericanBall maps its wanted frame onto that prefix, so
+     * rolling starts coarse (few angular steps) and reaches full
+     * 128-frame smoothness within a few seconds of load.
+     *
+     * Soft-fails: if any ball's frame 0 fails, the atlas is marked
+     * not-ready and drawAmericanBall falls back to the static-sphere +
+     * procedural marking path (preloadSphereSprites). A failure later
+     * in the background fill just freezes that ball's prefix where it
+     * reached (modulo mapping keeps every lookup in-range).
      */
     public preloadBallAtlas(): Promise<void> {
         // Must match FRAMES_PER_BALL in scripts/bake-ball-atlas.js.
         const FRAMES = 128;
         const BALL_IDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-        const promises: Promise<void>[] = [];
+
+        const loadFrame = (ballId: number, f: number): Promise<boolean> =>
+            new Promise<boolean>((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    this._ballAtlas[ballId][f] = img;
+                    resolve(true);
+                };
+                img.onerror = () => {
+                    // eslint-disable-next-line no-console
+                    console.warn(`[canvas] ball atlas missing: ball ${ballId} frame ${f}`);
+                    resolve(false);
+                };
+                const frameStr = String(f).padStart(3, '0');
+                img.src = `assets/sprites/balls/ball_${ballId}_frame_${frameStr}.png`;
+            });
+
         for (const ballId of BALL_IDS) {
             this._ballAtlas[ballId] = [];
-            for (let f = 0; f < FRAMES; f++) {
-                promises.push(new Promise<void>((resolve) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        this._ballAtlas[ballId][f] = img;
-                        resolve();
-                    };
-                    img.onerror = () => {
-                        // eslint-disable-next-line no-console
-                        console.warn(`[canvas] ball atlas missing: ball ${ballId} frame ${f} — atlas disabled`);
-                        resolve();
-                    };
-                    // 3-digit pad — frame count went 32 (2-digit) → 128
-                    // (3-digit) in JJ's "more frames" pass 2026-06.
-                    const frameStr = String(f).padStart(3, '0');
-                    img.src = `assets/sprites/balls/ball_${ballId}_frame_${frameStr}.png`;
-                }));
-            }
+            this._atlasFramesLoaded[ballId] = 0;
         }
-        return Promise.all(promises).then(() => {
-            let complete = true;
-            for (const ballId of BALL_IDS) {
-                for (let f = 0; f < FRAMES; f++) {
-                    if (!this._ballAtlas[ballId]?.[f]) { complete = false; break; }
+
+        // EAGER phase — frame 0 only.
+        return Promise.all(BALL_IDS.map((id) => loadFrame(id, 0))).then((oks) => {
+            this._ballAtlasReady = oks.every(Boolean);
+            if (!this._ballAtlasReady) return;
+            for (const id of BALL_IDS) this._atlasFramesLoaded[id] = 1;
+
+            // BACKGROUND phase — fire and forget; never blocks init.
+            void (async () => {
+                for (let f = 1; f < FRAMES; f++) {
+                    const results = await Promise.all(BALL_IDS.map((id) => loadFrame(id, f)));
+                    for (let i = 0; i < BALL_IDS.length; i++) {
+                        const id = BALL_IDS[i];
+                        // Keep the prefix contiguous: only advance when
+                        // this frame directly extends it. A failed frame
+                        // freezes that ball's smoothness where it got to.
+                        if (results[i] && this._atlasFramesLoaded[id] === f) {
+                            this._atlasFramesLoaded[id] = f + 1;
+                        }
+                    }
                 }
-                if (!complete) break;
-            }
-            this._ballAtlasReady = complete;
+            })();
         });
     }
 
@@ -786,7 +816,15 @@ class Canvas2D_Singleton {
             // Wrap rollAngle into [0, 2π) and pick the frame.
             const twoPi = Math.PI * 2;
             const wrapped = ((rotation % twoPi) + twoPi) % twoPi;
-            const frameIdx = Math.floor((wrapped / twoPi) * FRAMES) % FRAMES;
+            const fullIdx = Math.floor((wrapped / twoPi) * FRAMES) % FRAMES;
+            // Progressive smoothness: while the background loader is
+            // still filling the atlas, map the wanted frame onto the
+            // loaded prefix — floor(fullIdx · loaded / 128) keeps the
+            // ROTATION SPEED correct and only coarsens the angular
+            // steps (like temporarily playing a smaller atlas). At
+            // loaded=128 this is exactly fullIdx.
+            const loaded = this._atlasFramesLoaded[ballId] || 0;
+            const frameIdx = loaded > 0 ? Math.floor((fullIdx * loaded) / FRAMES) : 0;
             const frame = this._ballAtlas[ballId][frameIdx];
             if (frame) {
                 const speed = Math.hypot(velocity.x, velocity.y);
