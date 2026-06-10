@@ -208,12 +208,23 @@ function createRealClient(): NetClient {
             }
             hadConnectedOnce = true;
         });
-        socket.on('disconnect', () => {
-            dispatch('net:error' as any, { message: 'disconnected' } as any);
+        socket.on('disconnect', (reason: any) => {
+            // CAPTURE THE REASON — the server only sees "transport close"; the
+            // real cause (ping timeout / transport error / io server disconnect /
+            // network) lives here. This is the missing datum for the mid-race drop.
+            console.warn('[critter-kart/diag] ⚠ socket DISCONNECTED — reason:', reason, new Date().toISOString());
+            dispatch('net:error' as any, { message: 'disconnected', reason } as any);
         });
         socket.on('connect_error', (err: any) => {
+            console.warn('[critter-kart/diag] connect_error:', err?.message || err, new Date().toISOString());
             dispatch('net:error' as any, { message: String(err?.message || err) } as any);
         });
+        // Reconnection lifecycle — did socket.io try to reconnect, and did it work?
+        // (JJ's kart never rejoined before the 30s grace expired — need to know if
+        // reconnection even fired.)
+        socket.io.on('reconnect_attempt', (n: any) => console.log('[critter-kart/diag] reconnect attempt', n, new Date().toISOString()));
+        socket.io.on('reconnect', (n: any) => console.log('[critter-kart/diag] ✓ reconnected after', n, 'attempts', new Date().toISOString()));
+        socket.io.on('reconnect_failed', () => console.warn('[critter-kart/diag] ✗ reconnect FAILED — gave up', new Date().toISOString()));
 
         // Forward EVERY server event to the listener map.
         const proxyEvents: ServerEventKey[] = [
