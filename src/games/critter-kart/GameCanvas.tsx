@@ -677,12 +677,24 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       // running a private countdown starting now.
       if (phaseLocal !== 'finished' && assetsReady) {
         if (multi) {
-          // Prefer the locked startAtMs from race:countdownLocked
-          // (server's all-clients-ready anchor). Falls back to the
-          // tentative startAtMs from race:start until lock arrives.
-          const anchor = (multi as any).getStartAtMs?.() ?? multi.startAtMs;
-          if (anchor) elapsed = (Date.now() - anchor) / 1000;
-          else elapsed += frame;
+          // MP MODE: ONLY use the server's locked anchor from
+          // race:countdownLocked. Do NOT fall back to multi.startAtMs
+          // (the provisional pre-handshake value from race:start) or to
+          // local frame accumulation — both run a private countdown
+          // out of sync with the racing peers and produced JJ's
+          // "rusty started way before shelly" 2026-06-10.
+          //
+          // If the lock hasn't arrived yet, elapsed stays at its
+          // initial -COUNTDOWN. The lock arrives via either the
+          // broadcast at race start (normal joiner) or the joinRace
+          // replay (late joiner, reconnect, slow asset load). Once
+          // the lock lands, elapsed jumps to (now - lockedAnchor)/1000
+          // and the phase transitions on the next line.
+          const lockedAnchor = (multi as any).getStartAtMs?.();
+          if (lockedAnchor) {
+            elapsed = (Date.now() - lockedAnchor) / 1000;
+          }
+          // else: hold at the initial -COUNTDOWN value. Don't accumulate.
         } else {
           elapsed += frame;
         }

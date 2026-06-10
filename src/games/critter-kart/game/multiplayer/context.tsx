@@ -139,12 +139,17 @@ export function useMultiplayerSync() {
       // otherwise non-host clients see the wrong character mesh at
       // every remote slot (Peralta sees JJ as Pip, etc).
       members: ctx.members,
-      // V2 (2026-06-08): server's race-start-anchor lock from
-      // race:countdownLocked. Falls back to mpRace.startAtMs (set
-      // optimistically at race:start time) until the lock arrives.
-      getStartAtMs(): number {
+      // V2 (2026-06-10): server's race-start-anchor lock from
+      // race:countdownLocked. Returns null if the lock hasn't arrived
+      // yet — caller MUST hold at countdown until then, never fall back
+      // to the optimistic ctx.startAtMs from race:start. That fallback
+      // is what produced JJ's "rusty started way before shelly" desync
+      // 2026-06-10. The lock arrives via either the broadcast at race
+      // start (normal joiner) or the joinRace replay (late joiner /
+      // reconnect / slow asset load).
+      getStartAtMs(): number | null {
         // @ts-ignore — getRaceStartAtMs added 2026-06-08
-        return ctx.net.getRaceStartAtMs?.() ?? ctx.startAtMs;
+        return ctx.net.getRaceStartAtMs?.() ?? null;
       },
       // V2 (2026-06-08): emit critterkart:ready when assets load.
       // Server's lobby:start fallback is 15s — clients should signal
