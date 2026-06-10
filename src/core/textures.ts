@@ -68,23 +68,88 @@ function tileFace(g: G, fill: number, edge: number, variant: number): void {
   }
 }
 
+/**
+ * A rock pocket drawn ON TOP of a soil base. The shape is keyed by which orthogonal
+ * neighbours are ALSO rock (bit 1=top, 2=bottom, 4=left, 8=right): a side that faces
+ * soil pulls in and rounds its corners (so the rock reads as an organic lump in the
+ * earth); a side that faces rock overflows the cell edge so the two pockets fuse into
+ * one continuous mass. Corners shared by two rock-facing sides are squared off, so a
+ * solid rock field tiles seamlessly with no dirt "dots" and no grid. The result: stone
+ * looks like rock embedded in soil, never like minesweeper squares.
+ */
+function stoneBlob(g: G, fill: number, edge: number, mask: number, accent?: number): void {
+  const top = mask & 1;
+  const bottom = mask & 2;
+  const left = mask & 4;
+  const right = mask & 8;
+  const OV = 3; // overflow past the edge where rock meets rock (guarantees a seamless join)
+  const IN = 3; // pull-in from the edge where rock meets soil (a thin earth gap around the lump)
+  const R = 13; // rounded-corner radius on soil-facing corners
+  const x0 = left ? -OV : IN;
+  const y0 = top ? -OV : IN;
+  const x1 = right ? TILE + OV : TILE - IN;
+  const y1 = bottom ? TILE + OV : TILE - IN;
+  const w = x1 - x0;
+  const h = y1 - y0;
+  const radii = {
+    tl: top && left ? 0 : R,
+    tr: top && right ? 0 : R,
+    bl: bottom && left ? 0 : R,
+    br: bottom && right ? 0 : R,
+  };
+
+  g.fillStyle(fill, 1);
+  g.fillRoundedRect(x0, y0, w, h, radii);
+
+  // interior grain — deliberately low-contrast so a packed rock mass doesn't read as a
+  // repeating texture grid (the per-tile shape varies; the speckle must stay quiet).
+  let s = ((mask + 1) * 7919) % 233280;
+  const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+  for (let i = 0; i < 9; i++) {
+    const gx = x0 + 5 + rnd() * (w - 10);
+    const gy = y0 + 5 + rnd() * (h - 10);
+    g.fillStyle(rnd() > 0.5 ? lighten(fill, 14) : darken(fill, 0.82), 0.22);
+    g.fillCircle(gx, gy, 1 + rnd() * 1.6);
+  }
+  // a couple of darker fracture pits for depth
+  for (let i = 0; i < 2; i++) {
+    g.fillStyle(darken(fill, 0.68), 0.3);
+    g.fillCircle(x0 + 6 + rnd() * (w - 12), y0 + 6 + rnd() * (h - 12), 1.5 + rnd() * 1.5);
+  }
+  // crystal/core biomes: an occasional embedded glint
+  if (accent !== undefined && rnd() > 0.5) {
+    const ax = x0 + 7 + rnd() * (w - 14);
+    const ay = y0 + 7 + rnd() * (h - 14);
+    g.fillStyle(accent, 0.6);
+    g.fillTriangle(ax, ay - 3, ax + 2.5, ay, ax, ay + 3);
+    g.fillTriangle(ax, ay - 3, ax - 2.5, ay, ax, ay + 3);
+  }
+  // rim — only the soil-facing (rounded) sides land inside the cell; rock-facing sides
+  // overflow off-cell so no seam line shows inside a continuous mass.
+  g.lineStyle(2, edge, 0.85);
+  g.strokeRoundedRect(x0, y0, w, h, radii);
+}
+
 function genTiles(scene: Phaser.Scene): void {
   const g = scene.make.graphics({ x: 0, y: 0 }, false);
   for (const b of BIOMES) {
-    const sets: [string, number, number][] = [
-      ['dirt', b.palette.dirt, b.palette.dirtEdge],
+    const accent = b.id === 'crystal' || b.id === 'core' ? b.palette.accent : undefined;
+    // DIRT — seamless continuous soil, 3 quiet variants picked by world position.
+    for (let v = 0; v < 3; v++) {
+      tileFace(g, b.palette.dirt, b.palette.dirtEdge, (b.depthStart + 1) * 7 + v * 31);
+      g.generateTexture(`t_${b.id}_dirt_${v}`, TILE, TILE);
+    }
+    // STONE & HARD — an organic rock pocket on soil, one tile per neighbour-connectivity
+    // mask (0..15) so rock fuses with rock and rounds against soil.
+    const rock: [string, number, number][] = [
       ['stone', b.palette.stone, b.palette.stoneEdge],
       ['hard', b.palette.hard, b.palette.hardEdge],
     ];
-    for (const [kind, fill, edge] of sets) {
-      for (let v = 0; v < 3; v++) {
-        tileFace(g, fill, edge, (b.depthStart + 1) * 7 + kind.length * 13 + v * 31);
-        // crystal/core accent flecks for some variants
-        if ((b.id === 'crystal' || b.id === 'core') && v === 2) {
-          g.fillStyle(b.palette.accent, 0.5);
-          g.fillTriangle(TILE * 0.6, TILE * 0.3, TILE * 0.7, TILE * 0.5, TILE * 0.55, TILE * 0.55);
-        }
-        g.generateTexture(`t_${b.id}_${kind}_${v}`, TILE, TILE);
+    for (const [kind, fill, edge] of rock) {
+      for (let mask = 0; mask < 16; mask++) {
+        tileFace(g, b.palette.dirt, b.palette.dirtEdge, mask * 5 + kind.length * 13);
+        stoneBlob(g, fill, edge, mask, accent);
+        g.generateTexture(`t_${b.id}_${kind}_${mask}`, TILE, TILE);
       }
     }
   }

@@ -99,7 +99,13 @@ export class TileRenderer {
 
   private baseTexture(x: number, y: number, t: Terrain): string | null {
     if (t === Terrain.Empty || t === Terrain.Sky) return null;
-    if (t === Terrain.Boulder) return 't_boulder';
+    // boulder is a round sprite laid over a soil base (below) so its corners read as
+    // earth, not a black square — the round rock itself is drawn on the overlay layer.
+    if (t === Terrain.Boulder) {
+      const biome = biomeAt(this.world.depthMeters(y));
+      const v = Math.floor(hash2(this.world.seed, x, y, 200) * 3);
+      return `t_${biome.id}_dirt_${v}`;
+    }
     if (t === Terrain.Bedrock) return 't_bedrock';
     if (t === Terrain.Lava) return 't_lava';
     if (t === Terrain.Gas) return 't_gas';
@@ -108,8 +114,28 @@ export class TileRenderer {
     // grass cap on the very top diggable row
     if (y === SURFACE_ROW && t === Terrain.Dirt) return 't_grass';
     const biome = biomeAt(this.world.depthMeters(y));
+    // stone/hard pick a connectivity-masked rock tile (fuses with rock, rounds against soil)
+    if (t === Terrain.Stone || t === Terrain.HardStone) {
+      return `t_${biome.id}_${kind}_${this.rockMask(x, y)}`;
+    }
     const v = Math.floor(hash2(this.world.seed, x, y, 200) * 3);
     return `t_${biome.id}_${kind}_${v}`;
+  }
+
+  /** Is the cell a rock pocket (stone or hard) — i.e. should it fuse with this one? */
+  private isRock(x: number, y: number): boolean {
+    const t = this.world.getTile(x, y).t;
+    return t === Terrain.Stone || t === Terrain.HardStone;
+  }
+
+  /** Bitmask of rock-like orthogonal neighbours: 1=top, 2=bottom, 4=left, 8=right. */
+  private rockMask(x: number, y: number): number {
+    let m = 0;
+    if (this.isRock(x, y - 1)) m |= 1;
+    if (this.isRock(x, y + 1)) m |= 2;
+    if (this.isRock(x - 1, y)) m |= 4;
+    if (this.isRock(x + 1, y)) m |= 8;
+    return m;
   }
 
   /** Bitmask of open (non-solid) neighbours: 1=top, 2=bottom, 4=left, 8=right. */
@@ -150,11 +176,14 @@ export class TileRenderer {
       cell.shade = null;
     }
 
-    const overlayKey = tile.special
-      ? 'sp_' + tile.special.split(':')[0]
-      : tile.ore
-        ? 'ore_' + tile.ore
-        : null;
+    const overlayKey =
+      tile.t === Terrain.Boulder
+        ? 't_boulder'
+        : tile.special
+          ? 'sp_' + tile.special.split(':')[0]
+          : tile.ore
+            ? 'ore_' + tile.ore
+            : null;
     if (overlayKey && this.scene.textures.exists(overlayKey)) {
       if (!cell.overlay) cell.overlay = this.acquire(this.overlayPool, 11);
       cell.overlay.setTexture(overlayKey).setPosition(cx, cy);
