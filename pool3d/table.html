@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Side Pocket 3D — GLB table</title>
+<style>
+  html,body{margin:0;height:100%;background:#07090a;overflow:hidden;font-family:system-ui,sans-serif}
+  #c{display:block;width:100vw;height:100vh}
+  #title{position:fixed;left:12px;top:12px;color:#f4ecdb;font-size:15px;font-weight:600;text-shadow:0 1px 2px #000}
+  #views{position:fixed;left:12px;bottom:12px;display:flex;gap:8px}
+  #views button{font:600 13px system-ui;color:#f4ecdb;background:#2a2118;border:1px solid #5a4a32;
+    padding:7px 12px;border-radius:8px;cursor:pointer}
+  #views button.on{background:#caa24a;color:#1a1206;border-color:#caa24a}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="title">Side Pocket — 3D (GLB table · our balls)</div>
+<div id="views">
+  <button data-v="orbit" class="on">Orbit</button>
+  <button data-v="top">Top-down</button>
+  <button data-v="cue">Down the cue</button>
+</div>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+window.__POOL3D = { loaded: false };
+addEventListener('error', (e) => { window.__POOL3D = Object.assign(window.__POOL3D || {}, { jsError: String(e.message) }); });
+
+/* Wire the found GLB table (table_b) into our world: strip its balls /
+   cue / ceiling light, recolor the felt to Side Pocket cobalt, drop OUR
+   rack on it, and give two play cameras (top-down + down-the-cue).
+   Geometry/positions mirror pool/src/game.config.ts.                   */
+
+const GAME = { x: 1500, y: 825 };
+const CUE = { x: 413, y: 413 };
+const EIGHT = { x: 1090, y: 413 };
+const SOLID_POS = [
+  { x: 1056, y: 433 }, { x: 1090, y: 374 }, { x: 1126, y: 393 }, { x: 1126, y: 472 },
+  { x: 1162, y: 335 }, { x: 1162, y: 374 }, { x: 1162, y: 452 },
+];
+const STRIPE_POS = [
+  { x: 1022, y: 413 }, { x: 1056, y: 393 }, { x: 1090, y: 452 }, { x: 1126, y: 354 },
+  { x: 1126, y: 433 }, { x: 1162, y: 413 }, { x: 1162, y: 491 },
+];
+const PALETTE = ['#F4B924','#1F5BB3','#C6312A','#5B2680','#E2691C','#1E7A3A','#6E2618'];
+
+// —— TUNABLES (adjusted live on Chrome to fit our rack onto the model) ——
+const PLAY = { w: 13.0, h: 6.45, y: 0.0 };  // our playfield rect in world units (long × short), felt top y
+const BALL_R = 0.19;
+const FELT_COLOR = '#1E5FA8';   // Side Pocket cobalt (swap per felt theme)
+const wx = (sx) => (sx / GAME.x - 0.5) * PLAY.w;   // sim x → world X across the long axis
+const wz = (sy) => (sy / GAME.y - 0.5) * PLAY.h;   // sim y → world Z across the short axis
+
+// —— renderer / scene ——
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#07090a');
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x14140e, 0.45));
+const key = new THREE.DirectionalLight(0xfff2dc, 2.2);
+key.position.set(-5, 13, 5); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004;
+key.shadow.camera.left = -12; key.shadow.camera.right = 12; key.shadow.camera.top = 9; key.shadow.camera.bottom = -9;
+scene.add(key);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.05, 200);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.maxPolarAngle = Math.PI * 0.495;
+
+// —— load + adapt the GLB table ——
+new GLTFLoader().load('table_b.glb', (gltf) => {
+  const root = gltf.scene;
+  const strip = [];
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const n = (o.name || '').toLowerCase();
+    if (n.includes('billiard_ball') || n.includes('pool_cue') || n.includes('ceiling') || n.includes('light')) {
+      strip.push(o); return;
+    }
+    o.castShadow = true; o.receiveShadow = true;
+    // Felt is recoloured by overlaying our own cobalt cloth (below),
+    // not by touching the model's baked texture — keeps the wood/rails
+    // as-is and lets our felt THEMES drive the colour.
+  });
+  strip.forEach((m) => m.parent && m.parent.remove(m));
+
+  // 1) rotate so the model's LONG axis is world X, scale to our size
+  root.rotation.y = Math.PI / 2;
+  let box = new THREE.Box3().setFromObject(root);
+  let size = box.getSize(new THREE.Vector3());
+  const longModel = Math.max(size.x, size.z);
+  const s = (PLAY.w + 2.2) / longModel;         // outer table a bit wider than playfield
+  root.scale.setScalar(s);
+  // 2) centre on X/Z at the origin
+  box = new THREE.Box3().setFromObject(root);
+  const ctr = box.getCenter(new THREE.Vector3());
+  root.position.x -= ctr.x; root.position.z -= ctr.z;
+  scene.add(root);
+  // 3) DETERMINISTIC felt height: raycast straight down through the
+  // table centre — the first hit is the cloth (no rail/pocket there).
+  const ray = new THREE.Raycaster(new THREE.Vector3(0, 50, 0), new THREE.Vector3(0, -1, 0));
+  const hits = ray.intersectObject(root, true);
+  PLAY.y = hits.length ? hits[0].point.y : 0;
+  // 4) measure the model footprint so the rack maps onto the real cloth
+  box = new THREE.Box3().setFromObject(root);
+  size = box.getSize(new THREE.Vector3());
+  PLAY.w = size.x * 0.905;  // playfield ≈ footprint minus rails (covers the cloth to the cushion line)
+  PLAY.h = size.z * 0.85;
+  // OUR felt: overlay a cobalt cloth just above the model's green felt.
+  // The shader hue-swap was too fragile; an overlay we fully control is
+  // what lets the Side Pocket felt THEMES apply (cobalt default). The
+  // model still provides rails / legs / pockets / wood.
+  const feltOverlay = new THREE.Mesh(
+    new THREE.PlaneGeometry(PLAY.w, PLAY.h),
+    new THREE.MeshStandardMaterial({ color: FELT_COLOR, roughness: 0.96 })
+  );
+  feltOverlay.rotation.x = -Math.PI / 2;
+  feltOverlay.position.set(0, PLAY.y + 0.003, 0);
+  feltOverlay.receiveShadow = true;
+  scene.add(feltOverlay);
+  layoutBalls();
+  controls.target.set(0, PLAY.y, 0);
+  setView(view);
+  const fb = new THREE.Box3().setFromObject(root); const fs = fb.getSize(new THREE.Vector3());
+  window.__POOL3D = {
+    loaded: true,
+    tableSize: [fs.x.toFixed(2), fs.y.toFixed(2), fs.z.toFixed(2)],
+    tableY: [fb.min.y.toFixed(2), fb.max.y.toFixed(2)],
+    sceneChildren: scene.children.length,
+    cueBallWorld: [wx(CUE.x).toFixed(2), (PLAY.y + BALL_R).toFixed(2), wz(CUE.y).toFixed(2)],
+    camPos: [camera.position.x.toFixed(1), camera.position.y.toFixed(1), camera.position.z.toFixed(1)],
+    view,
+  };
+  render();
+}, undefined, (err) => { window.__POOL3D = { loaded: false, loadError: String(err) }; });
+
+function PLAY_FELT_OFFSET() { return 0.62; }    // tuned live
+
+// —— our balls ——
+const ballGeo = new THREE.SphereGeometry(BALL_R, 40, 40);
+function ball(pos, color) {
+  const m = new THREE.Mesh(ballGeo, new THREE.MeshPhysicalMaterial({
+    color, roughness: 0.16, clearcoat: 1, clearcoatRoughness: 0.04, metalness: 0,
+  }));
+  m.position.set(wx(pos.x), PLAY.y + BALL_R, wz(pos.y));
+  m.castShadow = true; m.receiveShadow = true; scene.add(m); return m;
+}
+function layoutBalls() {
+  ball(CUE, '#FAF6E4');
+  ball(EIGHT, '#0E0E10');
+  SOLID_POS.forEach((p, i) => ball(p, PALETTE[i]));
+  STRIPE_POS.forEach((p, i) => ball(p, PALETTE[i]));
+}
+
+// —— camera views ——
+let view = 'orbit';
+function setView(v) {
+  view = v;
+  document.querySelectorAll('#views button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  const fy = PLAY.y;
+  if (v === 'orbit') {
+    controls.enabled = true;
+    camera.position.set(0, fy + 6.5, 9); controls.target.set(0, fy, 0);
+  } else if (v === 'top') {
+    controls.enabled = false;
+    camera.position.set(0, fy + 11, 0.001); camera.lookAt(0, fy, 0);
+  } else if (v === 'cue') {
+    controls.enabled = false;
+    // behind the cue ball, low, looking toward the rack (down-table +X)
+    const cx = wx(CUE.x), cz = wz(CUE.y);
+    camera.position.set(cx - 2.6, fy + 1.4, cz);
+    camera.lookAt(wx(EIGHT.x), fy + BALL_R, wz(EIGHT.y));
+  }
+  camera.updateProjectionMatrix();
+  render();
+}
+document.querySelectorAll('#views button').forEach(b =>
+  b.addEventListener('click', () => setView(b.dataset.v)));
+setView('orbit');
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight); render();
+});
+function render(){ renderer.render(scene, camera); }
+// Render on demand (orbit change, view switch, ~3s of startup frames)
+// so the page reaches network/idle and screenshot tooling works.
+controls.addEventListener('change', render);
+let warm = 0;
+(function warmup(){ controls.update(); render(); if (++warm < 200) requestAnimationFrame(warmup); })();
+</script>
+</body>
+</html>

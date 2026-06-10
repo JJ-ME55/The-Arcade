@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GLB inspector</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b0e0c;overflow:hidden;font-family:ui-monospace,monospace}
+  #c{display:block;width:100vw;height:100vh}
+  #info{position:fixed;left:12px;top:12px;color:#cfe;font-size:12px;white-space:pre;
+    text-shadow:0 1px 2px #000;line-height:1.5;background:rgba(0,0,0,.45);padding:10px 12px;border-radius:8px;max-width:46vw}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="info">loading…</div>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const model = new URLSearchParams(location.search).get('m') || 'table_b';
+
+const canvas = document.getElementById('c');
+const info = document.getElementById('info');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#0b0e0c');
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x14140e, 0.6));
+const key = new THREE.DirectionalLight(0xfff2dc, 2.0); key.position.set(-6, 15, 5); scene.add(key);
+
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.01, 1000);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+
+new GLTFLoader().load(`${model}.glb`, (gltf) => {
+  const root = gltf.scene;
+  scene.add(root);
+
+  // stats
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  const ctr = box.getCenter(new THREE.Vector3());
+  let tris = 0, meshes = 0; const mats = new Set(); const nodes = [];
+  root.traverse((o) => {
+    if (o.isMesh) {
+      meshes++;
+      const g = o.geometry;
+      tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m && mats.add(m.name || m.uuid.slice(0,6)));
+      if (o.name) nodes.push(o.name);
+    }
+  });
+
+  // frame the camera
+  const radius = size.length() / 2;
+  controls.target.copy(ctr);
+  camera.position.set(ctr.x, ctr.y + radius * 0.8, ctr.z + radius * 1.4);
+  camera.near = radius / 100; camera.far = radius * 20; camera.updateProjectionMatrix();
+
+  // pool-ratio check: longest horizontal / shortest horizontal (real table is ~2:1)
+  const horiz = [size.x, size.z].sort((a,b)=>b-a);
+  info.textContent =
+    `model: ${model}.glb\n` +
+    `bbox size (model units): ${size.x.toFixed(3)} × ${size.y.toFixed(3)} × ${size.z.toFixed(3)}\n` +
+    `play ratio (long:short horiz): ${(horiz[0]/horiz[1]).toFixed(3)} : 1   (target 1.818)\n` +
+    `centre: ${ctr.x.toFixed(2)}, ${ctr.y.toFixed(2)}, ${ctr.z.toFixed(2)}\n` +
+    `meshes: ${meshes}   triangles: ${Math.round(tris).toLocaleString()}\n` +
+    `materials (${mats.size}): ${[...mats].slice(0,12).join(', ')}\n` +
+    `mesh names: ${nodes.slice(0,16).join(', ')}${nodes.length>16?' …':''}`;
+  console.log('[inspect]', info.textContent);
+}, undefined, (err) => { info.textContent = 'LOAD ERROR: ' + err; });
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+(function tick(){ controls.update(); renderer.render(scene, camera); requestAnimationFrame(tick); })();
+</script>
+</body>
+</html>
