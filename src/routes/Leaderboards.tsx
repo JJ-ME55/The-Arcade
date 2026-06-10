@@ -82,6 +82,68 @@ export function Leaderboards() {
         }}
         onWindow={setActiveWindow}
       />
+      {/* Cross-sell: when viewing the Free Kicks board, tell the player
+          it pays — this board IS the competition entry. Closes the loop
+          between the leaderboard and the 1 SOL prize. */}
+      {activeCabinet === 'free-kicks' && (
+        <button
+          type="button"
+          onClick={() => navigate('/competitions')}
+          style={{
+            appearance: 'none',
+            textAlign: 'left',
+            cursor: 'pointer',
+            width: '100%',
+            marginTop: 16,
+            background: 'var(--ink-deep)',
+            color: 'var(--paper)',
+            border: '1.5px solid var(--ink)',
+            borderLeft: '4px solid var(--brass)',
+            padding: isMobile ? '11px 14px' : '12px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: isMobile ? 14 : 16,
+              textTransform: 'uppercase',
+              letterSpacing: '0.01em',
+              color: 'var(--brass-glint)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            This board pays 1 SOL
+          </span>
+          <span
+            style={{
+              flex: 1,
+              minWidth: 0,
+              fontFamily: 'var(--font-body)',
+              fontSize: isMobile ? 12.5 : 13.5,
+              color: 'rgba(251,252,254,0.75)',
+            }}
+          >
+            Hold the top score when the competition closes to win.
+          </span>
+          <span
+            style={{
+              flexShrink: 0,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              color: 'var(--brass)',
+            }}
+          >
+            Details →
+          </span>
+        </button>
+      )}
       {live.loading && (
         <div
           style={{

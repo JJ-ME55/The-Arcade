@@ -3,12 +3,10 @@ import { useState } from 'react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { PORTAL_GAMES } from '@/data/games-fixtures';
 import { FeaturedCabinet } from '@/components/dashboard/FeaturedCabinet';
+import { CompetitionBanner } from '@/components/dashboard/CompetitionBanner';
 import { TheFloor } from '@/components/dashboard/TheFloor';
 import { TopScores } from '@/components/dashboard/TopScores';
-import { LiveWagers } from '@/components/dashboard/LiveWagers';
-import { PrizeCounterMini } from '@/components/dashboard/PrizeCounterMini';
 import { Browse } from '@/components/dashboard/Browse';
-import { WhosPlaying } from '@/components/dashboard/WhosPlaying';
 import { ComingUp } from '@/components/dashboard/ComingUp';
 
 /**
@@ -35,14 +33,18 @@ export function Dashboard() {
   if (isMobile) {
     return (
       <main style={styles.mobileRoot}>
-        <FeaturedCabinet activeIndex={activeIndex} setActiveIndex={setActiveIndex} />
+        {/* Competition banner first — the live money hook is the single
+            most important thing for traffic landing here. */}
+        <div style={{ padding: '14px 14px 0' }}>
+          <CompetitionBanner />
+        </div>
+        <div style={{ padding: '14px 14px 0' }}>
+          <FeaturedCabinet activeIndex={activeIndex} setActiveIndex={setActiveIndex} />
+        </div>
         <div style={{ padding: '16px 14px 0' }}>
           <TheFloor />
           <TopScores activeGame={activeGame} />
-          <PrizeCounterMini />
-          <LiveWagers />
           <Browse />
-          <WhosPlaying />
           <ComingUp />
         </div>
       </main>
@@ -51,33 +53,40 @@ export function Dashboard() {
 
   return (
     <main style={styles.desktopRoot}>
-      <aside style={styles.leftRail}>
-        <Browse />
-        <WhosPlaying />
-      </aside>
-      <section style={styles.center}>
-        <FeaturedCabinet activeIndex={activeIndex} setActiveIndex={setActiveIndex} />
-        <TheFloor />
-        <ComingUp />
-      </section>
-      <aside style={styles.rightColumn}>
-        <TopScores activeGame={activeGame} />
-        <PrizeCounterMini />
-        <LiveWagers />
-      </aside>
+      {/* Full-width competition banner above the 3-col grid — first thing
+          on the floor below the chrome. */}
+      <CompetitionBanner />
+      <div style={styles.grid}>
+        <aside style={styles.leftRail}>
+          <Browse />
+        </aside>
+        <section style={styles.center}>
+          <FeaturedCabinet activeIndex={activeIndex} setActiveIndex={setActiveIndex} />
+          <TheFloor />
+          <ComingUp />
+        </section>
+        <aside style={styles.rightColumn}>
+          <TopScores activeGame={activeGame} />
+        </aside>
+      </div>
     </main>
   );
 }
 
 const styles = {
   desktopRoot: {
-    display: 'grid',
-    gridTemplateColumns: '180px 1fr 268px',
-    columnGap: 32,
-    padding: '28px 36px 36px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 24,
+    padding: '24px 36px 36px',
     maxWidth: 1440,
     margin: '0 auto',
     width: '100%',
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: '180px 1fr 268px',
+    columnGap: 32,
   },
   leftRail: {
     display: 'flex',
