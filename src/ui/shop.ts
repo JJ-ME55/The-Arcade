@@ -9,6 +9,7 @@ import type { RunState } from '../core/types';
 import type { DerivedStats } from '../systems/stats';
 import { cargoValue, sellCargo } from '../systems/run';
 import { Sound } from '../systems/audio';
+import { swallowHit } from './hit';
 import type { Fx } from '../systems/fx';
 
 export class SurfaceMenu {
@@ -52,7 +53,7 @@ export class SurfaceMenu {
       .setOrigin(0)
       .setScrollFactor(0)
       .setDepth(1999)
-      .setInteractive()
+      .setInteractive(new Phaser.Geom.Rectangle(0, 0, 1, 1), swallowHit)
       .setVisible(false);
     this.build();
     this.onResize = () => { if (this.isOpen) this.layout(); };
@@ -81,10 +82,10 @@ export class SurfaceMenu {
     this.cashText = this.scene.add.text(BASE_W / 2, 88, '', textStyle(18, COL.cash)).setOrigin(0.5);
     this.root.add(this.cashText);
 
-    // service buttons
-    this.sellBtn = new Button(this.scene, BASE_W / 2 - 160, 132, 150, 44, '', () => this.doSell(), { accent: COL.cargo, fontSize: 15 });
-    this.fuelBtn = new Button(this.scene, BASE_W / 2, 132, 150, 44, '', () => this.doRefuel(), { accent: COL.fuel, fontSize: 15 });
-    this.repairBtn = new Button(this.scene, BASE_W / 2 + 160, 132, 150, 44, '', () => this.doRepair(), { accent: COL.hull, fontSize: 15 });
+    // service buttons (fixed: screen-space hit testing — the shop UI is scrollFactor-0)
+    this.sellBtn = new Button(this.scene, BASE_W / 2 - 160, 132, 150, 44, '', () => this.doSell(), { accent: COL.cargo, fontSize: 15, fixed: true });
+    this.fuelBtn = new Button(this.scene, BASE_W / 2, 132, 150, 44, '', () => this.doRefuel(), { accent: COL.fuel, fontSize: 15, fixed: true });
+    this.repairBtn = new Button(this.scene, BASE_W / 2 + 160, 132, 150, 44, '', () => this.doRepair(), { accent: COL.hull, fontSize: 15, fixed: true });
     this.root.add([this.sellBtn, this.fuelBtn, this.repairBtn]);
 
     // upgrades
@@ -96,7 +97,7 @@ export class SurfaceMenu {
       dot.fillCircle(px + 24, y + 14, 6);
       const name = this.scene.add.text(px + 40, y, u.name, textStyle(16, COL.text));
       const tier = this.scene.add.text(px + 40, y + 18, '', textStyle(12, COL.dim));
-      const btn = new Button(this.scene, BASE_W - px - 78, y + 14, 128, 36, '', () => this.buyUpgrade(u.id), { fontSize: 14 });
+      const btn = new Button(this.scene, BASE_W - px - 78, y + 14, 128, 36, '', () => this.buyUpgrade(u.id), { fontSize: 14, fixed: true });
       this.root.add([dot, name, tier, btn]);
       this.upRows.push({ id: u.id, tierText: tier, btn });
       y += 44;
@@ -111,18 +112,22 @@ export class SurfaceMenu {
       dot.fillCircle(px + 24, y + 12, 6);
       const name = this.scene.add.text(px + 40, y, it.name, textStyle(15, COL.text));
       const own = this.scene.add.text(px + 40, y + 17, '', textStyle(11, COL.dim));
-      const btn = new Button(this.scene, BASE_W - px - 78, y + 12, 128, 32, '', () => this.buyItem(it.id), { fontSize: 13 });
+      const btn = new Button(this.scene, BASE_W - px - 78, y + 12, 128, 32, '', () => this.buyItem(it.id), { fontSize: 13, fixed: true });
       this.root.add([dot, name, own, btn]);
       this.itemRows.push({ id: it.id, ownText: own, btn });
       y += 38;
     }
 
-    const descend = new Button(this.scene, BASE_W / 2, BASE_H - 58, BASE_W - 80, 50, '▼  DESCEND', () => this.close(), {
+    const descend = new Button(this.scene, BASE_W / 2, BASE_H - 74, BASE_W - 80, 50, '▼  DESCEND', () => this.close(), {
       fill: COL.brand,
       textColor: 0x1a1400,
       fontSize: 22,
+      fixed: true,
     });
     this.root.add(descend);
+    this.root.add(
+      this.scene.add.text(BASE_W / 2, BASE_H - 44, 'ESC also closes', textStyle(11, COL.faint)).setOrigin(0.5),
+    );
   }
 
   open(): void {

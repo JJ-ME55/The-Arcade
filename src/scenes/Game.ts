@@ -24,6 +24,7 @@ import { ITEMS } from '../config/items';
 import { hash2, weightedIndex } from '../core/rng';
 import { computeScore } from '../systems/score';
 import { Button } from '../ui/widgets';
+import { uiHit, swallowHit } from '../ui/hit';
 import { COL, textStyle, title } from '../ui/theme';
 import { getActiveSeason, awardSeasonPoints, podTint } from '../systems/season';
 import type { SeasonDef } from '../config/seasons';
@@ -160,7 +161,7 @@ export class GameScene extends Phaser.Scene {
     // obvious how to sell / refuel / repair / upgrade (not just after a dive).
     this.outpostBtn = new Button(this, this.scale.width / 2, 134, 264, 50, '⌂  ENTER OUTPOST', () => {
       if (!this.menu.isOpen) this.openOutpost();
-    }, { fill: COL.brand, border: COL.brand, textColor: 0x1a1400, fontSize: 20 });
+    }, { fill: COL.brand, border: COL.brand, textColor: 0x1a1400, fontSize: 20, fixed: true });
     this.outpostBtn.setScrollFactor(0).setDepth(1450).setVisible(false);
     this.outpostHint = this.add
       .text(this.scale.width / 2, 168, 'sell · refuel · repair · upgrade', textStyle(13, COL.dim))
@@ -221,7 +222,10 @@ export class GameScene extends Phaser.Scene {
     const c = this.add.container(0, 0).setScrollFactor(0).setDepth(2400);
     const W = this.scale.width;
     const H = this.scale.height;
-    const dim = this.add.rectangle(0, 0, W, H, 0x05050a, 0.72).setOrigin(0).setInteractive();
+    const dim = this.add
+      .rectangle(0, 0, W, H, 0x05050a, 0.72)
+      .setOrigin(0)
+      .setInteractive(new Phaser.Geom.Rectangle(0, 0, 1, 1), swallowHit);
     c.add(dim);
     c.add(this.add.text(W / 2, H * 0.34, 'HOW TO DIG', textStyle(28, COL.brand)).setOrigin(0.5));
     const lines = [
@@ -310,7 +314,7 @@ export class GameScene extends Phaser.Scene {
       const key = this.add.text(-20, -18, `${i + 1}`, textStyle(10, COL.faint)).setOrigin(0.5);
       cont.add([g, count, key]);
       cont.setSize(56, 52);
-      cont.setInteractive(new Phaser.Geom.Rectangle(-28, -26, 56, 52), Phaser.Geom.Rectangle.Contains);
+      cont.setInteractive(new Phaser.Geom.Rectangle(-28, -26, 56, 52), uiHit);
       cont.on('pointerdown', () => this.useItem(it.id));
       this.itemBar.push({ id: it.id, cont, count });
     });
@@ -943,7 +947,11 @@ export class GameScene extends Phaser.Scene {
 
   // ---- pause ----
   private togglePause(): void {
-    if (this.menu.isOpen || this.ended) return;
+    if (this.ended) return;
+    if (this.menu.isOpen) {
+      this.menu.close(); // ESC backs out of the outpost
+      return;
+    }
     if (this.paused) {
       this.paused = false;
       this.pauseRoot?.destroy(true);
@@ -956,11 +964,14 @@ export class GameScene extends Phaser.Scene {
     const c = this.add.container(0, 0).setScrollFactor(0).setDepth(2500);
     const W = this.scale.width;
     const H = this.scale.height;
-    const dim = this.add.rectangle(0, 0, W, H, 0x05050a, 0.8).setOrigin(0).setInteractive();
+    const dim = this.add
+      .rectangle(0, 0, W, H, 0x05050a, 0.8)
+      .setOrigin(0)
+      .setInteractive(new Phaser.Geom.Rectangle(0, 0, 1, 1), swallowHit);
     c.add(dim);
     c.add(this.add.text(W / 2, H / 2 - 120, 'PAUSED', textStyle(40, COL.brand)).setOrigin(0.5));
-    c.add(new Button(this, W / 2, H / 2 - 20, 260, 56, 'RESUME', () => this.togglePause(), { fill: COL.brand, textColor: 0x1a1400 }));
-    c.add(new Button(this, W / 2, H / 2 + 56, 260, 50, 'ABANDON RUN', () => this.endRun('quit'), { accent: COL.danger }));
+    c.add(new Button(this, W / 2, H / 2 - 20, 260, 56, 'RESUME', () => this.togglePause(), { fill: COL.brand, textColor: 0x1a1400, fixed: true }));
+    c.add(new Button(this, W / 2, H / 2 + 56, 260, 50, 'ABANDON RUN', () => this.endRun('quit'), { accent: COL.danger, fixed: true }));
     this.pauseRoot = c;
   }
 

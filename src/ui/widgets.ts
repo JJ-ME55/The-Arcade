@@ -1,6 +1,7 @@
 /** Reusable UI widgets: Button, panel helpers. */
 import Phaser from 'phaser';
 import { COL, textStyle } from './theme';
+import { uiHit } from './hit';
 
 export interface ButtonOpts {
   fill?: number;
@@ -9,6 +10,12 @@ export interface ButtonOpts {
   fontSize?: number;
   align?: 'center' | 'left';
   accent?: number; // left accent stripe
+  /**
+   * Set for screen-anchored (scrollFactor-0) buttons inside a scrolling scene — uses the
+   * screen-space hit test, since Phaser's default tests in world space and misses by the
+   * camera scroll.
+   */
+  fixed?: boolean;
 }
 
 export class Button extends Phaser.GameObjects.Container {
@@ -17,7 +24,7 @@ export class Button extends Phaser.GameObjects.Container {
   private bw: number;
   private bh: number;
   private enabled = true;
-  private opts: Required<Omit<ButtonOpts, 'accent'>> & { accent?: number };
+  private opts: Required<Omit<ButtonOpts, 'accent' | 'fixed'>> & { accent?: number };
   private onClick: () => void;
 
   constructor(
@@ -53,7 +60,7 @@ export class Button extends Phaser.GameObjects.Container {
     this.setSize(w, h);
     this.setInteractive(
       new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h),
-      Phaser.Geom.Rectangle.Contains,
+      opts.fixed ? uiHit : Phaser.Geom.Rectangle.Contains,
     );
     this.on('pointerover', () => this.draw(1));
     this.on('pointerout', () => this.draw(0));
