@@ -837,6 +837,8 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                 localTrail.push({ t: elapsed, x: states[PLAYER].x, z: states[PLAYER].z });
                 if (localTrail.length > 150) localTrail.shift();
               }
+              // snapT is on the SAME anchored race clock as `elapsed` (server
+              // stamps tMs from lockedStartAtMs), so this lookup is exact.
               const snapT = (((snap as any).tMs ?? 0) / 1000);
               let refPt: { x: number; z: number } | null = null;
               for (let bi = localTrail.length - 1; bi >= 0; bi--) {
@@ -844,31 +846,28 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
               }
               const baseX = refPt?.x ?? states[PLAYER].x;
               const baseZ = refPt?.z ?? states[PLAYER].z;
-              const trueDrift = Math.hypot(selfSnap.x - baseX, selfSnap.z - baseZ);
+              // ERROR VECTOR: where the server says I was at snapT minus where I
+              // actually was at snapT. Latency-independent — no extrapolation
+              // (extrapolating through corners on a bursty link swung the pull
+              // target wildly: the "pulling me all over the place" run).
+              const errX = selfSnap.x - baseX;
+              const errZ = selfSnap.z - baseZ;
+              const trueDrift = Math.hypot(errX, errZ);
               const rawDrift = Math.hypot(selfSnap.x - states[PLAYER].x, selfSnap.z - states[PLAYER].z);
-              const age = Math.max(0, Math.min(0.6, elapsed - snapT));
-              // server position extrapolated to "now" — the correct pull target
-              const exX = selfSnap.x + Math.sin(selfSnap.velHeading) * selfSnap.speed * age;
-              const exZ = selfSnap.z + Math.cos(selfSnap.velHeading) * selfSnap.speed * age;
-              if (trueDrift > 40) {
-                states[PLAYER] = {
-                  ...states[PLAYER],
-                  x: exX, z: exZ,
-                  heading: selfSnap.heading, velHeading: selfSnap.velHeading,
-                  speed: selfSnap.speed,
-                };
-              } else if (trueDrift > 12) {
-                states[PLAYER] = {
-                  ...states[PLAYER],
-                  x: states[PLAYER].x + (exX - states[PLAYER].x) * 0.05,
-                  z: states[PLAYER].z + (exZ - states[PLAYER].z) * 0.05,
-                };
+              // SAFETY NET ONLY — normal racing must never feel a pull. The
+              // parity work keeps true drift in single digits by itself;
+              // corrections exist for genuine desync (respawn-grade) only.
+              if (trueDrift > 60) {
+                // shift by the full error (keeps local heading/speed — no teleport-feel)
+                states[PLAYER] = { ...states[PLAYER], x: states[PLAYER].x + errX, z: states[PLAYER].z + errZ };
+              } else if (trueDrift > 25) {
+                states[PLAYER] = { ...states[PLAYER], x: states[PLAYER].x + errX * 0.02, z: states[PLAYER].z + errZ * 0.02 };
               }
               // Drift meter — console.warn so it shows on warn-filtered consoles.
-              // TRUE is the verdict number; lag-apparent is expected to sit ~speed×RTT.
+              // TRUE is the verdict number; lag-apparent ~speed×latency is normal.
               if (!(window as any).__ckDriftAt || performance.now() - (window as any).__ckDriftAt > 3000) {
                 (window as any).__ckDriftAt = performance.now();
-                console.warn(`[critter-kart/sync] drift true: ${trueDrift.toFixed(1)}u (lag-apparent ${rawDrift.toFixed(1)}u)${trueDrift > 12 ? ' (correcting)' : ''}`);
+                console.warn(`[critter-kart/sync] drift true: ${trueDrift.toFixed(1)}u (lag-apparent ${rawDrift.toFixed(1)}u)${trueDrift > 25 ? ' (correcting)' : ''}`);
               }
             }
           }
