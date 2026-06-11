@@ -799,6 +799,10 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                 slowTimer: k.slowTimer,
                 shield: k.shield,
               };
+              // Server-authoritative train squash for REMOTE karts — drive the
+              // local flatten window from the snapshot so the squash renders.
+              const ft = (k as any).flattenTimer ?? 0;
+              if (ft > 0 && flattenUntil[i] <= elapsed) flattenUntil[i] = elapsed + ft;
             }
             // Self kart: keep LOCAL position/feel, but overlay server-authoritative
             // EFFECT + ITEM state so the player actually feels item hits (stun /

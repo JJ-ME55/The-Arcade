@@ -94,6 +94,8 @@ export interface KartSnapshot {
   // Item state (server-authoritative). heldItem = ITEM enum (-1 = none).
   heldItem?: number;
   heldCount?: number;
+  // Seconds of train-squash remaining (server-authoritative train hazard).
+  flattenTimer?: number;
 }
 
 /** An in-flight projectile (acorn/bee) for client VFX. */
