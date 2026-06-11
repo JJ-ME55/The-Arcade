@@ -346,6 +346,21 @@ function addPocketCups(tableMesh){
     bottom.rotation.x = -Math.PI / 2;
     bottom.position.set(best.x, rimY - depth, best.z);   // covers the lit model shelf
     scene.add(bottom);
+
+    // Shadow filler — stripping the net left a real HOLE in the table
+    // geometry, so light leaked through each pocket and the floor shadow
+    // had 6 gaps. This disc is invisible in the main render (no colour,
+    // no depth write) but still castShadow, so it plugs the shadow gap
+    // without covering the visible recessed pocket. JJ 2026-06: "the
+    // shadow still has gaps — make the pockets opaque."
+    const filler = new THREE.Mesh(
+      new THREE.CircleGeometry(rTop * 1.05, 32),
+      new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false })
+    );
+    filler.rotation.x = -Math.PI / 2;
+    filler.position.set(best.x, clothY - 0.02, best.z);
+    filler.castShadow = true;
+    scene.add(filler);
   }
 }
 
