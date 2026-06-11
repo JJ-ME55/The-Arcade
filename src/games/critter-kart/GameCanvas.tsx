@@ -473,6 +473,10 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     let steer = 0;
     let prevUse = false;
     let mpLastTick = -1, mpLastTickAt = 0, netStalled = false; // MP snapshot-health tracker
+    // Local-position history (race-time keyed) for latency-compensated drift:
+    // a snapshot describes the server ~RTT/2 ago, so it must be compared against
+    // where the LOCAL kart was at that same race-time, not where it is now.
+    const localTrail: { t: number; x: number; z: number }[] = [];
     let throttleDownSince: number | null = null; // when the player first held throttle during the countdown
     let rocketResolved = false; // rocket-start bonus applied at GO (once)
     let lastHud = '';
@@ -822,30 +826,49 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
               };
               heldItems[PLAYER] = selfSnap.heldItem ?? NO_ITEM;
               heldCount[PLAYER] = selfSnap.heldCount ?? 0;
-              // RECONCILIATION-LITE: the server owns the race (items, hits,
-              // standings), so the LOCAL kart must not silently drift from the
-              // server's copy of it. <10u: leave it (local feel). 10–40u:
-              // gently pull toward server truth. >40u: snap (respawn-grade).
-              // This bounds divergence permanently — the failure mode behind
-              // "balloons don't pop / we're not racing each other".
-              const ddx = selfSnap.x - states[PLAYER].x;
-              const ddz = selfSnap.z - states[PLAYER].z;
-              const drift = Math.hypot(ddx, ddz);
-              if (drift > 40) {
+              // RECONCILIATION (latency-compensated): a snapshot describes the
+              // server ~RTT/2 ago. Raw "now vs snapshot" distance is dominated
+              // by snapshot AGE at speed (56u/s × 160ms ≈ 9u) — correcting on
+              // it yanks the player backwards at top speed (v1 bug). So:
+              //   trueDrift = snapshot vs where the LOCAL kart was at the
+              //               snapshot's race-time (localTrail lookup)
+              //   correction target = server position EXTRAPOLATED to now.
+              record: {
+                localTrail.push({ t: elapsed, x: states[PLAYER].x, z: states[PLAYER].z });
+                if (localTrail.length > 150) localTrail.shift();
+              }
+              const snapT = (((snap as any).tMs ?? 0) / 1000);
+              let refPt: { x: number; z: number } | null = null;
+              for (let bi = localTrail.length - 1; bi >= 0; bi--) {
+                if (localTrail[bi].t <= snapT) { refPt = localTrail[bi]; break; }
+              }
+              const baseX = refPt?.x ?? states[PLAYER].x;
+              const baseZ = refPt?.z ?? states[PLAYER].z;
+              const trueDrift = Math.hypot(selfSnap.x - baseX, selfSnap.z - baseZ);
+              const rawDrift = Math.hypot(selfSnap.x - states[PLAYER].x, selfSnap.z - states[PLAYER].z);
+              const age = Math.max(0, Math.min(0.6, elapsed - snapT));
+              // server position extrapolated to "now" — the correct pull target
+              const exX = selfSnap.x + Math.sin(selfSnap.velHeading) * selfSnap.speed * age;
+              const exZ = selfSnap.z + Math.cos(selfSnap.velHeading) * selfSnap.speed * age;
+              if (trueDrift > 40) {
                 states[PLAYER] = {
                   ...states[PLAYER],
-                  x: selfSnap.x, z: selfSnap.z,
+                  x: exX, z: exZ,
                   heading: selfSnap.heading, velHeading: selfSnap.velHeading,
                   speed: selfSnap.speed,
                 };
-              } else if (drift > 10) {
-                states[PLAYER] = { ...states[PLAYER], x: states[PLAYER].x + ddx * 0.05, z: states[PLAYER].z + ddz * 0.05 };
+              } else if (trueDrift > 12) {
+                states[PLAYER] = {
+                  ...states[PLAYER],
+                  x: states[PLAYER].x + (exX - states[PLAYER].x) * 0.05,
+                  z: states[PLAYER].z + (exZ - states[PLAYER].z) * 0.05,
+                };
               }
-              // Drift meter — console.warn so it's visible even on consoles
-              // filtered to warnings+errors. The number that proves sync health.
+              // Drift meter — console.warn so it shows on warn-filtered consoles.
+              // TRUE is the verdict number; lag-apparent is expected to sit ~speed×RTT.
               if (!(window as any).__ckDriftAt || performance.now() - (window as any).__ckDriftAt > 3000) {
                 (window as any).__ckDriftAt = performance.now();
-                console.warn(`[critter-kart/sync] self local↔server drift: ${drift.toFixed(1)}u${drift > 10 ? ' (correcting)' : ''}`);
+                console.warn(`[critter-kart/sync] drift true: ${trueDrift.toFixed(1)}u (lag-apparent ${rawDrift.toFixed(1)}u)${trueDrift > 12 ? ' (correcting)' : ''}`);
               }
             }
           }
