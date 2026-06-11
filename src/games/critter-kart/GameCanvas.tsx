@@ -745,7 +745,10 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         try {
           mp.sendInput({
             steer: racing ? raw.steer : 0,
-            throttle: racing ? raw.throttle : 0,
+            // Throttle is sent UNGATED so the server can see the countdown
+            // throttle-hold and award the rocket start authoritatively (the
+            // runner doesn't move karts pre-GO, so this is timing-only).
+            throttle: raw.throttle,
             brake: racing ? raw.brake : 0,
             drift: !!(racing && raw.drift),
           });
