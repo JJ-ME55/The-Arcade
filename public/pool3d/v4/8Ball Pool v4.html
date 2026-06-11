@@ -165,9 +165,9 @@
 <script type="text/babel" src="tweaks-panel.jsx"></script>
 <script type="text/babel">
   const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-    "feltColor": "#2F7D46",
+    "feltColor": "#1B5299",
     "woodFinish": "Walnut",
-    "cameraPreset": "Overhead"
+    "cameraPreset": "Cinematic"
   }/*EDITMODE-END*/;
 
   function PoolTweaks(){
@@ -187,7 +187,7 @@
       <TweaksPanel>
         <TweakSection label="Table" />
         <TweakColor label="Felt" value={t.feltColor}
-                    options={['#2F7D46', '#2A6FDB', '#6E1D2A', '#26282E']}
+                    options={['#1B5299', '#2F7D46', '#6E1D2A', '#26282E']}
                     onChange={(v) => setTweak('feltColor', v)} />
         <TweakRadio label="Wood" value={t.woodFinish}
                     options={['Cherry', 'Oak', 'Walnut', 'Black']}

@@ -18,7 +18,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMappingExposure = 0.98;   // JJ 2026-06: "it's all a little light" — deepen the whole image
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -113,6 +113,12 @@ loader.load('assets/pool_table_traditional.glb', (gltf) => {
   tableMat.roughness = Math.min(tableMat.roughness ?? 1, 0.9);
   if (tableMat.normalScale) tableMat.normalScale.multiplyScalar(0.45);   // soften baked grain bump
   stripNetFaces(tableMesh);                   // v4: no net pockets
+  // Clean shadow: cast from solid geometry only. The visible mesh uses an
+  // alpha cutout (alphaTest) for the net weave, and that cutout was
+  // bleeding the net pattern into the shadow. A plain depth material (no
+  // map/alphaTest) makes the table cast a solid silhouette instead.
+  // JJ 2026-06: "the shadow still shows the net, block it out."
+  tableMesh.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
 
   // normalise: long side of the table = 11.2 units, base on y=0, centred
   root.updateMatrixWorld(true);
