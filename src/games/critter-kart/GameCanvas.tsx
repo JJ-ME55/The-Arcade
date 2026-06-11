@@ -822,6 +822,31 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
               };
               heldItems[PLAYER] = selfSnap.heldItem ?? NO_ITEM;
               heldCount[PLAYER] = selfSnap.heldCount ?? 0;
+              // RECONCILIATION-LITE: the server owns the race (items, hits,
+              // standings), so the LOCAL kart must not silently drift from the
+              // server's copy of it. <10u: leave it (local feel). 10–40u:
+              // gently pull toward server truth. >40u: snap (respawn-grade).
+              // This bounds divergence permanently — the failure mode behind
+              // "balloons don't pop / we're not racing each other".
+              const ddx = selfSnap.x - states[PLAYER].x;
+              const ddz = selfSnap.z - states[PLAYER].z;
+              const drift = Math.hypot(ddx, ddz);
+              if (drift > 40) {
+                states[PLAYER] = {
+                  ...states[PLAYER],
+                  x: selfSnap.x, z: selfSnap.z,
+                  heading: selfSnap.heading, velHeading: selfSnap.velHeading,
+                  speed: selfSnap.speed,
+                };
+              } else if (drift > 10) {
+                states[PLAYER] = { ...states[PLAYER], x: states[PLAYER].x + ddx * 0.05, z: states[PLAYER].z + ddz * 0.05 };
+              }
+              // Drift meter — console.warn so it's visible even on consoles
+              // filtered to warnings+errors. The number that proves sync health.
+              if (!(window as any).__ckDriftAt || performance.now() - (window as any).__ckDriftAt > 3000) {
+                (window as any).__ckDriftAt = performance.now();
+                console.warn(`[critter-kart/sync] self local↔server drift: ${drift.toFixed(1)}u${drift > 10 ? ' (correcting)' : ''}`);
+              }
             }
           }
         } catch (e) {
@@ -1507,6 +1532,9 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       if (mp) {
         const t = (mp.latestSnapshot as any)?.tick;
         if (typeof t === 'number' && t !== mpLastTick) { mpLastTick = t; mpLastTickAt = performance.now(); }
+        // Blind-spot fix: if NO snapshot has EVER arrived, start the stall clock
+        // at racing-start so the badge still fires (previously it never showed).
+        if (racing && mpLastTickAt === 0) mpLastTickAt = performance.now();
       }
       const stalledNow = !!mp && racing && mpLastTickAt > 0 && (performance.now() - mpLastTickAt) > 1200;
       if (stalledNow !== netStalled) {
