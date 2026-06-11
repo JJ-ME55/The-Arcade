@@ -347,20 +347,23 @@ function addPocketCups(tableMesh){
     bottom.position.set(best.x, rimY - depth, best.z);   // covers the lit model shelf
     scene.add(bottom);
 
-    // Shadow filler — stripping the net left a real HOLE in the table
-    // geometry, so light leaked through each pocket and the floor shadow
-    // had 6 gaps. This disc is invisible in the main render (no colour,
-    // no depth write) but still castShadow, so it plugs the shadow gap
-    // without covering the visible recessed pocket. JJ 2026-06: "the
-    // shadow still has gaps — make the pockets opaque."
-    const filler = new THREE.Mesh(
-      new THREE.CircleGeometry(rTop * 1.05, 32),
-      new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false })
+    // OPAQUE pocket cap — the stripped model still shows a black/white
+    // checker (leftover net weave) at the pocket mouths. A solid unlit
+    // dark disc over the mouth covers that checker and reads as a clean
+    // opaque pocket. Unlit (MeshBasicMaterial) so the lamp never lifts
+    // it to grey; generous radius to cover the corner net wedge; casts
+    // shadow so it ALSO plugs the floor-shadow gap (replaces the old
+    // invisible filler). JJ 2026-06: "the pockets need to be opaque."
+    const capR = isCorner ? 0.60 : 0.50;
+    const cap = new THREE.Mesh(
+      new THREE.CircleGeometry(capR, 40),
+      new THREE.MeshBasicMaterial({ color: '#070608', side: THREE.DoubleSide })
     );
-    filler.rotation.x = -Math.PI / 2;
-    filler.position.set(best.x, clothY - 0.02, best.z);
-    filler.castShadow = true;
-    scene.add(filler);
+    cap.rotation.x = -Math.PI / 2;
+    cap.position.set(best.x, clothY + 0.006, best.z);   // hair above cloth, covers the checker
+    cap.renderOrder = 2;
+    cap.castShadow = true;
+    scene.add(cap);
   }
 }
 
