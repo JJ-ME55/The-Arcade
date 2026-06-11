@@ -854,14 +854,30 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
               const errZ = selfSnap.z - baseZ;
               const trueDrift = Math.hypot(errX, errZ);
               const rawDrift = Math.hypot(selfSnap.x - states[PLAYER].x, selfSnap.z - states[PLAYER].z);
-              // SAFETY NET ONLY — normal racing must never feel a pull. The
-              // parity work keeps true drift in single digits by itself;
-              // corrections exist for genuine desync (respawn-grade) only.
-              if (trueDrift > 60) {
-                // shift by the full error (keeps local heading/speed — no teleport-feel)
-                states[PLAYER] = { ...states[PLAYER], x: states[PLAYER].x + errX, z: states[PLAYER].z + errZ };
-              } else if (trueDrift > 25) {
-                states[PLAYER] = { ...states[PLAYER], x: states[PLAYER].x + errX * 0.02, z: states[PLAYER].z + errZ * 0.02 };
+              // SAFETY NET — ONE-SHOT resync with a cooldown, never a chain.
+              // Fires only on sustained respawn-grade desync (e.g. the client
+              // froze and the worlds genuinely separated): a single clean reset
+              // to the server's state, like a Lakitu pickup — then 5s immunity
+              // so it can never machine-gun teleports (JJ's "2 laps in quick
+              // succession"). Ordinary racing is NEVER touched.
+              const w: any = window as any;
+              if (trueDrift > 30) {
+                w.__ckDesyncSince = w.__ckDesyncSince ?? performance.now();
+                const sustained = performance.now() - w.__ckDesyncSince > 1000;
+                const offCooldown = !w.__ckResyncAt || performance.now() - w.__ckResyncAt > 5000;
+                if (sustained && offCooldown) {
+                  w.__ckResyncAt = performance.now();
+                  w.__ckDesyncSince = undefined;
+                  states[PLAYER] = {
+                    ...states[PLAYER],
+                    x: selfSnap.x, z: selfSnap.z,
+                    heading: selfSnap.heading, velHeading: selfSnap.velHeading,
+                    speed: selfSnap.speed, y: 0, vy: 0, falling: false,
+                  };
+                  console.warn('[critter-kart/sync] one-shot resync to server state (sustained desync)');
+                }
+              } else {
+                w.__ckDesyncSince = undefined;
               }
               // Drift meter — console.warn so it shows on warn-filtered consoles.
               // TRUE is the verdict number; lag-apparent ~speed×latency is normal.
