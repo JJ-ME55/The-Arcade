@@ -860,6 +860,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                 seq,
                 throttle: raw.throttle,
                 steer,
+                rawSteer: raw.steer, // replay re-ramps from RAW, seeded by the server's ss
                 brake: raw.brake,
                 drift: !!raw.drift,
                 ticks: 0,   // counted by the fixed substep — replay replays REALITY
@@ -992,11 +993,20 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                   slowTimer: selfSnap.slowTimer ?? 0,
                   shield: !!selfSnap.shield,
                 };
+                // STEER-RAMP RECONSTRUCTION: replaying the smoothed steer
+                // recorded at SEND time (a stale staircase) made the candidate
+                // heading wrong by a fraction whenever steer was CHANGING —
+                // i.e. every corner and every drift, never on straights. The
+                // server now sends its ramp state (ss): re-ramp from it with
+                // the RAW steer of each pending input — the exact computation
+                // the server itself will run for those inputs.
+                let rss = (selfSnap as any).ss ?? steer;
                 for (const p of mpPending) {
                   const reps = (p as any).ticks ?? 1; // ?? not ||: a genuine 0 means "not yet simulated locally — do not replay" (≈1 tick per input at 60Hz sends)
                   for (let k = 0; k < reps; k++) {   // replay the ACTUAL sim ticks this input drove
+                    rss = rampSteer(rss, (p as any).rawSteer ?? p.steer, TUNING.steerRampRate, TUNING.steerReturnRate, FIXED);
                     cand = stepKart(cand, {
-                      throttle: p.throttle, steer: p.steer, brake: p.brake, drift: p.drift,
+                      throttle: p.throttle, steer: rss, brake: p.brake, drift: p.drift,
                       onTrack: track.isOnTrack(cand.x, cand.z),
                       offRoad: offRoadAt(cand.x, cand.z),
                     }, TUNING, FIXED);
