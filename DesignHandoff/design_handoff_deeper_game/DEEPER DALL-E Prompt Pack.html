@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEEPER — DALL·E Prompt Pack (Shop Screens)</title>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{--gold:#ffcf57;--crt:#5fe87a;--txt:#e9ddc4;--muted:#9b8f76;--bg:#0d0b07;--panel:#1c1812;--edge:#0b0906}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:'Oxanium',system-ui,sans-serif;line-height:1.55;padding:48px clamp(18px,5vw,70px) 90px}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{font-size:34px;margin:0 0 4px;color:#f3dca0}
+  .sub{color:var(--muted);margin:0 0 30px;font-size:15px}
+  h2{font-size:20px;color:var(--gold);margin:38px 0 10px;letter-spacing:.04em}
+  h3{font-size:16px;color:#cfead6;margin:26px 0 8px}
+  p,li{font-size:15px;color:#d6cab0}
+  ul{padding-left:22px;margin:8px 0}
+  .locked{background:var(--panel);border:1.5px solid var(--edge);border-radius:12px;padding:16px 20px;margin:14px 0}
+  .locked b{color:var(--gold)}
+  pre{background:#10160f;border:1.5px solid #0a0a08;border-radius:10px;padding:18px 20px;white-space:pre-wrap;
+    font-family:'Share Tech Mono',monospace;font-size:13.5px;color:var(--crt);box-shadow:inset 0 0 18px rgba(0,0,0,.6);user-select:all}
+  .tip{border-left:3px solid var(--gold);padding:2px 0 2px 14px;margin:12px 0;color:#cdbf9e;font-size:14px}
+  .tag{display:inline-block;font-size:11px;letter-spacing:.18em;font-weight:800;color:#1a1408;background:var(--gold);border-radius:5px;padding:2px 9px;margin-right:8px;vertical-align:.14em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>DALL·E Prompt Pack — DEEPER shop screens</h1>
+  <p class="sub">Copy-paste prompts for the three shop machines, plus what stays locked and how to composite the results.</p>
+
+  <h2>What's locked (do not let the designer / AI change these)</h2>
+  <div class="locked">
+    <ul>
+      <li><b>Cash readout</b> — bold yellow-gold numerals, e.g. <b style="color:var(--gold)">$12,450</b> (we overlay this as real text, never baked into the image)</li>
+      <li><b>The green screen</b> — dark-green CRT glass, green terminal text, faint scanlines + glow</li>
+      <li><b>Shell</b> — weathered olive-grey steel, rust + grime + rivets, thick rounded <b>polished-silver frame</b></li>
+      <li><b>Red round X</b> close button, top-right</li>
+      <li><b>Chrome italic machine names</b> ("Mineral Processor 3000" etc.) — typeset by us, not painted by AI</li>
+      <li><b>Embossed dark-maroon metal buttons</b> in raised steel bevel frames; <b>red LED</b> indicators</li>
+      <li><b>Layouts</b> — sell table / gauge+pump+buttons / category bar + current/available grid</li>
+    </ul>
+  </div>
+
+  <div class="tip"><b>The golden rule:</b> generate the <b>blank machine shell only</b> — no text, no numbers, no logos. AI mangles type. All copy (logos, prices, cash, CRT text) and the ore/drill renders get overlaid in-engine, which also keeps them crisp and localisable.</div>
+
+  <h2>Shared style preamble <span class="tag">prepend to every prompt</span></h2>
+  <pre>A 2D video-game UI panel, viewed perfectly straight-on, flat with no perspective, filling the frame on a plain very dark background. Style: late-1990s pre-rendered CGI game interface — a chunky industrial machine front made of weathered olive-grey steel with rust stains, oil grime, scratches and small rivets, framed by a thick rounded polished-silver bezel. Soft even lighting from above. Tactile and slightly worn — not flat vector art, not pixel art, not a photograph. IMPORTANT: absolutely no text, no letters, no numbers, no logos anywhere; leave every display, plate and button face blank.</pre>
+
+  <h2>1 · Mineral Processor 3000 <span class="tag">sell screen</span></h2>
+  <pre>[paste preamble first] The machine is a heavy mineral-refinery terminal, landscape 3:2. One large empty dark-green CRT glass screen with a faint green glow and subtle scanlines fills most of the panel, with generously rounded corners. Above the screen runs a horizontal strip of bare weathered metal (left empty). In each of the four corners of the silver bezel sits a chunky steel gear with a polished chrome ball-bearing hub, overlapping the frame edge. A metal D-shaped grab handle protrudes from the middle of the left and the right edge. Along the bottom edge runs a strip of dark diamond-plate tread metal. A small glossy red round button sits at the top right. Mood: a utilitarian machine that crushes rocks into money.</pre>
+
+  <h2>2 · Propellant Vendor 12000 <span class="tag">fuel screen</span></h2>
+  <pre>[paste preamble first] The machine is an industrial fuel-dispenser kiosk, landscape 3:2, divided into three zones. LEFT: a tall vertical glass gauge tube with rounded chrome end-caps and two steel band clamps around it; the tube holds amber-yellow liquid in its lower half beneath a dark murky-green upper half; below the tube sits a small empty dark-green LCD plate. CENTER: a recessed dark bay holding a bronze-brown fuel-pump nozzle hanging nose-down in a steel cradle, its black rubber hose running down and out of the bottom of the panel. RIGHT: four blank rectangular buttons of embossed dark maroon-red metal, each seated in a raised brushed-steel bevel frame, arranged two-by-two, with one wider blank maroon button beneath them. A thin polished chrome underline rule runs across the blank title area at the top, and a small glossy red round button sits at the top right.</pre>
+
+  <h2>3 · AutoBuy 2000 <span class="tag">upgrade screen</span></h2>
+  <pre>[paste preamble first] The machine is an upgrade vending terminal, landscape 3:2. TOP LEFT: a small empty dark-green LCD window in a steel housing, flanked on each side by a round knurled gear-shaped metal knob; directly beneath it a row of seven small square brushed-steel buttons, each with a tiny red LED dot below it. TOP RIGHT: an area of bare weathered metal left completely empty (reserved for a logo). The lower two thirds of the panel is one large rounded dark-green CRT glass screen with a faint glow and subtle scanlines, empty except for faint dotted rectangular outlines etched in dim green: one small square slot at the left side, and a grid of six square slots (three columns, two rows) on the right. A small glossy red round button sits at the very top right of the panel.</pre>
+
+  <h2>Sprite sheets — 7 upgrade categories <span class="tag">6 items each</span></h2>
+  <p>One sheet per AutoBuy category. Each returns a 3×2 grid you can slice into the six upgrade-tier thumbnails (drop them back here and I'll cut, knock out the background and name them to the engine keys).</p>
+
+  <h3>Sheet preamble <span class="tag">prepend to every sheet prompt</span></h3>
+  <pre>A video-game sprite sheet: six distinct items arranged in a neat grid of three columns and two rows, evenly spaced with clear gaps, each item fully separate and centered in its cell, all on one plain solid near-black background. All six share the same scale, the same three-quarter camera angle and the same soft top-left lighting. Style: late-1990s pre-rendered CGI game props — chunky, tactile, slightly worn metal. No text, no numbers, no labels, no cell borders.</pre>
+
+  <h3>1 · Drills</h3>
+  <pre>[paste sheet preamble] The six items are conical mining drill bits, each mounted on a small dark steel collar and pointing to the right, escalating from cheap to exotic: 1) a plain dull steel auger; 2) a dark gunmetal tungsten bit with heavy ridges; 3) a white crystal-crusted diamond-tipped bit; 4) an orange-hot bit wreathed in faint plasma; 5) a violet bit ringed by thin glowing hoops; 6) a near-black purple bit with a faint warping glow at its tip.</pre>
+
+  <h3>2 · Engines</h3>
+  <pre>[paste sheet preamble] The six items are compact mining-pod engines, escalating from junk to exotic: 1) a rusty single-exhaust engine block; 2) a cleaner twin-exhaust V block; 3) a chromed four-pipe block; 4) a turbocharged block with intercooler piping; 5) a sleek blue-lit ion thruster block; 6) an exotic purple-glowing antigravity core held in a steel cage.</pre>
+
+  <h3>3 · Fuel tanks</h3>
+  <pre>[paste sheet preamble] The six items are fuel tanks, escalating in size and quality: 1) a small dented steel jerry-can; 2) a standard riveted cylinder tank; 3) twin strapped cylinders; 4) a large armored cylinder with a round gauge; 5) a chromed high-pressure tank with piping; 6) a huge composite tank with faintly glowing seams.</pre>
+
+  <h3>4 · Cargo bays</h3>
+  <pre>[paste sheet preamble] The six items are mining cargo holds: 1) a small open ore basket; 2) a riveted steel bin; 3) a double-wide hopper; 4) an armored container with a hatch; 5) a hydraulic expanding hold; 6) a huge sealed hold with faint cyan magnetic field lines.</pre>
+
+  <h3>5 · Hull armor</h3>
+  <pre>[paste sheet preamble] The six items are curved hull armor plate segments: 1) a scratched bare steel plate; 2) bolted iron plating; 3) reinforced double-layer plating; 4) angular composite plating; 5) sleek alloy plating with thin glowing energy seams; 6) radiant gold-trimmed ceremonial-grade plating.</pre>
+
+  <h3>6 · Radiators</h3>
+  <pre>[paste sheet preamble] The six items are cooling radiators: 1) a rusty finned block; 2) a clean finned block with a small fan; 3) a twin-fan unit; 4) a tall copper-finned stack; 5) a liquid-cooled unit with coolant tubes; 6) a cryogenic unit with frosted vents and a pale blue glow.</pre>
+
+  <h3>7 · Scanners</h3>
+  <pre>[paste sheet preamble] The six items are ore scanners: 1) a stubby whip antenna on a steel base; 2) a small rotating dish; 3) a twin-dish array; 4) a dome radar with a lit ring; 5) a flat phased sensor panel with small teal lights; 6) a levitating orb scanner projecting a faint teal holographic ring.</pre>
+
+  <div class="tip"><b>Sheet tips:</b> generate landscape (1792×1024) so the 3×2 grid breathes · keep the near-black background flat for a clean knockout · if the grid comes back uneven or items touch, regenerate — don't crop a bad sheet · reuse the sheet preamble verbatim across all 7 so the categories match.</div>
+
+  <h2>Round 3 — Title hero, Game Over pass, Leaderboard <span class="tag">no text in any of these</span></h2>
+  <p>All three follow the pipeline rule: <b>the image carries zero text</b> — empty plates and dark CRT areas are left blank for live UI compositing. Append the no-text clause verbatim; regenerate if any lettering sneaks in.</p>
+
+  <h3>8 · Main Menu hero scene <span class="tag">full-bleed background</span></h3>
+  <pre>A video game title screen background, wide landscape, in a late-1990s pre-rendered CGI style: a massive rusty riveted mining pod with a huge segmented steel drill-cone nose, seen in dramatic three-quarter close-up, bursting diagonally up through dark umber rock and pebbly soil, dust and rock chips flying, warm amber work-lights glowing on its battered hull, a single glowing cyan visor slit; the cave wall fills the frame with dense tactile dirt texture and a few faintly glowing gold ore nuggets; soft moonlight from the upper left, heavy dark vignette at the edges, and the upper third of the image calmer and darker so a logo can sit there. Chunky, worn, tactile industrial metal throughout. Strictly no text, no letters, no numbers, no logos, no watermarks.</pre>
+
+  <h3>9 · Game Over panel shell <span class="tag">replaces the CSS panel</span></h3>
+  <pre>A single video-game "mission failed" panel, centered on a plain very dark background, late-1990s pre-rendered CGI style: a battered rusty riveted steel plaque with a polished silver outer frame, visibly cracked and dented with scorch marks, a thin wisp of smoke and one or two tiny sparks, hazard warning chevrons along the bottom edge, two heavy hex bolts in each corner, and a large blank dark green-black CRT screen inset in the center — completely empty, switched off, no glyphs — occupying about two thirds of the plaque. Strictly no text, no letters, no numbers, no logos.</pre>
+
+  <h3>10 · Leaderboard cabinet shell <span class="tag">new screen</span></h3>
+  <pre>A single video-game leaderboard machine, straight-on view, centered on a plain very dark background, late-1990s pre-rendered CGI style: a tall rusty riveted steel wall cabinet with a polished silver outer frame, a large vertical blank dark green-black CRT screen filling most of its face (completely empty, switched off), an empty curved marquee plate at the top with a small golden trophy ornament bolted above it, warm amber indicator bulbs down both sides, ventilation grilles and pipes on the flanks, hazard stripes at the base. Strictly no text, no letters, no numbers, no logos.</pre>
+
+  <div class="tip"><b>Compositing notes:</b> hero scene → drop straight in as the Main Menu background (wordmark + CRT monitor overlay on the calm upper/left zones) · Game Over shell → I overlay the run-summary rows + buttons onto its blank CRT · Leaderboard shell → I overlay rank rows (RANK / HANDLE / DEPTH / CASH) onto the vertical screen, and it doubles as a <b>Daily Challenge</b> board with a tab.</div>
+
+  <h3>11 · Main Menu monitor shell <span class="tag">NEW GAME / LOAD GAME modal</span></h3>
+  <pre>A single video-game menu monitor, straight-on view, centered on a plain very dark background, late-1990s pre-rendered CGI style: a chunky rusty riveted steel CRT monitor housing with a polished silver outer frame and rounded corners, a thick worn bezel with two heavy hex bolts in each corner, a row of three tiny colored indicator lamps along the bottom edge, a short antenna stub on top, and a few loose wires trailing from one side; the screen itself is a large blank dark green-black CRT — completely empty, switched off, no glyphs — filling most of the face, with a faint glass reflection in one corner. Matches the family of rusty industrial vending machines. Strictly no text, no letters, no numbers, no logos.</pre>
+
+  <h3>12 · Terrain tile sheet <span class="tag">dig-view art upgrade</span></h3>
+  <pre>A video-game terrain texture sheet: a neat grid of three columns and two rows of square tiles, evenly spaced with clear gaps, on one plain solid near-black background, late-1990s pre-rendered CGI style, soft top-left light, all six tiles sharing identical scale and palette: 1) dense brown earth packed with small rounded pebbles; 2) the same earth slightly darker and richer; 3) a grey cracked stone boulder face filling its tile; 4) the same stone darker with deeper cracks; 5) dark excavated tunnel interior, almost black with faint warm edge light at the top; 6) surface earth with short mossy green grass along its top edge. Seamless-looking, tileable texture style, no perspective, viewed flat. Strictly no text, no letters, no numbers.</pre>
+
+  <h3>13 · Mining pod sprite <span class="tag">player character</span></h3>
+  <pre>A single small video-game vehicle sprite centered on a plain solid near-black background, late-1990s pre-rendered CGI style: a compact amber-yellow mining pod, slightly taller than wide, with a rounded riveted hull, one glowing cyan porthole visor, small dark caterpillar treads on each side, a tiny red beacon on an antenna stub, and a short segmented steel drill cone pointing straight down beneath it; warm work-light glow, chunky tactile worn metal, side-on view. Strictly no text, no letters, no numbers.</pre>
+
+  <h2>Round 4 — World props <span class="tag">buildings · ores · gems · fossils</span></h2>
+  <p>These are the in-world assets for the dig &amp; surface scenes (keeping the gameplay you already have, just better art). Each item lands on a near-black background so I can knockout + slice exactly like the upgrade sprites.</p>
+
+  <h3>14 · Surface buildings <span class="tag">3 separate generations — one each</span></h3>
+  <p>Generate these <b>one per image</b> (not a sheet) so each is large and detailed. Centered, single object, plain near-black background, late-1990s pre-rendered CGI style, chunky tactile worn metal, soft top-left light, no text/letters/numbers/logos.</p>
+  <pre>FUEL DEPOT — A small industrial fuel station building seen three-quarter front: a riveted weathered-steel hut with a corrugated roof, a big red cylindrical fuel tank bolted to one side with pipes and a gauge, a pump unit with a hose, a roll-up garage door, warm glowing windows, a tall blank sign board on two posts above the roof (left empty), a red beacon light on the roof. Sits on a concrete pad. Centered on plain near-black background. No text, no letters, no numbers, no logos.</pre>
+  <pre>MINERAL PROCESSOR — A small ore-refinery building seen three-quarter front: a riveted weathered-steel plant with a tall smokestack puffing faint smoke, a round storage silo on one side, external pipework and ladders, a glowing orange furnace window at the base, a conveyor feeding in, a blank sign board above (left empty), an antenna with a red light. Sits on a concrete pad. Centered on plain near-black background. No text, no letters, no numbers, no logos.</pre>
+  <pre>OUTPOST — A small frontier shop / trading-post building seen three-quarter front: a riveted weathered-steel cabin with a sloped corrugated awning over a small porch, stacked crates and barrels beside it, warm glowing windows, a hanging lantern, a blank shingle sign hanging from the awning (left empty), a stovepipe chimney with a wisp of smoke. Sits on rocky ground. Centered on plain near-black background. No text, no letters, no numbers, no logos.</pre>
+
+  <h3>15 · Metal ores <span class="tag">embedded chunks — 4×2 sheet</span></h3>
+  <pre>[paste sheet preamble, but a grid of FOUR columns and TWO rows = eight items] The eight items are clusters of raw metal ore embedded in a rough chunk of dark rock, mining-game style, escalating in value: 1) Coal — dull black faceted lumps; 2) Copper — orange-brown metallic nuggets with green patina flecks; 3) Iron — rusty reddish-brown ore; 4) Aluminium — pale dull silver-grey ore; 5) Silver — bright reflective white-silver nuggets; 6) Gold — rich glinting yellow-gold nuggets with a faint glow; 7) Platinum — cool bright white-grey precious metal with a subtle sheen; 8) Titanium — dark steely blue-grey metallic ore. Each cluster sits in its own rocky matrix, same scale, soft top-left light. No text, no numbers.</pre>
+
+  <h3>16 · Gems &amp; rare <span class="tag">faceted crystals — 3×2 sheet</span></h3>
+  <pre>[paste sheet preamble] The six items are clusters of cut faceted gemstones embedded in dark rock, mining-game style, each glowing softly: 1) Emerald — green; 2) Sapphire — deep blue; 3) Ruby — red; 4) Diamond — clear white brilliant; 5) Amethyst — purple; 6) Aurelium — an exotic radiant amber-gold crystal with an intense inner glow (the legendary find). Sharp glinting facets, gentle bloom, same scale, soft top-left light. No text, no numbers.</pre>
+
+  <h3>17 · Fossils &amp; relics <span class="tag">depth finds — 4×2 sheet</span></h3>
+  <p>Surfaced at deeper strata as rare collectibles. Same sheet rules.</p>
+  <pre>[paste sheet preamble, grid of FOUR columns and TWO rows = eight items] The eight items are ancient fossils and relics partly encased in pale stone, museum-specimen style, dusty and weathered: 1) a coiled ammonite shell; 2) a trilobite; 3) a fossilised fern frond; 4) a curved dinosaur tooth; 5) a dinosaur rib bone; 6) a small horned dinosaur skull; 7) a curved mammoth tusk; 8) a cracked piece of ancient pottery. Each specimen centered in its own pale rock matrix, same scale, soft top-left light, earthy bone-and-sandstone palette. No text, no numbers.</pre>
+
+  <div class="tip"><b>Depth plan:</b> metals seed shallow→mid (Coal/Copper/Iron up top, Silver/Gold/Platinum/Titanium deeper) · gems mid→deep (Aurelium only near the Core) · fossils are rare finds that get richer with depth. Generate sheets <b>wide (1792×1024)</b>; buildings <b>portrait or square</b>. Drop them back and I'll knockout + slice + name to engine keys (ore_coal, gem_ruby, fossil_ammonite, bld_fueldepot …).</div>
+
+  <h2>How to use the results</h2>
+  <ul>
+    <li>Generate <b>wide (1792×1024)</b>, 3–4 variations per machine; pick the best shell.</li>
+    <li>Reuse the preamble <b>verbatim</b> across all three so they read as one family.</li>
+    <li>If a result comes back too clean: append <i>"heavier rust, more grime and scratches"</i>. If it invents text: regenerate and restate <i>"no text of any kind"</i>.</li>
+    <li>We then composite on top, in-engine/HTML: chrome italic logos, the yellow cash, all green CRT text, our <b>faceted ore icons</b> and <b>drill renders</b>, prices, LEDs' on/off state. That keeps every word crisp and editable.</li>
+    <li>Same approach works for a human designer: hand them this pack + the reference screenshots + our current HTML screens as the layout spec.</li>
+  </ul>
+</div>
+</body>
+</html>

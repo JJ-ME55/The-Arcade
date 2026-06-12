@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEEPER — Main Menu</title>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{--gold:#ffcf57;--crt:#6fe88a;--crt-dim:#3f9e52;--txt:#e9ddc4;--muted:#9b8f76}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:'Oxanium',system-ui,sans-serif;color:var(--txt);background:#060403;min-height:100%;
+    display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;overflow:hidden}
+  #bg{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+  .scrim{position:fixed;inset:0;z-index:1;background:
+    linear-gradient(180deg,rgba(2,3,6,.34),transparent 30%),
+    linear-gradient(90deg,rgba(2,3,6,.5) 0%,transparent 45%),
+    linear-gradient(0deg,rgba(2,3,6,.5),transparent 26%)}
+
+  .wrap{position:relative;z-index:2;display:flex;flex-direction:column;align-items:flex-start;gap:3.5vh;
+    padding:6vh 0 0 6vw}
+
+  .wordmark{margin:0;line-height:.9;font-weight:800;letter-spacing:.13em;font-size:clamp(58px,9.5vw,122px);
+    background:linear-gradient(180deg,#ffe487 0%,#f2c33d 38%,#b9791f 78%,#7c4d12 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 4px 0 rgba(0,0,0,.65)) drop-shadow(0 14px 30px rgba(242,195,61,.25))}
+  .tagline{margin:1vh 0 0 4px;font-family:'Share Tech Mono',monospace;font-size:clamp(11px,1.4vw,16px);
+    letter-spacing:.5em;color:var(--crt);text-shadow:0 0 12px rgba(111,232,138,.55)}
+
+  /* generated monitor shell + composited CRT menu — pinned to the calm lower-left rubble */
+  .monitor{position:fixed;right:4vw;top:6vh;z-index:2;width:min(400px,38vw,52vh);aspect-ratio:1288/1014;
+    container-type:inline-size;
+    background:url("art/menu-monitor.png") center/contain no-repeat;
+    filter:drop-shadow(0 22px 44px rgba(0,0,0,.75))}
+  .crt-menu{position:absolute;left:16.6%;top:34%;width:62%;height:47%;
+    display:flex;flex-direction:column;justify-content:center;gap:1.6%}
+  .mi{display:block;text-align:center;text-decoration:none;padding:.4% 0;border-radius:6px;cursor:pointer;
+    font-family:'Share Tech Mono',monospace;font-size:4.3cqw;letter-spacing:.05em;line-height:1.2;
+    color:#5fe87a;text-shadow:0 0 10px rgba(95,232,122,.6),0 2px 0 rgba(0,0,0,.6);transition:filter .1s}
+  .mi:hover{filter:brightness(1.4)}
+  .mi.dim{color:#3f9e52;text-shadow:0 0 6px rgba(95,232,122,.3)}
+
+  .plate{position:fixed;z-index:2;bottom:14px;left:18px;display:flex;gap:14px;
+    font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted);letter-spacing:.1em;white-space:nowrap}
+  .plate span{background:rgba(10,8,5,.55);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:4px 12px}
+</style>
+</head>
+<body>
+  <img id="bg" src="uploads/Drill_HOMESCREEN.png" alt="">
+  <div class="scrim"></div>
+
+  <div class="wrap">
+    <div>
+      <h1 class="wordmark">DEEPER</h1>
+      <p class="tagline">DIG &middot; SELL &middot; UPGRADE &middot; REPEAT</p>
+    </div>
+    <div class="monitor" data-screen-label="main-menu">
+      <nav class="crt-menu">
+        <a class="mi" href="DEEPER Dig View.html" data-screen-label="menu-new-game">NEW GAME</a>
+        <a class="mi" href="#">LOAD GAME</a>
+        <a class="mi" href="DEEPER Leaderboard.html?tab=daily">DAILY DIG</a>
+        <a class="mi" href="DEEPER Outpost Shop.html">OUTPOST</a>
+        <a class="mi" href="DEEPER Collection.html">COLLECTION</a>
+        <a class="mi" href="DEEPER Leaderboard.html">RANKINGS</a>
+        <a class="mi dim" href="DEEPER Game Over.html">LAST RUN</a>
+      </nav>
+    </div>
+  </div>
+
+  <div class="plate"><span>PROTOTYPE v0.1</span><span>DEPTH RECORD: 388 ft</span></div>
+
+  <template id="__bundler_thumbnail">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" fill="#0a0805"/>
+      <text x="50" y="56" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="20" fill="#f2c33d">DEEPER</text>
+      <rect x="30" y="66" width="40" height="8" rx="3" fill="#e0a72a"/>
+    </svg>
+  </template>
+</body>
+</html>

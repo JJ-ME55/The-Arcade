@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEEPER — Collection</title>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{--gold:#ffcf57;--crt:#6fe88a;--crt-dim:#3f9e52;--txt:#e9ddc4;--muted:#9b8f76;--edge:rgba(255,255,255,.08)}
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{font-family:'Oxanium',system-ui,sans-serif;color:var(--txt);min-height:100vh;
+    background:
+      radial-gradient(120% 80% at 50% -10%,#241c12 0%,transparent 55%),
+      linear-gradient(180deg,#0c0a07,#070504);
+    padding:0 0 60px}
+  #bg{position:fixed;inset:0;width:100% !important;height:100% !important;object-fit:cover;filter:blur(9px) brightness(.22) saturate(.8);z-index:-1}
+
+  header{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+    padding:16px clamp(16px,4vw,48px);background:linear-gradient(180deg,#1c1812ee,#1c181200);backdrop-filter:blur(4px)}
+  .back{text-decoration:none;font-family:'Oxanium';font-weight:800;font-size:14px;letter-spacing:.1em;color:var(--txt);
+    border:2px solid #0c0a07;border-radius:9px;padding:9px 15px;background:linear-gradient(180deg,#3b352a,#1c1812);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 3px 7px rgba(0,0,0,.5)}
+  .back:hover{filter:brightness(1.2)}
+  .title{display:flex;flex-direction:column;line-height:1}
+  .title .k{font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.4em;color:var(--crt)}
+  .title h1{margin:3px 0 0;font-weight:800;font-size:clamp(24px,3.6vw,38px);letter-spacing:.06em;
+    background:linear-gradient(180deg,#ffe487,#c9962a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .spacer{flex:1}
+  .progress{display:flex;align-items:center;gap:12px}
+  .progress .ring{font-family:'Share Tech Mono',monospace;font-size:15px;color:var(--gold)}
+  .progress .pbar{width:160px;height:10px;border-radius:99px;background:#0b0906;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.8)}
+  .progress .pbar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#e0a72a,#ffe487)}
+
+  main{max-width:1180px;margin:0 auto;padding:14px clamp(16px,4vw,48px) 0}
+  .tabs{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 22px}
+  .tab{display:flex;align-items:center;gap:8px;font-family:'Oxanium';font-weight:800;font-size:14px;letter-spacing:.05em;
+    cursor:pointer;color:var(--muted);border:1.5px solid #0c0a07;border-radius:10px;padding:9px 16px;
+    background:linear-gradient(180deg,#2a251d,#15120b)}
+  .tab b{font-family:'Share Tech Mono',monospace;font-weight:400;font-size:12px;color:var(--crt-dim)}
+  .tab:hover{color:var(--txt);filter:brightness(1.12)}
+  .tab.on{color:#2a1c05;background:linear-gradient(180deg,#ffe487,#e0a72a);border-color:#6e4d12}
+  .tab.on b{color:#6e4d12}
+
+  .section{margin-bottom:30px}
+  .section h2{font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:0 0 14px;
+    display:flex;align-items:center;gap:12px}
+  .section h2::after{content:"";flex:1;height:1px;background:var(--edge)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(154px,1fr));gap:16px}
+  .card{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--edge);cursor:pointer;
+    background:radial-gradient(120% 100% at 50% 0%,#211a12,#0e0b07);
+    box-shadow:0 10px 26px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05);transition:transform .12s,box-shadow .12s}
+  .card:hover{transform:translateY(-3px);box-shadow:0 16px 34px rgba(0,0,0,.6),0 0 0 1px rgba(255,207,87,.25)}
+  .card .thumb{aspect-ratio:1;display:grid;place-items:center;padding:14px}
+  .card .thumb img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(0,0,0,.6))}
+  .card .meta{padding:9px 12px 12px;border-top:1px solid var(--edge);background:rgba(0,0,0,.25)}
+  .card .nm{font-weight:700;font-size:14px}
+  .card .sub{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);margin-top:2px;display:flex;justify-content:space-between}
+  .card .val{color:var(--gold)}
+  .card .tier{position:absolute;top:9px;left:9px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.08em;
+    padding:3px 7px;border-radius:20px;background:rgba(6,4,3,.7);border:1px solid var(--edge);color:var(--crt)}
+  .card.locked{filter:grayscale(1) brightness(.4)}
+  .card.locked .thumb img{filter:brightness(0) drop-shadow(0 0 0 #000);opacity:.55}
+  .card.locked .nm{color:var(--muted)}
+  .card.locked::after{content:"\1F512";position:absolute;inset:0;display:grid;place-items:center;font-size:30px;opacity:.5;pointer-events:none;top:-22%}
+
+  /* lightbox */
+  .lb{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:5vh 5vw;
+    background:rgba(4,3,2,.85);backdrop-filter:blur(8px)}
+  .lb.on{display:flex}
+  .lb-card{display:flex;flex-direction:column;align-items:center;gap:0;max-width:520px;width:100%}
+  .lb-art{width:min(64vh,460px);aspect-ratio:1;display:grid;place-items:center;
+    background:radial-gradient(120% 100% at 50% 20%,#241b12,#0b0805);border:1px solid var(--edge);border-radius:18px;
+    box-shadow:0 30px 70px rgba(0,0,0,.7)}
+  .lb-art img{max-width:80%;max-height:80%;object-fit:contain;filter:drop-shadow(0 12px 24px rgba(0,0,0,.7))}
+  .lb-info{text-align:center;margin-top:18px}
+  .lb-info h3{margin:0;font-size:26px;font-weight:800;letter-spacing:.03em}
+  .lb-info .cls{font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.2em;color:var(--crt);text-transform:uppercase;margin-top:4px}
+  .lb-info p{max-width:420px;margin:14px auto 0;color:var(--muted);font-size:14.5px;line-height:1.6}
+  .lb-stats{display:flex;gap:26px;justify-content:center;margin-top:16px;font-family:'Share Tech Mono',monospace;font-size:13px}
+  .lb-stats .s b{display:block;color:var(--gold);font-size:18px}
+  .lb-stats .s span{color:var(--muted);font-size:11px;letter-spacing:.1em}
+  .lb-close{position:fixed;top:20px;right:24px;width:46px;height:46px;border-radius:50%;cursor:pointer;font-size:24px;line-height:0;
+    color:#cdd6e3;background:rgba(0,0,0,.45);border:1px solid var(--edge)}
+</style>
+</head>
+<body>
+  <canvas id="bg"></canvas>
+
+  <header>
+    <a class="back" href="DEEPER Main Menu.html">&larr; MENU</a>
+    <div class="title"><span class="k">THE VAULT</span><h1>COLLECTION</h1></div>
+    <span class="spacer"></span>
+    <div class="progress"><span class="ring" id="ring">0 / 22</span><span class="pbar"><i id="pbar"></i></span></div>
+  </header>
+
+  <main>
+    <div class="tabs" id="tabs"></div>
+    <div id="sections"></div>
+  </main>
+
+  <div class="lb" id="lb">
+    <button class="lb-close" id="lbClose">&times;</button>
+    <div class="lb-card">
+      <div class="lb-art"><img id="lbImg" alt=""></div>
+      <div class="lb-info">
+        <h3 id="lbName"></h3>
+        <div class="cls" id="lbClass"></div>
+        <p id="lbDesc"></p>
+        <div class="lb-stats">
+          <div class="s"><b id="lbVal"></b><span>VALUE</span></div>
+          <div class="s"><b id="lbDepth"></b><span>FOUND AT</span></div>
+          <div class="s"><b id="lbCount"></b><span>COLLECTED</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="art/deeper-core.js"></script>
+  <script src="art/deeper-scene2.js"></script>
+  <script>
+  (function(){
+    try{ window.DEEPER && window.DEEPER.renderRef && window.DEEPER.renderRef(document.getElementById('bg')); }catch(e){}
+
+    const DATA={
+      ores:{label:'Ores &amp; Metals',items:[
+        {k:'coal',n:'Coal',v:12,d:'20 ft',got:9,desc:'Cheap black carbon rock. The first thing every operator scrapes together a tank of fuel money from.'},
+        {k:'copper',n:'Copper',v:45,d:'80 ft',got:6,desc:'Ruddy metal flecked with green patina. Reliable early income through the topsoil.'},
+        {k:'iron',n:'Iron',v:30,d:'120 ft',got:14,desc:'Rusty, common, heavy. Bread-and-butter ore of the upper strata.'},
+        {k:'aluminium',n:'Aluminium',v:60,d:'200 ft',got:3,desc:'Light dull silver ore. Worth more than it looks once refined.'},
+        {k:'silver',n:'Silver',v:90,d:'340 ft',got:2,desc:'Bright reflective veins. The first ore that makes a run feel profitable.'},
+        {k:'gold',n:'Gold',v:320,d:'480 ft',got:2,desc:'Glinting yellow nuggets. The classic desire object — chase it deeper.'},
+        {k:'platinum',n:'Platinum',v:520,d:'700 ft',got:0,desc:'Cool white precious metal hiding in the bedrock strata.'},
+        {k:'titanium',n:'Titanium',v:680,d:'900 ft',got:0,desc:'Steely blue-grey and tough as the hull you bolt it to.'},
+      ]},
+      gems:{label:'Gems &amp; Rare',items:[
+        {k:'emerald',n:'Emerald',v:900,d:'620 ft',got:1,desc:'Green fire in the dark. Crystal caverns hide whole clusters.'},
+        {k:'sapphire',n:'Sapphire',v:1100,d:'780 ft',got:0,desc:'Deep blue faceted stone, cold as the frozen deep it favours.'},
+        {k:'ruby',n:'Ruby',v:1400,d:'880 ft',got:0,desc:'Blood-red and brilliant. Worth a full cargo of coal each.'},
+        {k:'diamond',n:'Diamond',v:2200,d:'1,050 ft',got:0,desc:'Clear brilliant-cut crystal. The deep gambler\u2019s reward.'},
+        {k:'amethyst',n:'Amethyst',v:1600,d:'960 ft',got:0,desc:'Royal purple geode crystal, ringed with smaller points.'},
+        {k:'aurelium',n:'Aurelium',v:9000,d:'THE CORE',got:0,desc:'The legendary radiant amber crystal. Said to glow at the very bottom of the world. Few have seen it.'},
+      ]},
+      fossils:{label:'Fossils &amp; Relics',items:[
+        {k:'ammonite',n:'Ammonite',v:240,d:'260 ft',got:1,desc:'A coiled prehistoric shell, ribbed and lustrous. Sells to the museum, not the refinery.'},
+        {k:'trilobite',n:'Trilobite',v:300,d:'330 ft',got:1,desc:'Segmented armoured bug from an ancient sea floor.'},
+        {k:'fern',n:'Fossil Fern',v:180,d:'180 ft',got:0,desc:'A delicate frond pressed into pale shale. A surprisingly common find.'},
+        {k:'tooth',n:'Raptor Tooth',v:520,d:'540 ft',got:0,desc:'A curved serrated fang, glassy with mineralisation.'},
+        {k:'ribs',n:'Rib Cage',v:640,d:'600 ft',got:0,desc:'A nest of fossilised ribs locked in stone.'},
+        {k:'skull',n:'Horned Skull',v:1500,d:'820 ft',got:0,desc:'A great horned dinosaur skull \u2014 a museum centrepiece.'},
+        {k:'tusk',n:'Mammoth Tusk',v:1800,d:'900 ft',got:0,desc:'A curved ivory tusk from the frozen deep.'},
+        {k:'pottery',n:'Ancient Urn',v:2600,d:'1,100 ft',got:0,desc:'Painted pottery from a civilisation that dug here long before you. An artifact, not an ore.'},
+      ]},
+    };
+    const CLASSMAP={ores:'METAL ORE',gems:'PRECIOUS GEM',fossils:'RELIC \u00b7 MUSEUM'};
+
+    let total=0,found=0;
+    Object.values(DATA).forEach(g=>g.items.forEach(it=>{total++;if(it.got>0)found++;}));
+    document.getElementById('ring').textContent=found+' / '+total;
+    document.getElementById('pbar').style.width=(found/total*100)+'%';
+
+    const tabs=document.getElementById('tabs'), sections=document.getElementById('sections');
+    const keys=Object.keys(DATA);
+    keys.forEach((key,i)=>{
+      const g=DATA[key], f=g.items.filter(x=>x.got>0).length;
+      const t=document.createElement('button');t.className='tab'+(i===0?' on':'');t.dataset.key=key;
+      t.innerHTML=g.label+' <b>'+f+'/'+g.items.length+'</b>';
+      t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
+        document.querySelectorAll('.section').forEach(s=>s.style.display=s.dataset.key===key?'block':'none');};
+      tabs.appendChild(t);
+    });
+
+    keys.forEach((key,i)=>{
+      const g=DATA[key];
+      const sec=document.createElement('div');sec.className='section';sec.dataset.key=key;sec.style.display=i===0?'block':'none';
+      sec.innerHTML='<h2>'+g.label+'</h2>';
+      const grid=document.createElement('div');grid.className='grid';
+      g.items.forEach(it=>{
+        const locked=it.got<=0;
+        const card=document.createElement('div');card.className='card'+(locked?' locked':'');
+        card.innerHTML=
+          '<span class="tier">'+(key==='fossils'?'RELIC':key==='gems'?'GEM':'ORE')+'</span>'+
+          '<div class="thumb"><img src="art/world/'+(key==='ores'?'ore_':key==='gems'?'gem_':'fossil_')+it.k+'.png" alt="'+it.n+'"></div>'+
+          '<div class="meta"><div class="nm">'+(locked?'???':it.n)+'</div>'+
+          '<div class="sub"><span>'+(locked?'UNDISCOVERED':it.d)+'</span><span class="val">'+(locked?'':'$'+it.v.toLocaleString())+'</span></div></div>';
+        if(!locked) card.onclick=()=>openLB(key,it);
+        grid.appendChild(card);
+      });
+      sec.appendChild(grid);sections.appendChild(sec);
+    });
+
+    const lb=document.getElementById('lb');
+    function openLB(key,it){
+      document.getElementById('lbImg').src='art/world/'+(key==='ores'?'ore_':key==='gems'?'gem_':'fossil_')+it.k+'.png';
+      document.getElementById('lbName').textContent=it.n;
+      document.getElementById('lbClass').textContent=CLASSMAP[key];
+      document.getElementById('lbDesc').textContent=it.desc;
+      document.getElementById('lbVal').textContent='$'+it.v.toLocaleString();
+      document.getElementById('lbDepth').textContent=it.d;
+      document.getElementById('lbCount').textContent='\u00d7'+it.got;
+      lb.classList.add('on');
+    }
+    document.getElementById('lbClose').onclick=()=>lb.classList.remove('on');
+    lb.addEventListener('click',e=>{if(e.target===lb)lb.classList.remove('on');});
+    window.addEventListener('keydown',e=>{if(e.key==='Escape')lb.classList.remove('on');});
+  })();
+  </script>
+
+  <template id="__bundler_thumbnail">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" fill="#0c0a07"/>
+      <rect x="16" y="20" width="26" height="26" rx="5" fill="#2a2018"/>
+      <rect x="48" y="20" width="26" height="26" rx="5" fill="#2a2018"/>
+      <rect x="16" y="52" width="26" height="26" rx="5" fill="#2a2018"/>
+      <rect x="48" y="52" width="26" height="26" rx="5" fill="#2a2018"/>
+      <circle cx="29" cy="33" r="7" fill="#ffcf57"/>
+      <circle cx="61" cy="33" r="7" fill="#46d98a"/>
+      <circle cx="29" cy="65" r="7" fill="#ff5d48"/>
+      <circle cx="61" cy="65" r="7" fill="#82bce4"/>
+    </svg>
+  </template>
+</body>
+</html>

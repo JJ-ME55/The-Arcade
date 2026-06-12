@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEEPER — Game Over</title>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{--gold:#ffcf57;--crt:#6fe88a;--crt-dim:#3f9e52;--red:#ff5d48;--txt:#e9ddc4;--muted:#9b8f76}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:'Oxanium',system-ui,sans-serif;color:var(--txt);background:#060403;min-height:100%;
+    display:flex;align-items:center;justify-content:center;padding:2vh 2vw;overflow:auto}
+  #bg{position:fixed;inset:0;width:100% !important;height:100% !important;object-fit:cover;filter:blur(7px) brightness(.3) saturate(.8);z-index:0}
+  .scrim{position:fixed;inset:0;z-index:1;background:radial-gradient(120% 90% at 50% 40%,rgba(120,20,5,.14),rgba(0,0,0,.82) 100%)}
+
+  .plaque{position:relative;z-index:2;width:min(92vw,calc(94vh*1.5));aspect-ratio:1536/1024;
+    background:url("art/gameover-plaque.png") center/contain no-repeat;
+    filter:drop-shadow(0 26px 50px rgba(0,0,0,.8))}
+
+  .screen{position:absolute;left:23%;top:26%;width:54%;height:43.5%;display:flex;flex-direction:column;
+    font-family:'Share Tech Mono',monospace}
+  .title{display:flex;align-items:baseline;justify-content:center;gap:1.2%;margin:0 0 1%}
+  .logo{font-family:'Oxanium';font-weight:800;font-style:italic;letter-spacing:.01em;transform:skewX(-7deg);display:inline-block;
+    font-size:clamp(20px,4.6vh,40px);
+    background:linear-gradient(180deg,#ffffff 0%,#cfd6df 42%,#7f8794 56%,#f0f4f8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 1px rgba(0,0,0,.8))}
+  .logo .red{background:linear-gradient(180deg,#ff8a6a,#c0341c 55%,#ff6a48);-webkit-background-clip:text;background-clip:text}
+  .cause{margin:0 0 2.5%;text-align:center;font-size:clamp(9px,1.6vh,14px);letter-spacing:.16em;color:#d9a08e}
+
+  .row{display:flex;justify-content:space-between;align-items:center;padding:1.1% 2%;
+    border-bottom:1px dashed rgba(111,232,138,.16);font-size:clamp(10px,1.9vh,16px)}
+  .row .l{color:var(--crt-dim);letter-spacing:.08em}
+  .row .v{color:var(--crt)}
+  .row .v.best{color:var(--gold);text-shadow:0 0 10px rgba(255,207,87,.45)}
+  .ore-line{display:flex;align-items:center;gap:7px;color:var(--crt)}
+  .ore-line canvas{width:clamp(14px,2.6vh,24px);height:clamp(14px,2.6vh,24px)}
+  .total{display:flex;justify-content:space-between;align-items:baseline;padding:1.6% 2% 0;margin-top:auto}
+  .total .l{color:#c2cfc4;font-family:'Oxanium';font-weight:800;letter-spacing:.06em;font-size:clamp(10px,1.7vh,14px)}
+  .total .v{color:var(--crt);font-size:clamp(14px,2.8vh,24px);text-shadow:0 0 14px rgba(111,232,138,.55)}
+
+  .btns{position:absolute;left:23%;top:71.5%;width:54%;display:flex;gap:3%;justify-content:center;
+    font-family:'Share Tech Mono',monospace}
+  .mi{display:block;text-decoration:none;padding:.8% 3%;cursor:pointer;
+    font-size:clamp(12px,2.3vh,19px);letter-spacing:.08em;
+    color:#5fe87a;text-shadow:0 0 10px rgba(95,232,122,.6),0 2px 0 rgba(0,0,0,.6);transition:filter .1s}
+  .mi:hover{filter:brightness(1.4)}
+  .mi.gold{color:var(--gold);text-shadow:0 0 12px rgba(255,207,87,.55),0 2px 0 rgba(0,0,0,.6)}
+</style>
+</head>
+<body>
+  <canvas id="bg"></canvas>
+  <div class="scrim"></div>
+
+  <div class="plaque" data-screen-label="game-over">
+    <div class="screen">
+      <h1 class="title"><span class="logo">Hull <span class="red">Breach</span></span></h1>
+      <p class="cause">CRUSHED AT 412 ft &mdash; HULL INTEGRITY 0%</p>
+      <div class="row"><span class="l">DEPTH REACHED</span><span class="v best">412 ft &mdash; NEW RECORD</span></div>
+      <div class="row"><span class="l">CARGO SOLD</span>
+        <span class="ore-line"><canvas data-ore="coal"></canvas>9 &nbsp;<canvas data-ore="copper"></canvas>6 &nbsp;<canvas data-ore="gold"></canvas>2</span>
+      </div>
+      <div class="row"><span class="l">FUEL BURNED</span><span class="v">23 L</span></div>
+      <div class="total"><span class="l">RUN EARNINGS</span><span class="v">+$1,418</span></div>
+    </div>
+    <nav class="btns">
+      <a class="mi gold" href="DEEPER Dig View.html" data-screen-label="retry">[ RETRY RUN ]</a>
+      <a class="mi" href="DEEPER Outpost Shop.html">[ OUTPOST ]</a>
+      <a class="mi" href="DEEPER Main Menu.html">[ MENU ]</a>
+    </nav>
+  </div>
+
+  <script src="art/deeper-core.js"></script>
+  <script src="art/deeper-scene2.js"></script>
+  <script>
+    (function(){
+      const D=window.DEEPER;
+      try{ D && D.renderRef && D.renderRef(document.getElementById('bg')); }catch(e){}
+      function paint(){ if(D&&D.renderOreIcon)document.querySelectorAll('canvas[data-ore]').forEach(cv=>{
+        const px=Math.round(cv.getBoundingClientRect().width)||24;D.renderOreIcon(cv,cv.dataset.ore,px);}); }
+      paint(); if(document.fonts&&document.fonts.ready)document.fonts.ready.then(paint);
+    })();
+  </script>
+
+  <template id="__bundler_thumbnail">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" fill="#0a0805"/>
+      <rect x="18" y="28" width="64" height="44" rx="8" fill="#4a4034" stroke="#a7adb5" stroke-width="3"/>
+      <text x="50" y="55" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="11" fill="#ff6a48">BREACH</text>
+    </svg>
+  </template>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEEPER — Rankings</title>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{--gold:#ffcf57;--crt:#6fe88a;--crt-dim:#3f9e52;--txt:#e9ddc4;--muted:#9b8f76}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:'Oxanium',system-ui,sans-serif;color:var(--txt);background:#060403;min-height:100%;
+    display:flex;align-items:center;justify-content:center;gap:24px;padding:2vh 2vw;overflow:auto}
+  #bg{position:fixed;inset:0;width:100% !important;height:100% !important;object-fit:cover;filter:blur(7px) brightness(.35) saturate(.85);z-index:0}
+  .scrim{position:fixed;inset:0;z-index:1;background:radial-gradient(120% 90% at 50% 35%,transparent 25%,rgba(0,0,0,.78) 100%)}
+
+  .cab{position:relative;z-index:2;height:min(94vh,860px);aspect-ratio:1024/1536;
+    background:url("art/leaderboard-cab.png") center/contain no-repeat;
+    filter:drop-shadow(0 26px 50px rgba(0,0,0,.75))}
+
+  .marquee{position:absolute;left:24%;top:15.6%;width:52%;text-align:center;
+    font-family:'Oxanium';font-weight:800;font-style:italic;letter-spacing:.05em;transform:skewX(-5deg);
+    font-size:clamp(16px,3.4vh,30px);
+    background:linear-gradient(180deg,#ffe487 0%,#f2c33d 40%,#b9791f 80%,#7c4d12 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 2px 0 rgba(0,0,0,.7))}
+
+  .screen{position:absolute;left:25.5%;top:28.6%;width:49%;height:48.6%;display:flex;flex-direction:column;
+    font-family:'Share Tech Mono',monospace}
+  .tabs{display:flex;gap:4%;justify-content:center;margin-bottom:4%}
+  .tab{background:none;border:1px dashed rgba(111,232,138,.4);border-radius:6px;padding:1.5% 5%;cursor:pointer;
+    font-family:'Share Tech Mono',monospace;font-size:clamp(10px,1.6vh,14px);letter-spacing:.12em;color:var(--crt-dim)}
+  .tab.on{color:#0c2113;background:linear-gradient(180deg,#7fe89a,#3aa052);border:1px solid #1d5a2c;font-weight:700}
+  .lb-head,.lb-row{display:grid;grid-template-columns:11% 1fr 24% 21%;gap:1.5%;align-items:center;
+    font-size:clamp(10px,1.65vh,14px);padding:1.6% 3%;white-space:nowrap}
+  .lb-head{color:#9fc7a8;letter-spacing:.1em;border-bottom:1px solid rgba(111,232,138,.3)}
+  .lb-head span:nth-child(n+3),.lb-row span:nth-child(n+3){text-align:right}
+  .lb-row{color:var(--crt);border-bottom:1px dashed rgba(111,232,138,.14)}
+  .lb-row .rank{color:#9fc7a8}
+  .lb-row.top1 .rank,.lb-row.top1 .handle{color:var(--gold);text-shadow:0 0 10px rgba(255,207,87,.5)}
+  .lb-row.you{background:rgba(111,232,138,.1);border-radius:6px}
+  .lb-row.you .handle::after{content:" \25C0 YOU";font-size:.75em;color:#9fc7a8}
+  .lb-foot{margin-top:auto;text-align:center;font-size:clamp(9px,1.4vh,12px);color:var(--crt-dim);letter-spacing:.14em}
+
+  .backbar{position:fixed;z-index:2;top:18px;left:18px}
+  .backbtn{display:inline-block;text-decoration:none;font-family:'Oxanium';font-weight:800;font-size:14px;letter-spacing:.1em;
+    color:var(--txt);border:2px solid #0c0a07;border-radius:9px;padding:9px 16px;
+    background:linear-gradient(180deg,#3b352a,#1c1812);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 3px 7px rgba(0,0,0,.5)}
+  .backbtn:hover{filter:brightness(1.2)}
+</style>
+</head>
+<body>
+  <canvas id="bg"></canvas>
+  <div class="scrim"></div>
+
+  <div class="backbar"><a class="backbtn" href="DEEPER Main Menu.html">&larr; MENU</a></div>
+
+  <div class="cab" data-screen-label="leaderboard">
+    <div class="marquee">TOP OPERATORS</div>
+    <div class="screen">
+      <div class="tabs">
+        <button class="tab on" data-t="all">ALL-TIME</button>
+        <button class="tab" data-t="daily">DAILY DIG</button>
+      </div>
+      <div class="lb-head"><span>#</span><span>OPERATOR</span><span>DEPTH FT</span><span>CASH</span></div>
+      <div id="rows"></div>
+      <div class="lb-foot" id="foot">SEASON 1 &middot; RESETS IN 12 DAYS</div>
+    </div>
+  </div>
+
+  <script src="art/deeper-core.js"></script>
+  <script src="art/deeper-scene2.js"></script>
+  <script>
+    (function(){
+      const D=window.DEEPER;
+      try{ D && D.renderRef && D.renderRef(document.getElementById('bg')); }catch(e){}
+      const ALL=[
+        {h:'DIRTNAP',d:'2,841',c:'$612k',cls:'top1'},
+        {h:'MOLEKING',d:'2,633',c:'$548k'},
+        {h:'BEDROCK_B',d:'2,512',c:'$497k'},
+        {h:'CRUST_PUNK',d:'2,300',c:'$401k'},
+        {h:'SHAFTED',d:'2,114',c:'$355k'},
+        {h:'YOU',d:'388',c:'$12k',cls:'you',rank:'412'},
+      ];
+      const DAILY=[
+        {h:'BEDROCK_B',d:'1,204',c:'$88k',cls:'top1'},
+        {h:'GEODE_JIM',d:'1,121',c:'$79k'},
+        {h:'DIRTNAP',d:'1,094',c:'$74k'},
+        {h:'PYRITE_PAM',d:'988',c:'$61k'},
+        {h:'SHAFTED',d:'903',c:'$55k'},
+        {h:'YOU',d:'—',c:'—',cls:'you',rank:'—'},
+      ];
+      const rows=document.getElementById('rows'),foot=document.getElementById('foot');
+      function render(list,footTxt){
+        rows.innerHTML=list.map((r,i)=>`<div class="lb-row ${r.cls||''}"><span class="rank">${r.rank||i+1}</span><span class="handle">${r.h}</span><span>${r.d}</span><span>${r.c}</span></div>`).join('');
+        foot.textContent=footTxt;
+      }
+      render(ALL,'SEASON 1 \u00b7 RESETS IN 12 DAYS');
+      if(new URLSearchParams(location.search).get('tab')==='daily'){
+        const dt=document.querySelector('.tab[data-t=daily]');
+        document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===dt));
+        render(DAILY,'TODAY\u2019S SEED: #4471 \u00b7 ENDS IN 6 H');
+      }
+      document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+        document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
+        if(t.dataset.t==='daily') render(DAILY,'TODAY\u2019S SEED: #4471 \u00b7 ENDS IN 6 H');
+        else render(ALL,'SEASON 1 \u00b7 RESETS IN 12 DAYS');
+      }));
+    })();
+  </script>
+
+  <template id="__bundler_thumbnail">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" fill="#0a0805"/>
+      <rect x="28" y="14" width="44" height="74" rx="8" fill="#4a4034" stroke="#a7adb5" stroke-width="3"/>
+      <circle cx="50" cy="12" r="6" fill="#f2c33d"/>
+      <rect x="35" y="34" width="30" height="4" fill="#5fe87a"/>
+      <rect x="35" y="44" width="30" height="4" fill="#5fe87a"/>
+      <rect x="35" y="54" width="30" height="4" fill="#5fe87a"/>
+    </svg>
+  </template>
+</body>
+</html>

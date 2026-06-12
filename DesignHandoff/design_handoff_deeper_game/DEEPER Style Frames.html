@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEEPER — Style Frames</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@500;600;700;800&family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#f2c33d; --gold-deep:#c9962a; --amber:#e7a531; --teal:#37c6e8;
+    --hull:#ff5d7a; --fuel:#67d36b; --fuel-lo:#e7b53a; --cargo:#3a8fe0;
+    --ink:#0c0f17; --ink2:#11151f;
+    --glass:rgba(13,17,26,0.74); --glass-hi:rgba(255,255,255,0.10); --edge:rgba(255,255,255,0.13);
+    --txt:#eef2f8; --muted:#9aa4b4;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(1200px 700px at 50% -10%, #1a2034 0%, transparent 60%),
+      linear-gradient(180deg,#0a0d15 0%, #080a11 100%);
+    color:var(--txt); font-family:'Oxanium',system-ui,sans-serif;
+    min-height:100vh; padding:40px clamp(16px,4vw,56px) 80px;
+  }
+
+  /* ---------- header ---------- */
+  header{max-width:1240px;margin:0 auto 28px}
+  .wordmark{
+    font-family:'Oxanium',sans-serif; font-weight:800; letter-spacing:.14em;
+    font-size:clamp(40px,7vw,82px); line-height:.9; margin:0;
+    background:linear-gradient(180deg,#ffe487 0%,#f2c33d 38%,#b9791f 78%,#7c4d12 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 3px 0 rgba(0,0,0,.55)) drop-shadow(0 10px 26px rgba(242,195,61,.18));
+    display:inline-block; position:relative;
+  }
+  .wordmark .arrow{ -webkit-text-fill-color:var(--teal); color:var(--teal); font-size:.5em; vertical-align:.18em; margin-left:.08em; filter:drop-shadow(0 0 14px rgba(55,200,232,.7)); }
+  .kicker{ font-size:13px; letter-spacing:.42em; text-transform:uppercase; color:var(--teal); font-weight:700; margin:0 0 6px 3px;}
+  .lede{ max-width:680px; color:var(--muted); font-size:15.5px; line-height:1.6; margin:14px 0 0 3px; font-weight:500;}
+  .lede b{color:#dfe6f0;font-weight:700}
+
+  /* ---------- legend ---------- */
+  .legend{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;margin:22px 0 0 3px}
+  .leg{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);font-weight:600;letter-spacing:.03em}
+  .sw{width:18px;height:18px;border-radius:5px;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 1px 3px rgba(0,0,0,.5)}
+  .sw.coal{background:radial-gradient(circle at 35% 30%,#3b3b44,#1a1a1e)}
+  .sw.copper{background:radial-gradient(circle at 35% 30%,#ff9d54,#8a4d26)}
+  .sw.gold{background:radial-gradient(circle at 35% 30%,#ffe27a,#c9962a);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 0 10px rgba(242,195,61,.5)}
+  .sw.dirt{background:linear-gradient(135deg,#946a44,#5e3f24)}
+  .sw.stone{background:linear-gradient(135deg,#8a8275,#4d473f)}
+  .leg .sep{width:1px;height:18px;background:var(--edge)}
+
+  /* ---------- gallery ---------- */
+  .gallery{max-width:1240px;margin:34px auto 0;display:flex;flex-direction:column;align-items:center;gap:32px}
+  .frame{
+    width:100%; max-width:432px;
+    background:linear-gradient(180deg,#141926,#0e121b);
+    border:1px solid var(--edge); border-radius:18px; overflow:hidden;
+    box-shadow:0 18px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06);
+    display:flex; flex-direction:column;
+  }
+  .frame.wide{max-width:864px} .frame.tall{max-width:452px} .frame.xwide{max-width:1080px}
+  .frame-head{display:flex;align-items:center;gap:10px;padding:14px 16px 12px}
+  .badge{font-weight:800;font-size:13px;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
+    background:linear-gradient(180deg,#ffe487,#c9962a);color:#3a2607;box-shadow:0 2px 0 rgba(0,0,0,.4)}
+  .frame-head .t{font-weight:700;font-size:16px;letter-spacing:.01em}
+  .frame-head .s{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:1px}
+  .frame-art{position:relative;container-type:inline-size;background:#05060a;cursor:zoom-in;line-height:0}
+  .frame-art canvas{display:block;width:100%;height:auto}
+  .zoom-hint{position:absolute;right:9px;bottom:9px;z-index:30;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:#cdd6e3;background:rgba(0,0,0,.45);border:1px solid var(--edge);border-radius:20px;padding:4px 9px;backdrop-filter:blur(3px);pointer-events:none;opacity:.85}
+  .frame-foot{padding:12px 16px 16px;font-size:12.5px;color:var(--muted);line-height:1.5;border-top:1px solid rgba(255,255,255,.05)}
+  .frame-foot b{color:#cfd7e2;font-weight:700}
+
+  /* ===================== HUD shared ===================== */
+  .hud{position:absolute;inset:0;z-index:20;pointer-events:none;font-family:'Oxanium',sans-serif}
+  .hud .num{font-family:'Share Tech Mono','Oxanium',monospace;font-variant-numeric:tabular-nums}
+  .glass{background:var(--glass);border:1px solid var(--edge);
+    box-shadow:0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 var(--glass-hi); backdrop-filter:blur(5px)}
+  .bar{position:relative;border-radius:99px;background:rgba(0,0,0,.45);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.6)}
+  .bar i{position:absolute;inset:0;border-radius:99px;display:block}
+
+  /* ---- HUD A : modern top bar + bottom item bar ---- */
+  .hud-a .topbar{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:2cqw;
+    padding:2.4cqw 3cqw; background:linear-gradient(180deg,rgba(8,11,18,.82),rgba(8,11,18,0));}
+  .hud-a .gauges{display:flex;flex-direction:column;gap:1.4cqw;flex:0 0 auto}
+  .hud-a .g{display:flex;align-items:center;gap:1.6cqw}
+  .hud-a .g .lbl{font-size:2.5cqw;font-weight:700;letter-spacing:.12em;width:8cqw;color:#cdd6e3}
+  .hud-a .g .bar{width:26cqw;height:2.8cqw}
+  .hud-a .g.hull .bar i{width:78%;background:linear-gradient(90deg,#ff7a90,#ff3d63)}
+  .hud-a .g.fuel .bar i{width:52%;background:linear-gradient(90deg,#8ee48f,#54c25a)}
+  .hud-a .spacer{flex:1}
+  .hud-a .depth{font-weight:700;text-align:center;color:#e8eef6}
+  .hud-a .depth b{font-size:5.2cqw;display:block;line-height:1}
+  .hud-a .depth span{font-size:2.3cqw;letter-spacing:.2em;color:var(--muted)}
+  .hud-a .cash{display:flex;align-items:baseline;gap:.6cqw;color:var(--gold);font-weight:800;
+    text-shadow:0 2px 0 rgba(0,0,0,.5)}
+  .hud-a .cash i{font-style:normal;font-size:3.4cqw}
+  .hud-a .cash b{font-size:5.4cqw;letter-spacing:.01em}
+  .hud-a .botbar{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:flex-end;justify-content:space-between;
+    gap:2cqw;padding:3cqw; background:linear-gradient(0deg,rgba(8,11,18,.82),rgba(8,11,18,0))}
+  .hud-a .cargo{flex:1;max-width:40cqw}
+  .hud-a .cargo .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2cqw}
+  .hud-a .cargo .lbl{font-size:2.4cqw;font-weight:700;letter-spacing:.12em;color:#cdd6e3}
+  .hud-a .cargo .num{font-size:2.6cqw;color:var(--cargo);font-weight:700}
+  .hud-a .cargo .bar{height:2.6cqw}
+  .hud-a .cargo .bar i{width:40%;background:linear-gradient(90deg,#5aa6ee,#2f7fd6)}
+  .items{display:flex;gap:1.6cqw}
+  .slot{width:9.4cqw;height:9.4cqw;border-radius:2.2cqw;position:relative;display:grid;place-items:center}
+  .slot .k{position:absolute;top:.4cqw;left:.8cqw;font-size:2cqw;color:#aeb8c6;font-weight:700}
+  .slot .ic{width:4.6cqw;height:4.6cqw;border-radius:1cqw}
+  .ic.dyn{background:linear-gradient(180deg,#ff6a4a,#c2331c)}
+  .ic.tele{background:radial-gradient(circle at 50% 50%,#9be9ff,#1f8fc4);border-radius:50%}
+  .ic.repair{background:linear-gradient(180deg,#7ef0a0,#27a85a);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+  .ic.fuelcan{background:linear-gradient(180deg,#ffd34d,#d39a1f)}
+
+  /* ---- HUD B : nostalgic classic corners ---- */
+  .hud-b{font-family:'Press Start 2P',monospace}
+  .hud-b .b-gauges{position:absolute;top:3cqw;left:3cqw;display:flex;gap:2.2cqw}
+  .hud-b .cyl{width:13cqw;height:18cqw;border-radius:2cqw;position:relative;display:grid;place-items:center;
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.35), inset 0 -3px 6px rgba(0,0,0,.5), 0 2px 4px rgba(0,0,0,.5)}
+  .hud-b .cyl.hull{background:linear-gradient(90deg,#c0392b,#e2604f 45%,#a02719)}
+  .hud-b .cyl.fuel{background:linear-gradient(90deg,#7a5a32,#b08a4e 45%,#6a4a26)}
+  .hud-b .cyl .cap{position:absolute;left:0;right:0;top:0;border-radius:2cqw 2cqw 0 0;background:rgba(0,0,0,.28)}
+  .hud-b .cyl.hull .cap{height:22%}
+  .hud-b .cyl.fuel .cap{height:46%}
+  .hud-b .cyl span{font-size:2.3cqw;color:#fff;text-shadow:1px 1px 0 #000;z-index:2}
+  .hud-b .cyl b{position:absolute;right:-3.4cqw;font-size:2.1cqw;color:#ffd24d;text-shadow:1px 1px 0 #000}
+  .hud-b .cyl b.f{top:0} .hud-b .cyl b.e{bottom:0}
+  .hud-b .b-depth{position:absolute;top:22cqw;left:3.2cqw;font-size:3.6cqw;color:#ffd24d;text-shadow:2px 2px 0 #000}
+  .hud-b .b-cash{position:absolute;top:4cqw;left:0;right:0;text-align:center;font-size:5cqw;color:#ffd24d;text-shadow:2px 2px 0 #000}
+  .hud-b .b-corner{position:absolute;top:3.4cqw;right:3cqw;display:flex;gap:2.4cqw;align-items:flex-start}
+  .hud-b .b-corner div{font-size:2.2cqw;color:#7ee08a;text-shadow:1px 1px 0 #000;text-align:center}
+  .hud-b .b-corner div small{display:block;font-size:1.8cqw;margin-top:1cqw;color:#9be36b}
+
+  /* ---- HUD C : minimalist instrument (Deep Vector) ---- */
+  .hud-c{font-family:'Share Tech Mono','Oxanium',monospace}
+  .hud-c .micro{font-size:2cqw;letter-spacing:.34em;color:#8b94a6}
+  .hud-c .ci-depth{position:absolute;top:3.4cqw;left:3.6cqw;line-height:1.1}
+  .hud-c .ci-depth .v{font-size:6.4cqw;color:#eef3fa;display:flex;align-items:baseline;gap:.7cqw;margin-top:1cqw}
+  .hud-c .ci-depth .v span{font-size:2.6cqw;color:#8b94a6;letter-spacing:.1em}
+  .hud-c .ci-cash{position:absolute;top:3.6cqw;right:3.6cqw;text-align:right}
+  .hud-c .ci-cash .v{font-size:5cqw;color:#f6cb46;margin-top:1cqw;text-shadow:0 0 16px rgba(246,203,70,.4)}
+  .hud-c .ci-gauges{position:absolute;left:3.6cqw;bottom:3.8cqw;display:flex;flex-direction:column;gap:2.4cqw;width:42cqw}
+  .hud-c .ig{display:flex;align-items:center;gap:1.8cqw}
+  .hud-c .ig .lab{font-size:1.9cqw;letter-spacing:.24em;color:#9aa3b4;width:9cqw}
+  .hud-c .ig .trk{flex:1;height:1.5cqw;border-radius:99px;background:rgba(255,255,255,.09);position:relative;overflow:hidden}
+  .hud-c .ig .trk i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;display:block}
+  .hud-c .ig .val{font-size:2.1cqw;color:#cdd6e3;width:9cqw;text-align:right}
+  .hud-c .ig.hull .trk i{width:78%;background:linear-gradient(90deg,#ff6a82,#ff3d63);box-shadow:0 0 9px rgba(255,61,99,.65)}
+  .hud-c .ig.fuel .trk i{width:52%;background:linear-gradient(90deg,#ffd36a,#f0a72a);box-shadow:0 0 9px rgba(240,167,42,.6)}
+  .hud-c .ig.cargo .trk i{width:40%;background:linear-gradient(90deg,#6fe0ff,#2fb6d6);box-shadow:0 0 9px rgba(47,182,214,.55)}
+
+  /* ---- HUD N : nostalgic-premium (cylinder gauges, gold readouts) ---- */
+  .hud-n{font-family:'Oxanium',sans-serif}
+  .hud-n .n-gauges{position:absolute;top:3.4cqw;left:3.6cqw;display:flex;gap:3cqw}
+  .hud-n .cyl{width:6cqw;height:9.6cqw;border-radius:2.4cqw;position:relative;overflow:hidden;
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.4), inset 0 -3px 7px rgba(0,0,0,.5), 0 2px 5px rgba(0,0,0,.5)}
+  .hud-n .cyl.hull{background:linear-gradient(90deg,#a82a1e,#e0604f 45%,#9a2418)}
+  .hud-n .cyl.fuel{background:linear-gradient(90deg,#7a5a32,#c19a5a 45%,#6a4a26)}
+  .hud-n .cyl .cap{position:absolute;left:0;right:0;top:0;background:rgba(0,0,0,.42);box-shadow:inset 0 -2px 3px rgba(0,0,0,.45)}
+  .hud-n .cyl span{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font-size:2cqw;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.75);z-index:2}
+  .hud-n .cyl b{position:absolute;right:-2.6cqw;font-size:1.9cqw;color:#ffd24d;text-shadow:0 1px 1px #000;font-weight:800;z-index:2}
+  .hud-n .cyl b.f{top:.2cqw} .hud-n .cyl b.e{bottom:.2cqw}
+  .hud-n .n-depth{position:absolute;top:16.8cqw;left:4cqw;line-height:1;white-space:nowrap;z-index:3;font-size:3.6cqw;font-weight:800;color:#ffd24d;text-shadow:0 2px 0 rgba(0,0,0,.55),0 0 10px rgba(255,210,77,.25)}
+  .hud-n .n-cash{position:absolute;top:3.2cqw;left:0;right:0;text-align:center;line-height:1;font-size:6.2cqw;font-weight:800;color:#ffd24d;text-shadow:0 3px 0 rgba(0,0,0,.5),0 0 16px rgba(255,210,77,.3)}
+  .hud-n .n-corner{position:absolute;top:3.4cqw;right:3.6cqw;display:flex;gap:2.6cqw}
+  .hud-n .n-corner .ci{display:flex;flex-direction:column;align-items:center;gap:.8cqw;font-size:1.9cqw;font-weight:800;letter-spacing:.05em;color:#8fd45f;text-shadow:0 1px 2px rgba(0,0,0,.75)}
+  .hud-n .n-corner i{width:4cqw;height:4cqw;border-radius:1.1cqw;background:linear-gradient(180deg,#7bcf4a,#3f7d22);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 1px 3px rgba(0,0,0,.5)}
+  .hud-n .n-corner .m-opt{border-radius:50%}
+  .hud-n .n-corner .m-help{background:linear-gradient(180deg,#ffd24d,#cf9a1f)}
+
+  .hud-r{position:absolute;left:0;right:0;top:auto;bottom:0;height:13cqw;display:flex;align-items:stretch;gap:.55cqw;padding:.6cqw;
+    background:linear-gradient(180deg,#39332a,#1d1912);border-top:2px solid #14100b;font-family:'Oxanium',sans-serif;z-index:5}
+  .hud-r .panel{background:linear-gradient(180deg,#2a251d,#15120d);border:1.5px solid #0c0a07;border-radius:1cqw;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 1px 2px rgba(0,0,0,.5);display:flex;align-items:center;padding:0 .85cqw;position:relative}
+  .hud-r .lbl{font-size:1.4cqw;font-weight:800;letter-spacing:.08em;color:#cdb98a}
+  .hud-r .num{font-family:'Share Tech Mono',monospace;font-size:1.6cqw;color:#ffcf57}
+  .hud-r .big{font-family:'Share Tech Mono',monospace;font-size:2.7cqw;font-weight:700;line-height:1}
+  .hud-r .gauges{flex-direction:column;justify-content:center;gap:.6cqw;padding:.5cqw .85cqw}
+  .hud-r .grow{display:flex;align-items:center;gap:.6cqw}
+  .hud-r .grow .lbl{width:4cqw}
+  .hud-r .seg{display:flex;gap:.26cqw;width:10.5cqw}
+  .hud-r .seg i{flex:1;height:2cqw;border-radius:.3cqw;background:#0b0906;box-shadow:inset 0 1px 1px rgba(0,0,0,.7)}
+  .hud-r .seg i.f{background:linear-gradient(180deg,#ffb24a,#e0531f);box-shadow:0 0 3px rgba(255,140,40,.5)}
+  .hud-r .seg i.h{background:linear-gradient(180deg,#7fd2ff,#2b7fd0);box-shadow:0 0 3px rgba(60,150,230,.5)}
+  .hud-r .seg i.c{background:linear-gradient(180deg,#a6ee5a,#4f9a22);box-shadow:0 0 3px rgba(120,200,60,.5)}
+  .hud-r .grow .num{width:5cqw;text-align:right;font-size:1.5cqw}
+  .hud-r .stat{flex-direction:column;justify-content:center;gap:.2cqw;align-items:flex-start;padding:0 .9cqw}
+  .hud-r .cargo{flex-direction:column;justify-content:center;gap:.45cqw;align-items:flex-start;padding:.5cqw .85cqw}
+  .hud-r .cargo .seg{width:10.5cqw}
+  .hud-r .cargo .num{font-size:1.4cqw}
+  .hud-r .items{gap:.5cqw;padding:.5cqw}
+  .hud-r .slot2{width:5.2cqw;background:linear-gradient(180deg,#211d16,#0f0c08);border:1.5px solid #0a0806;border-radius:.7cqw;display:grid;place-items:center;position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+  .hud-r .slot2 .ore{width:3.4cqw;height:3.4cqw;border-radius:.8cqw;box-shadow:0 1px 2px rgba(0,0,0,.5)}
+  .hud-r .o-copper{background:radial-gradient(circle at 35% 30%,#ffb472,#7a3c1b)}
+  .hud-r .o-silver{background:radial-gradient(circle at 35% 30%,#edf2f7,#595f68)}
+  .hud-r .o-gold{background:radial-gradient(circle at 35% 30%,#ffe884,#8f6512)}
+  .hud-r .o-diamond{background:radial-gradient(circle at 35% 30%,#e2f4ff,#3f80b2);clip-path:polygon(50% 0,100% 38%,50% 100%,0 38%);border-radius:0}
+  .hud-r .slot2 .cnt{position:absolute;bottom:.1cqw;right:.4cqw;font-size:1.4cqw;font-weight:800;color:#fff;text-shadow:0 1px 2px #000}
+  .hud-r .slot2.lock .pad{width:2.6cqw;height:2.2cqw;border-radius:.4cqw;background:#46402f;position:relative;margin-top:1cqw}
+  .hud-r .slot2.lock .pad:before{content:"";position:absolute;left:50%;top:-1.2cqw;transform:translateX(-50%);width:1.8cqw;height:1.8cqw;border:.45cqw solid #46402f;border-bottom:none;border-radius:.9cqw .9cqw 0 0}
+  .hud-r .gear{width:6.4cqw;justify-content:center}
+  .hud-r .gear .cog{width:4.2cqw;height:4.2cqw;border-radius:50%;position:relative;background:#2a251d}
+  .hud-r .gear .cog:before{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(#6a6052 0 18deg,#2a251d 18deg 36deg)}
+  .hud-r .gear .cog:after{content:"";position:absolute;inset:28%;border-radius:50%;background:#2a251d;box-shadow:inset 0 0 0 1px #6a6052}
+
+  /* ---- HUD T : tidy corner HUD (reference frame) ---- */
+  .hud-t{font-family:'Oxanium',sans-serif}
+  .hud-t .panel{background:linear-gradient(180deg,rgba(42,37,29,.92),rgba(20,17,12,.92));border:1.5px solid #0c0a07;
+    border-radius:1.4cqw;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 3px 8px rgba(0,0,0,.45)}
+  .hud-t .lbl{font-size:1.45cqw;font-weight:800;letter-spacing:.06em;color:#cdb98a}
+  .hud-t .v{font-family:'Share Tech Mono',monospace;font-size:1.5cqw;color:#ffcf57}
+  .hud-t .tl{position:absolute;top:2cqw;left:2cqw;padding:1.2cqw 1.4cqw;display:flex;flex-direction:column;gap:.9cqw;width:29cqw}
+  .hud-t .tl .row{display:flex;align-items:center;gap:.9cqw}
+  .hud-t .tl .row .lbl{width:4.6cqw}
+  .hud-t .bar{flex:1;height:1.7cqw;border-radius:99px;background:#0b0906;box-shadow:inset 0 1px 2px rgba(0,0,0,.7);overflow:hidden}
+  .hud-t .bar i{display:block;height:100%;border-radius:99px}
+  .hud-t .bar i.f{background:linear-gradient(90deg,#ffb24a,#e0531f)}
+  .hud-t .bar i.h{background:linear-gradient(90deg,#7fd2ff,#2b7fd0)}
+  .hud-t .bar i.c{background:linear-gradient(90deg,#a6ee5a,#4f9a22)}
+  .hud-t .tl .row .v{width:6.4cqw;text-align:right}
+  .hud-t .sub{font-size:1.45cqw}
+  .hud-t .sub b{font-family:'Share Tech Mono',monospace;color:#ffcf57;font-size:1.7cqw;margin:0 1cqw 0 1cqw}
+  .hud-t .bar.mini{width:8cqw;flex:none;margin-left:.7cqw}
+  .hud-t .tr{position:absolute;top:2cqw;right:2cqw;display:flex;flex-direction:row;align-items:center;gap:.9cqw}
+  .hud-t .cashp{padding:.9cqw 1.5cqw;display:flex;flex-direction:column;align-items:flex-end;gap:.1cqw}
+  .hud-t .cash{font-family:'Share Tech Mono',monospace;font-size:2.5cqw;color:#8fe04a;line-height:1}
+  .hud-t .itembar{display:flex;gap:.9cqw;padding:.8cqw 1cqw}
+  .hud-t .it{display:flex;flex-direction:column;align-items:center;gap:.25cqw}
+  .hud-t .it .ore{width:3.2cqw;height:3.2cqw;border-radius:.7cqw;box-shadow:0 1px 2px rgba(0,0,0,.5)}
+  .hud-t .it i{font-style:normal;font-family:'Share Tech Mono',monospace;font-size:1.3cqw;color:#e8dcc2}
+  .hud-t .o-copper{background:radial-gradient(circle at 35% 30%,#ffb472,#7a3c1b)}
+  .hud-t .o-silver{background:radial-gradient(circle at 35% 30%,#edf2f7,#595f68)}
+  .hud-t .o-gold{background:radial-gradient(circle at 35% 30%,#ffe884,#8f6512)}
+  .hud-t .o-diamond{background:radial-gradient(circle at 35% 30%,#e2f4ff,#3f80b2);clip-path:polygon(50% 0,100% 38%,50% 100%,0 38%);border-radius:0}
+  .hud-t .gearbtn{border:1.5px solid #0c0a07;background:linear-gradient(180deg,rgba(42,37,29,.92),rgba(20,17,12,.92));
+    border-radius:50%;width:5.6cqw;height:5.6cqw;display:grid;place-items:center;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.08);pointer-events:auto}
+  .hud-t .cog{width:3.2cqw;height:3.2cqw;border-radius:50%;position:relative;background:#2a251d}
+  .hud-t .cog:before{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(#6a6052 0 18deg,#2a251d 18deg 36deg)}
+  .hud-t .cog:after{content:"";position:absolute;inset:30%;border-radius:50%;background:#2a251d;box-shadow:inset 0 0 0 1px #6a6052}
+
+  /* ---------- lightbox ---------- */
+  .lb{position:fixed;inset:0;z-index:100;background:rgba(5,7,12,.86);backdrop-filter:blur(8px);
+    display:none;align-items:center;justify-content:center;padding:4vh 4vw}
+  .lb.open{display:flex}
+  .lb-card{display:flex;flex-direction:column;gap:0;max-height:92vh}
+  .lb-art{position:relative;container-type:inline-size;border-radius:14px;overflow:hidden;border:1px solid var(--edge);
+    box-shadow:0 30px 70px rgba(0,0,0,.6);line-height:0;width:min(60vh,560px)}
+  .lb-art canvas{display:block;width:100%;height:auto}
+  .lb-cap{display:flex;align-items:center;gap:12px;justify-content:center;margin-top:16px;color:var(--muted);font-size:13.5px}
+  .lb-cap .badge{width:24px;height:24px}
+  .lb-close{position:fixed;top:20px;right:24px;font-size:26px;color:#cdd6e3;background:rgba(0,0,0,.4);
+    border:1px solid var(--edge);width:46px;height:46px;border-radius:50%;cursor:pointer;line-height:0}
+  .lb-nav{position:fixed;top:50%;transform:translateY(-50%);font-size:30px;color:#cdd6e3;background:rgba(0,0,0,.4);
+    border:1px solid var(--edge);width:52px;height:52px;border-radius:50%;cursor:pointer;display:grid;place-items:center}
+  .lb-nav.prev{left:18px} .lb-nav.next{right:18px}
+
+  .foot-note{max-width:1240px;margin:38px auto 0;color:#6b7686;font-size:12.5px;line-height:1.6;border-top:1px solid rgba(255,255,255,.06);padding-top:18px}
+  .foot-note b{color:#9aa4b4}
+</style>
+</head>
+<body>
+  <header>
+    <p class="kicker">Mining-Descent · Style Frame</p>
+    <h1 class="wordmark">DEEPER<span class="arrow">&#9662;</span></h1>
+    <p class="lede">A new direction — <b>“realistic through consistency, not complexity.”</b> One light (moonlight), one material language, bold simple forms, a tight nostalgic palette, rendered smooth (not pixelated). The two scenes that define the world, in one premium look: the calm <b>surface hub</b> and <b>the deep</b>. Click either to enlarge.</p>
+    <div class="legend">
+      <div class="leg"><span class="sw dirt"></span>Dirt</div>
+      <div class="leg"><span class="sw stone"></span>Stone pocket</div>
+      <span class="sep"></span>
+      <div class="leg"><span class="sw coal"></span>Coal · tier 0</div>
+      <div class="leg"><span class="sw copper"></span>Copper · tier 0</div>
+      <div class="leg"><span class="sw gold"></span>Gold · tier 1 · <span style="color:var(--gold)">desire object</span></div>
+    </div>
+  </header>
+
+  <main class="gallery" id="gallery"></main>
+
+  <p class="foot-note">Procedural canvas art (matching the engine's <b>textures.ts</b> approach) at the 48px grid · authored at 2× for crisp upscaling · top-left key light, treasure glows against the dark. HUD shown in DOM so it stays crisp &amp; editable. <b>Next:</b> pick a direction (A / B / C) and I'll build the full Topsoil tile set, the surface hub, and the Outpost shop in that language.</p>
+
+  <!-- lightbox -->
+  <div class="lb" id="lb">
+    <button class="lb-close" id="lbClose">&times;</button>
+    <button class="lb-nav prev" id="lbPrev">&#8249;</button>
+    <button class="lb-nav next" id="lbNext">&#8250;</button>
+    <div class="lb-card">
+      <div class="lb-art"><canvas id="lbCanvas"></canvas><div id="lbHud"></div></div>
+      <div class="lb-cap" id="lbCap"></div>
+    </div>
+  </div>
+
+  <script src="art/deeper-core.js"></script>
+  <script src="art/deeper-paint.js"></script>
+  <script src="art/deeper-pixel.js"></script>
+  <script src="art/deeper-vector.js"></script>
+  <script src="art/deeper-premium.js"></script>
+  <script src="art/deeper-scene2.js"></script>
+  <script>
+  (function(){
+    const D = window.DEEPER;
+    const scene = D.generateScene();
+
+    const HUD = {
+      a: `<div class="hud hud-a">
+        <div class="topbar">
+          <div class="gauges">
+            <div class="g hull"><span class="lbl">HULL</span><div class="bar"><i></i></div></div>
+            <div class="g fuel"><span class="lbl">FUEL</span><div class="bar"><i></i></div></div>
+          </div>
+          <div class="spacer"></div>
+          <div class="depth"><b class="num">284</b><span>METRES</span></div>
+          <div class="cash"><i>$</i><b class="num">5,100</b></div>
+        </div>
+        <div class="botbar">
+          <div class="cargo">
+            <div class="row"><span class="lbl">CARGO</span><span class="num">12 / 30</span></div>
+            <div class="bar"><i></i></div>
+          </div>
+          <div class="items">
+            <div class="slot glass"><span class="k">1</span><div class="ic dyn"></div></div>
+            <div class="slot glass"><span class="k">2</span><div class="ic tele"></div></div>
+            <div class="slot glass"><span class="k">3</span><div class="ic fuelcan"></div></div>
+          </div>
+        </div>
+      </div>`,
+      b: `<div class="hud hud-b">
+        <div class="b-gauges">
+          <div class="cyl hull"><div class="cap"></div><span>Hull</span><b class="f">F</b><b class="e">E</b></div>
+          <div class="cyl fuel"><div class="cap"></div><span>Fuel</span><b class="f">F</b><b class="e">E</b></div>
+        </div>
+        <div class="b-depth">284 ft.</div>
+        <div class="b-cash">$5,100</div>
+        <div class="b-corner">
+          <div>INV<small>&#9670;</small></div><div>OPT<small>&#9881;</small></div><div>HELP<small>?</small></div>
+        </div>
+      </div>`,
+      c: `<div class="hud hud-c">
+        <div class="ci-depth"><div class="micro">DEPTH</div><div class="v">284<span>m</span></div></div>
+        <div class="ci-cash"><div class="micro">CASH</div><div class="v">$5,100</div></div>
+        <div class="ci-gauges">
+          <div class="ig hull"><span class="lab">HULL</span><div class="trk"><i></i></div><span class="val">78%</span></div>
+          <div class="ig fuel"><span class="lab">FUEL</span><div class="trk"><i></i></div><span class="val">52%</span></div>
+          <div class="ig cargo"><span class="lab">CARGO</span><div class="trk"><i></i></div><span class="val">12/30</span></div>
+        </div>
+      </div>`
+    };
+
+    function hudN(o){ return `<div class="hud hud-n">
+      <div class="n-gauges">
+        <div class="cyl hull"><div class="cap" style="height:${100-o.hull}%"></div><span>Hull</span><b class="f">F</b><b class="e">E</b></div>
+        <div class="cyl fuel"><div class="cap" style="height:${100-o.fuel}%"></div><span>Fuel</span><b class="f">F</b><b class="e">E</b></div>
+      </div>
+      <div class="n-depth">${o.depth}</div>
+      <div class="n-cash">${o.cash}</div>
+      <div class="n-corner">
+        <div class="ci"><i class="m-inv"></i>INV</div><div class="ci"><i class="m-opt"></i>OPTION</div><div class="ci"><i class="m-help"></i>HELP</div>
+      </div>
+    </div>`; }
+
+    function seg(n,fill,cls){let s='';for(let i=0;i<n;i++)s+=`<i class="${i<fill?cls:''}"></i>`;return s;}
+    function hudR(){ return `<div class="hud hud-r">
+      <div class="panel gauges">
+        <div class="grow"><span class="lbl">FUEL</span><div class="seg">${seg(10,7,'f')}</div><span class="num">1245L</span></div>
+        <div class="grow"><span class="lbl">HULL</span><div class="seg">${seg(10,8,'h')}</div><span class="num" style="color:#5bc0ff">78%</span></div>
+      </div>
+      <div class="panel stat"><span class="lbl">DEPTH</span><span class="big" style="color:#ffcf57">124m</span></div>
+      <div class="panel cargo"><span class="lbl">CARGO</span><div class="seg">${seg(10,7,'c')}</div><span class="num" style="color:#8fe04a">37/50</span></div>
+      <div class="panel items">
+        <div class="slot2"><div class="ore o-copper"></div><span class="cnt">12</span></div>
+        <div class="slot2"><div class="ore o-silver"></div><span class="cnt">8</span></div>
+        <div class="slot2"><div class="ore o-gold"></div><span class="cnt">5</span></div>
+        <div class="slot2"><div class="ore o-diamond"></div><span class="cnt">3</span></div>
+        <div class="slot2 lock"><div class="pad"></div></div>
+        <div class="slot2 lock"><div class="pad"></div></div>
+      </div>
+      <div class="panel stat"><span class="lbl">CASH</span><span class="big" style="color:#8fe04a">$12,450</span></div>
+      <div class="panel gear"><div class="cog"></div></div>
+    </div>`; }
+
+    function hudTop(){ return `<div class="hud hud-t">
+      <div class="panel tl">
+        <div class="row"><span class="lbl">FUEL</span><div class="bar"><i class="f" style="width:72%"></i></div><span class="v">1245L</span></div>
+        <div class="row"><span class="lbl">HULL</span><div class="bar"><i class="h" style="width:78%"></i></div><span class="v" style="color:#5bc0ff">78%</span></div>
+        <div class="row sub"><span class="lbl">DEPTH</span><b>124m</b><span class="lbl" style="margin-left:1.6cqw">CARGO</span><div class="bar mini"><i class="c" style="width:74%"></i></div></div>
+      </div>
+      <div class="tr">
+        <div class="panel itembar">
+          <div class="it"><span class="ore o-copper"></span><i>12</i></div>
+          <div class="it"><span class="ore o-silver"></span><i>8</i></div>
+          <div class="it"><span class="ore o-gold"></span><i>5</i></div>
+          <div class="it"><span class="ore o-diamond"></span><i>3</i></div>
+        </div>
+        <div class="panel cashp"><span class="lbl">CASH</span><b class="cash">$12,450</b></div>
+        <button class="gearbtn"><span class="cog"></span></button>
+      </div>
+    </div>`; }
+
+    const OPTIONS = [
+      {id:'1', render:'surface', cls:'wide', title:'Surface Hub', sub:'Moonlit dusk \u00b7 Fuel Depot \u00b7 Mineral Processing',
+       hudHtml: hudN({depth:'0 ft.', cash:'$580', hull:100, fuel:100}),
+       foot:'The first pass — kept for comparison. Smooth painterly material, one light, nostalgic-premium HUD.'},
+      {id:'2', render:'ref', cls:'xwide', title:'Tactile Industrial', sub:'Reference recreation \u2014 rusty hub + faceted ore',
+       hudHtml: hudTop(),
+       foot:'A faithful pass at your reference: <b>rusty riveted</b> Fuel Depot &amp; Mineral Processor, <b>faceted clustered ore</b> that glints like cut metal, freshly-dug <b>crumbly tunnels</b> with a real surface entrance shaft, the redesigned <b>drill-rover</b>, lamp &amp; lantern — now with a tidy corner HUD.'},
+    ];
+
+    function renderInto(canvas, opt){
+      if(opt.render==='surface') D.renderSurface(canvas);
+      else if(opt.render==='ref') D.renderRef(canvas);
+      else D.renderDeep(canvas, scene);
+    }
+
+    const gallery = document.getElementById('gallery');
+    OPTIONS.forEach((opt,i)=>{
+      const f=document.createElement('div'); f.className='frame '+(opt.cls||'');
+      f.innerHTML = `
+        <div class="frame-head">
+          <span class="badge">${opt.id}</span>
+          <div><div class="t">${opt.title}</div><div class="s">${opt.sub}</div></div>
+        </div>
+        <div class="frame-art" data-i="${i}">
+          <canvas></canvas>${opt.hudHtml}
+          <span class="zoom-hint">Click to enlarge</span>
+        </div>
+        <div class="frame-foot">${opt.foot}</div>`;
+      gallery.appendChild(f);
+      opt._cv=f.querySelector('canvas');
+      renderInto(opt._cv, opt);
+      f.querySelector('.frame-art').addEventListener('click',()=>openLB(i));
+    });
+    function renderAll(){ OPTIONS.forEach(o=>renderInto(o._cv,o)); }
+    if(document.fonts&&document.fonts.ready) document.fonts.ready.then(renderAll);
+
+    /* lightbox */
+    const lb=document.getElementById('lb'), lbCanvas=document.getElementById('lbCanvas'),
+          lbHud=document.getElementById('lbHud'), lbCap=document.getElementById('lbCap');
+    const lbArt=lb.querySelector('.lb-art');
+    let cur=0;
+    function openLB(i){ cur=i; const opt=OPTIONS[i];
+      renderInto(lbCanvas,opt); lbHud.innerHTML=opt.hudHtml;
+      const asp=lbCanvas.width/lbCanvas.height;
+      lbArt.style.width=Math.min(window.innerWidth*0.9, window.innerHeight*0.84*asp)+'px';
+      lbCap.innerHTML=`<span class="badge">${opt.id}</span> <b style="color:#dfe6f0">${opt.title}</b> &mdash; ${opt.sub}`;
+      lb.classList.add('open');
+    }
+    function closeLB(){ lb.classList.remove('open'); }
+    function nav(d){ openLB((cur+d+OPTIONS.length)%OPTIONS.length); }
+    document.getElementById('lbClose').onclick=closeLB;
+    document.getElementById('lbPrev').onclick=e=>{e.stopPropagation();nav(-1);};
+    document.getElementById('lbNext').onclick=e=>{e.stopPropagation();nav(1);};
+    lb.addEventListener('click',e=>{ if(e.target===lb) closeLB(); });
+    window.addEventListener('keydown',e=>{ if(!lb.classList.contains('open'))return;
+      if(e.key==='Escape')closeLB(); if(e.key==='ArrowLeft')nav(-1); if(e.key==='ArrowRight')nav(1); });
+  })();
+  </script>
+
+  <template id="__bundler_thumbnail">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" fill="#0c0f17"/>
+      <rect y="46" width="100" height="54" fill="#7a5230"/>
+      <circle cx="62" cy="68" r="9" fill="#f2c33d"/>
+      <rect x="34" y="40" width="22" height="16" rx="4" fill="#e7a531"/>
+      <circle cx="45" cy="48" r="3.4" fill="#37c6e8"/>
+    </svg>
+  </template>
+</body>
+</html>

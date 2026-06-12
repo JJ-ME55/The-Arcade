@@ -1,13 +1,54 @@
 import Phaser from 'phaser';
 import { generateAllTextures } from '../core/textures';
+import { ORES } from '../config/ores';
+import { TILE } from '../config/gameplay';
+
+/**
+ * Authored ore/gem art (the DesignHandoff CGI minerals) keyed by our ore id. Metals live
+ * under world/ore_*, the precious tiers under world/gem_*. Loaded as source images then
+ * baked down to a TILE-sized embedded-overlay texture (`ore_<id>`) over the procedural one.
+ */
+const ORE_FILE: Record<string, string> = {
+  coal: 'world/ore_coal',
+  copper: 'world/ore_copper',
+  iron: 'world/ore_iron',
+  aluminium: 'world/ore_aluminium',
+  silver: 'world/ore_silver',
+  gold: 'world/ore_gold',
+  platinum: 'world/ore_platinum',
+  titanium: 'world/ore_titanium',
+  emerald: 'world/gem_emerald',
+  sapphire: 'world/gem_sapphire',
+  ruby: 'world/gem_ruby',
+  diamond: 'world/gem_diamond',
+  aurelium: 'world/gem_aurelium',
+};
 
 export class Preload extends Phaser.Scene {
   constructor() {
     super('Preload');
   }
 
+  preload(): void {
+    this.load.setPath('assets');
+    for (const o of ORES) {
+      const f = ORE_FILE[o.id];
+      if (f) this.load.image('src_ore_' + o.id, f + '.png');
+    }
+    this.load.on('loaderror', (file: Phaser.Loader.File) => {
+      // non-fatal: the procedural overlay generated below stays as the fallback
+      console.warn('[preload] asset failed, using procedural fallback:', file.key);
+    });
+  }
+
   create(): void {
     generateAllTextures(this);
+    // overlay the authored mineral art on top of the procedural `ore_<id>` overlays
+    for (const o of ORES) {
+      const srcKey = 'src_ore_' + o.id;
+      if (this.textures.exists(srcKey)) bakeFitted(this, srcKey, 'ore_' + o.id, TILE, 0.86);
+    }
+
     const el = document.getElementById('boot-loader');
     if (el) {
       el.classList.add('hidden');
@@ -15,4 +56,32 @@ export class Preload extends Phaser.Scene {
     }
     this.scene.start('MainMenu');
   }
+}
+
+/** Redraw a loaded source image, scaled to fit (preserving aspect), centred in a square texture. */
+function bakeFitted(
+  scene: Phaser.Scene,
+  srcKey: string,
+  dstKey: string,
+  size: number,
+  fit: number,
+): void {
+  const img = scene.textures.get(srcKey).getSourceImage() as CanvasImageSource & {
+    width: number;
+    height: number;
+  };
+  const sw = img.width;
+  const sh = img.height;
+  if (!sw || !sh) return;
+  const s = Math.min((size * fit) / sw, (size * fit) / sh);
+  const w = sw * s;
+  const h = sh * s;
+  if (scene.textures.exists(dstKey)) scene.textures.remove(dstKey);
+  const ct = scene.textures.createCanvas(dstKey, size, size);
+  if (!ct) return;
+  const ctx = ct.getContext();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+  ct.refresh();
 }

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEEPER — The Dig</title>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{--gold:#ffcf57;--crt:#6fe88a;--crt-dim:#3f9e52;--txt:#e9ddc4;--muted:#9b8f76}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:'Oxanium',system-ui,sans-serif;color:var(--txt);background:#060403;height:100%;
+    display:flex;flex-direction:column;overflow:hidden}
+
+  /* ---- tidy top HUD bar ---- */
+  .hud{display:flex;align-items:center;gap:18px;padding:10px 16px;z-index:5;
+    background:linear-gradient(180deg,#39332a,#1d1912);border-bottom:2px solid #14100b;
+    box-shadow:0 4px 14px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08)}
+  .cluster{display:flex;align-items:center;gap:10px}
+  .glabel{font-size:11px;font-weight:800;letter-spacing:.12em;color:#cdb98a}
+  .bar{width:130px;height:12px;border-radius:99px;background:#0b0906;box-shadow:inset 0 1px 2px rgba(0,0,0,.8);overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:99px;transition:width .25s}
+  .bar.fuel i{background:linear-gradient(90deg,#e0531f,#ffb24a);box-shadow:0 0 6px rgba(255,140,40,.5)}
+  .bar.hull i{background:linear-gradient(90deg,#2b7fd0,#7fd2ff);box-shadow:0 0 6px rgba(60,150,230,.5)}
+  .num{font-family:'Share Tech Mono',monospace;font-size:13px;color:#cdb98a}
+  .spacer{flex:1}
+  .depth{font-family:'Share Tech Mono',monospace;font-size:22px;color:var(--gold);text-shadow:0 0 10px rgba(255,207,87,.35)}
+  .depth small{font-size:12px;color:#cdb98a;letter-spacing:.14em}
+  .cash{font-family:'Share Tech Mono',monospace;font-size:20px;color:var(--crt);text-shadow:0 0 10px rgba(111,232,138,.4)}
+  .cargo{font-family:'Share Tech Mono',monospace;font-size:13px;color:#cdb98a}
+  .cargo b{color:#8fe04a}
+  .hbtn{font-family:'Oxanium';font-weight:800;font-size:13px;letter-spacing:.08em;cursor:pointer;text-decoration:none;
+    color:var(--txt);border:2px solid #0c0a07;border-radius:8px;padding:7px 14px;
+    background:linear-gradient(180deg,#3b352a,#1c1812);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 2px 5px rgba(0,0,0,.5)}
+  .hbtn:hover{filter:brightness(1.2)}
+  .hbtn.gold{color:#2a1c05;border-color:#6e4d12;background:linear-gradient(180deg,#ffe487,#e0a72a);box-shadow:0 3px 0 #9a6e15,0 4px 9px rgba(0,0,0,.4)}
+  .hbtn.gold[disabled]{opacity:.35;pointer-events:none}
+
+  /* ---- stage ---- */
+  .stage{flex:1;position:relative;display:grid;place-items:center;background:#05030a;overflow:hidden}
+  canvas#world{display:block;image-rendering:auto}
+
+  .hint{position:absolute;left:14px;bottom:12px;font-family:'Share Tech Mono',monospace;font-size:12px;
+    color:#7a7060;letter-spacing:.08em;background:rgba(6,4,3,.55);border:1px solid rgba(255,255,255,.07);
+    border-radius:6px;padding:5px 10px}
+
+  .toast{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+  .toast div{font-family:'Share Tech Mono',monospace;font-size:15px;color:var(--crt);text-shadow:0 0 10px rgba(111,232,138,.5);
+    background:rgba(6,10,6,.7);border:1px solid rgba(111,232,138,.3);border-radius:7px;padding:5px 14px;
+    animation:tfade 1.8s forwards}
+  .toast div.gold{color:var(--gold);border-color:rgba(255,207,87,.35);text-shadow:0 0 10px rgba(255,207,87,.5)}
+  @keyframes tfade{0%{opacity:0;transform:translateY(-6px)}12%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}
+
+  /* breach overlay */
+  .breach{position:absolute;inset:0;display:none;place-items:center;z-index:10;
+    background:radial-gradient(100% 100% at 50% 45%,rgba(90,10,2,.5),rgba(0,0,0,.88))}
+  .breach.on{display:grid}
+  .breach .box{text-align:center}
+  .breach .t{font-family:'Oxanium';font-weight:800;font-style:italic;font-size:46px;transform:skewX(-7deg);
+    background:linear-gradient(180deg,#ff8a6a,#c0341c 55%,#ff6a48);-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 3px 2px rgba(0,0,0,.8))}
+  .breach .s{font-family:'Share Tech Mono',monospace;font-size:14px;color:#d9a08e;letter-spacing:.16em;margin:8px 0 22px}
+</style>
+</head>
+<body>
+  <div class="hud" data-screen-label="dig-hud">
+    <div class="cluster"><span class="glabel">FUEL</span><span class="bar fuel"><i id="fuelbar"></i></span><span class="num" id="fuelnum">100</span></div>
+    <div class="cluster"><span class="glabel">HULL</span><span class="bar hull"><i id="hullbar"></i></span><span class="num">100</span></div>
+    <span class="spacer"></span>
+    <span class="depth"><b id="depth">0</b> <small>FT</small></span>
+    <span class="spacer"></span>
+    <span class="cargo">CARGO <b id="cargo">0</b>/12</span>
+    <span class="cash" id="cash">$0</span>
+    <button class="hbtn gold" id="dock" disabled>DOCK &middot; SELL</button>
+    <a class="hbtn" href="DEEPER Outpost Shop.html">OUTPOST</a>
+    <a class="hbtn" href="DEEPER Main Menu.html">MENU</a>
+  </div>
+
+  <div class="stage" data-screen-label="dig-view">
+    <canvas id="world"></canvas>
+    <div class="toast" id="toast"></div>
+    <span class="hint">ARROWS / WASD &mdash; drill down &amp; sideways &middot; thrust up through tunnels &middot; dock at the surface to sell</span>
+    <div class="breach" id="breach">
+      <div class="box">
+        <div class="t">Fuel Spent</div>
+        <div class="s">THE POD GOES DARK AT <span id="bdepth">0</span> FT</div>
+        <a class="hbtn gold" href="DEEPER Game Over.html">RUN SUMMARY</a>
+        <a class="hbtn" href="DEEPER Dig View.html" style="margin-left:8px">RETRY</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="art/deeper-core.js"></script>
+  <script src="art/deeper-dig.js"></script>
+  <script>
+  (function(){
+    const G=window.DEEPER.DIG, T=G.TILE;
+    const VIEW_ROWS=13, W=G.COLS*T, H=VIEW_ROWS*T;
+    const cv=document.getElementById('world');cv.width=W;cv.height=H;
+    const ctx=cv.getContext('2d');
+
+    /* fit stage */
+    function fit(){
+      const st=cv.parentElement.getBoundingClientRect();
+      const s=Math.min(st.width/W,st.height/H);
+      cv.style.width=(W*s)+'px';cv.style.height=(H*s)+'px';
+    }
+    window.addEventListener('resize',fit);
+
+    const grid=G.genWorld(4471);
+    const pod={c:10,r:G.SURFACE,dir:'down'};
+    let fuel=100,cargo=[],cash=0,frame=0,dead=false,best=0;
+
+    const $=id=>document.getElementById(id);
+    function hud(){
+      $('fuelbar').style.width=Math.max(0,fuel)+'%';
+      $('fuelnum').textContent=Math.max(0,Math.round(fuel));
+      const d=(pod.r-G.SURFACE)*10;$('depth').textContent=d.toLocaleString();
+      best=Math.max(best,d);
+      $('cargo').textContent=cargo.length;
+      $('cash').textContent='$'+cash.toLocaleString();
+      $('dock').disabled=!(pod.r===G.SURFACE&&cargo.length>0);
+    }
+    function toast(msg,gold){
+      const t=document.createElement('div');if(gold)t.className='gold';
+      t.textContent=msg;$('toast').appendChild(t);
+      setTimeout(()=>t.remove(),1900);
+    }
+
+    function draw(){
+      const camTop=Math.max(0,Math.min(G.ROWS-VIEW_ROWS,pod.r-5));
+      ctx.save();ctx.translate(0,-camTop*T);
+      // sky (only when visible)
+      if(camTop<G.SURFACE) G.paintSky(ctx,W);
+      for(let r=Math.max(G.SURFACE,camTop);r<camTop+VIEW_ROWS+1&&r<G.ROWS;r++){
+        for(let c=0;c<G.COLS;c++){
+          const t=grid[r][c],x=c*T,y=r*T,depth=(r-G.SURFACE)/(G.ROWS-G.SURFACE);
+          if(t.t==='empty')G.paintEmpty(ctx,x,y,grid,c,r);
+          else if(t.t==='stone'){G.paintStone(ctx,x,y,t.seed,t.hp);if(t.ore)G.paintOre(ctx,x,y,t.ore,t.seed);}
+          else if(t.t==='dirt'){G.paintDirt(ctx,x,y,t.seed,depth);if(t.ore)G.paintOre(ctx,x,y,t.ore,t.seed);}
+        }
+      }
+      // darkness with depth
+      const dk=ctx.createLinearGradient(0,G.SURFACE*T,0,G.ROWS*T);dk.addColorStop(0,'rgba(0,0,0,0)');dk.addColorStop(1,'rgba(0,0,0,0.55)');
+      ctx.fillStyle=dk;ctx.fillRect(0,G.SURFACE*T,W,(G.ROWS-G.SURFACE)*T);
+      G.paintPod(ctx,pod.c*T,pod.r*T,pod.dir,frame);
+      ctx.restore();
+    }
+
+    function collect(t){
+      if(!t.ore)return;
+      const O=G.ORE2[t.ore];
+      if(cargo.length>=12){toast('CARGO FULL');return;}
+      cargo.push(t.ore);
+      toast('+ '+O.name+'  ·  $'+O.val.toLocaleString(), t.ore==='gold'||t.ore==='diamond');
+      t.ore=null;
+    }
+    function move(dx,dy){
+      if(dead)return;
+      const nc=pod.c+dx,nr=pod.r+dy;
+      if(nc<0||nc>=G.COLS||nr<0||nr>=G.ROWS)return;
+      pod.dir=dx<0?'left':dx>0?'right':dy>0?'down':pod.dir;
+      const t=grid[nr][nc];
+      if(t.t==='sky'){ if(nr>=G.SURFACE){pod.c=nc;pod.r=nr;} return; }
+      if(t.t==='empty'){ pod.c=nc;pod.r=nr; fuel-=0.3; }
+      else if(dy<0){ return; } // can't drill upward
+      else if(t.t==='stone'&&t.hp>1){ t.hp=1; fuel-=1; }
+      else { collect(t); t.t='empty'; pod.c=nc;pod.r=nr; fuel-=1; }
+      if(fuel<=0){ breach(); }
+      hud();draw();
+    }
+    function breach(){
+      dead=true;
+      document.getElementById('bdepth').textContent=((pod.r-G.SURFACE)*10).toLocaleString();
+      document.getElementById('breach').classList.add('on');
+      try{localStorage.setItem('deeper_last_run',JSON.stringify({depth:(pod.r-G.SURFACE)*10,cash}));}catch(e){}
+    }
+    $('dock').addEventListener('click',()=>{
+      const total=cargo.reduce((s,k)=>s+G.ORE2[k].val,0);
+      cash+=total;cargo=[];fuel=100;
+      toast('SOLD CARGO  ·  +$'+total.toLocaleString(),true);
+      toast('TANK REFILLED');
+      hud();draw();
+    });
+
+    const KEYS={ArrowLeft:[-1,0],a:[-1,0],ArrowRight:[1,0],d:[1,0],ArrowDown:[0,1],s:[0,1],ArrowUp:[0,-1],w:[0,-1]};
+    window.addEventListener('keydown',e=>{
+      const k=KEYS[e.key]||KEYS[e.key.toLowerCase&&e.key.toLowerCase()];
+      if(k){e.preventDefault();move(k[0],k[1]);}
+    });
+
+    function loop(){frame+=0.5;draw();requestAnimationFrame(loop);}
+    window.__dig={pod,move,grid,state:()=>({c:pod.c,r:pod.r,fuel,cargo:cargo.length,cash,dead})};
+    fit();hud();loop();
+    requestAnimationFrame(fit);
+  })();
+  </script>
+
+  <template id="__bundler_thumbnail">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" fill="#4a2f17"/>
+      <rect x="40" y="20" width="20" height="60" fill="#171008"/>
+      <rect x="38" y="44" width="24" height="18" rx="6" fill="#e09a22"/>
+      <circle cx="50" cy="50" r="4" fill="#37b6d8"/>
+      <circle cx="22" cy="70" r="7" fill="#ffcf57"/>
+      <circle cx="76" cy="34" r="6" fill="#c0703a"/>
+    </svg>
+  </template>
+</body>
+</html>
