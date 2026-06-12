@@ -44,9 +44,9 @@ export const TUNING = {
   driftEntryKickDeg: 12, // instant tail-kick (degrees of slip) on entering/switching a drift — see drift-feel.md
   driftRecoverTime: 0.3, // seconds to ease out of a drift (facing un-angles gradually, no snap)
   driftRecoverRate: 0.12, // per-step rate the facing eases toward travel during recovery
-  driftTier1: 0.6, // seconds of drift for blue mini-turbo
-  driftTier2: 1.4, // orange super mini-turbo
-  driftTier3: 2.0, // purple ultra mini-turbo (eased from 2.4 — full bar was a touch too hard to reach)
+  driftTier1: 0.8, // seconds of drift for blue mini-turbo
+  driftTier2: 1.8, // orange super mini-turbo
+  driftTier3: 2.7, // slowed fill ~35% (playtest 2026-06-12: metre filled too fast) // purple ultra mini-turbo (eased from 2.4 — full bar was a touch too hard to reach)
   driftBoostDuration: [0, 0, 0, 0.85], // ONLY a full-bar (tier-3) drift boosts — eased from 1.1 (drift bonus was a bit strong)
   boostAccel: 130, // push toward the boost ceiling fast
   driftBoostMult: 1.28, // top-speed ceiling multiplier while boosting

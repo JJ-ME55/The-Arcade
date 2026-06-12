@@ -485,7 +485,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     // Visual smoothing of reconciliation corrections: physics corrections are
     // absorbed into this decaying render-only offset instead of appearing as
     // 30Hz micro-jumps ("glitching every millisecond").
-    let mpSmoothX = 0, mpSmoothZ = 0;
+    let mpSmoothX = 0, mpSmoothZ = 0, mpSmoothH = 0;
     let throttleDownSince: number | null = null; // when the player first held throttle during the countdown
     let rocketResolved = false; // rocket-start bonus applied at GO (once)
     let lastHud = '';
@@ -885,7 +885,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
               const tick = (snap as any).tick;
               if (typeof tick === 'number' && tick !== mpLastReconTick) {
                 mpLastReconTick = tick;
-                const preX = states[PLAYER].x, preZ = states[PLAYER].z;
+                const preX = states[PLAYER].x, preZ = states[PLAYER].z, preH = states[PLAYER].heading;
                 states[PLAYER] = {
                   ...states[PLAYER],
                   x: selfSnap.x, z: selfSnap.z,
@@ -934,7 +934,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                 mpSmoothX += preX - states[PLAYER].x;
                 mpSmoothZ += preZ - states[PLAYER].z;
                 const sm = Math.hypot(mpSmoothX, mpSmoothZ);
-                if (sm > 6) { mpSmoothX *= 6 / sm; mpSmoothZ *= 6 / sm; } // cap: big corrections may show
+                if (sm > 30) { mpSmoothX *= 30 / sm; mpSmoothZ *= 30 / sm; } // beyond 30u = genuine teleport, allowed to show
               }
             }
           }
@@ -1042,13 +1042,13 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
             const lat = (states[i].x - a.x) * tz + (states[i].z - a.z) * -tx;
             // commit at the entry ramp only if actually IN the channel (past the inner wall), so a
             // kart on the normal road beside the channel is never lifted.
-            if (!onUpperDeck[i] && p < ud.rampUpEnd && Math.sign(lat) === ud.side && Math.abs(lat) >= UPPER_DECK_INNER) onUpperDeck[i] = true;
+            if (!onUpperDeck[i] && p < ud.rampUpEnd && Math.sign(lat) === ud.side && Math.abs(lat) >= UPPER_DECK_INNER && Math.abs(lat) <= track.halfWidth) onUpperDeck[i] = true; // outer bound: past the wall line = grass, no lift
             if (onUpperDeck[i]) {
               // Drifted off the OPEN inner edge (toward the road — no rail there) → release the pin
               // and drop off the deck back down to the road, losing the high line + boost. That's
               // the risk of the shortcut. (Won't trigger on the normal descent, which stays out in
               // the channel at |lat| ≥ the inner edge.)
-              if (Math.abs(lat) < UPPER_DECK_INNER - 0.5 && p < ud.rampDownStart) {
+              if ((Math.abs(lat) < UPPER_DECK_INNER - 0.5 || Math.abs(lat) > track.halfWidth + 1) && p < ud.rampDownStart) {
                 onUpperDeck[i] = false;
                 states[i] = { ...states[i], falling: true, vy: -1 };
               } else {
@@ -1237,7 +1237,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       // the current state instead of sliding the kart across the map. Used by the kart meshes AND
       // everything attached to them (shield rings, storm clouds, lightning) so they never separate.
       // decay the reconciliation smoothing offset (render-only, ~15%/frame)
-      mpSmoothX *= 0.85; mpSmoothZ *= 0.85;
+      mpSmoothX *= 0.88; mpSmoothZ *= 0.88; mpSmoothH *= 0.88;
       const renderPose = (i: number): KartState => {
         const cur = states[i], prev = prevStates[i] ?? cur;
         if (Math.hypot(cur.x - prev.x, cur.z - prev.z) > 8) return cur; // teleport → snap
@@ -1250,7 +1250,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         };
         // local player in MP: render through the decaying correction offset so
         // 30Hz reconciliation never reads as micro-jumps
-        if (mp && i === PLAYER) { pose.x += mpSmoothX; pose.z += mpSmoothZ; }
+        if (mp && i === PLAYER) { pose.x += mpSmoothX; pose.z += mpSmoothZ; pose.heading += mpSmoothH; }
         return pose;
       };
 
