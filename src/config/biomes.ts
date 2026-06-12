@@ -53,14 +53,14 @@ export const BIOMES: BiomeDef[] = [
     palette: { bgTop: 0x4a3525, bgBottom: 0x2c1f15, dirt: 0x7a5230, dirtEdge: 0x96673e, stone: 0x6a6258, stoneEdge: 0x847b6e, hard: 0x555049, hardEdge: 0x6e685f, accent: 0x9be36b },
     hardnessMul: 1.0, stoneChance: 0.06, hardChance: 0.0, caveDensity: 0.04,
     boulderDensity: 0.015, lavaDensity: 0, gasDensity: 0, heatPressure: 0,
-    oreRichness: 0.16, ambience: 'calm',
+    oreRichness: 0.1, ambience: 'calm',
   },
   {
     id: 'sediment', name: 'Clay Sediment', depthStart: 130,
     palette: { bgTop: 0x53301f, bgBottom: 0x301a12, dirt: 0x9a4f30, dirtEdge: 0xb86640, stone: 0x7a5246, stoneEdge: 0x96675a, hard: 0x5e463c, hardEdge: 0x77584c, accent: 0xe0a060 },
     hardnessMul: 1.25, stoneChance: 0.14, hardChance: 0.02, caveDensity: 0.05,
     boulderDensity: 0.03, lavaDensity: 0, gasDensity: 0.006, heatPressure: 0.05,
-    oreRichness: 0.18, ambience: 'calm',
+    oreRichness: 0.13, ambience: 'calm',
   },
   {
     id: 'rock', name: 'Bedrock Strata', depthStart: 330,

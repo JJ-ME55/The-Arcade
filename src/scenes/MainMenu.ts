@@ -38,12 +38,14 @@ export class MainMenu extends Phaser.Scene {
     const cx = BASE_W / 2;
     const sky = this.add.image(0, 0, 'bg_sky');
 
-    // hero CGI pod (DesignHandoff) — cover the design rect, then a dark scrim for legibility
+    // hero CGI pod (DesignHandoff) — covers the WHOLE window (full-bleed, no pillarbox), with a
+    // dark scrim over it for legibility. Both are re-covered on resize (see coverBleed below).
+    let hero: Phaser.GameObjects.Image | undefined;
+    let scrim: Phaser.GameObjects.Image | undefined;
     if (this.textures.exists('shell_menu_hero')) {
-      const hero = this.add.image(cx, BASE_H * 0.46, 'shell_menu_hero');
-      hero.setScale(Math.max(BASE_W / hero.width, BASE_H / hero.height));
+      hero = this.add.image(cx, BASE_H / 2, 'shell_menu_hero');
       ensureMenuScrim(this);
-      this.add.image(cx, BASE_H / 2, 'menu_scrim').setDisplaySize(BASE_W, BASE_H);
+      scrim = this.add.image(cx, BASE_H / 2, 'menu_scrim');
     }
 
     // drifting dust motes
@@ -95,12 +97,6 @@ export class MainMenu extends Phaser.Scene {
     new Button(this, cx + 150, 242, 40, 40, '›', () => this.cycleLoadout(1), { fontSize: 26 });
     this.refreshLoadout();
 
-    this.add
-      .text(cx, 326, `BEST ${App.meta.bestScore.toLocaleString()}   ·   DEEPEST ${Math.floor(App.meta.bestDepth)} m`, textStyle(13, COL.faint))
-      .setOrigin(0.5)
-      .setLetterSpacing(1)
-      .setDepth(4);
-
     // ---- CRT monitor: the nav lives on the green screen ----
     if (this.textures.exists('shell_menu_monitor')) {
       const mw = 540;
@@ -141,6 +137,24 @@ export class MainMenu extends Phaser.Scene {
       .setDepth(4);
 
     fitDesign(this, sky);
+
+    // full-bleed the hero + scrim across the whole window (cover-fit the camera's visible area)
+    if (hero && scrim) {
+      const h = hero;
+      const sc = scrim;
+      const coverBleed = (): void => {
+        const W = this.scale.width;
+        const H = this.scale.height;
+        const s = Math.min(W / BASE_W, H / BASE_H);
+        const vw = W / s;
+        const vh = H / s;
+        h.setScale(Math.max(vw / h.width, vh / h.height)).setPosition(cx, BASE_H / 2);
+        sc.setDisplaySize(vw, vh).setPosition(cx, BASE_H / 2);
+      };
+      coverBleed();
+      this.scale.on('resize', coverBleed);
+      this.events.once('shutdown', () => this.scale.off('resize', coverBleed));
+    }
   }
 
   /** Lay the nav out as green phosphor lines centred in the monitor glass. */

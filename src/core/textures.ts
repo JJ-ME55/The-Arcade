@@ -334,12 +334,12 @@ function genPod(scene: Phaser.Scene): void {
   g.lineBetween(W * 0.7, H * 0.2, W * 0.78, H * 0.06);
   g.fillStyle(0xff5a5a, 1);
   g.fillCircle(W * 0.78, H * 0.055, 2.4);
-  // main hull — two-tone with a soft top sheen
-  g.fillStyle(0xf2c63c, 1);
+  // main hull — dark riveted gunmetal-bronze (matches the DesignHandoff drill pod), soft top sheen
+  g.fillStyle(0x5e564a, 1);
   g.fillRoundedRect(W * 0.15, H * 0.17, W * 0.7, H * 0.54, 9);
-  g.fillStyle(0xffe372, 1);
+  g.fillStyle(0x7c7260, 1);
   g.fillRoundedRect(W * 0.18, H * 0.19, W * 0.64, H * 0.16, 7);
-  g.fillStyle(0xc9982c, 1);
+  g.fillStyle(0x3c362c, 1);
   g.fillRoundedRect(W * 0.15, H * 0.5, W * 0.7, H * 0.21, { tl: 0, tr: 0, bl: 9, br: 9 });
   // hazard chevrons on the skid plate
   g.fillStyle(0x23262e, 1);
@@ -350,7 +350,7 @@ function genPod(scene: Phaser.Scene): void {
     g.fillTriangle(x0, H * 0.66, x0 + W * 0.07, H * 0.585, x0 + W * 0.14, H * 0.66);
   }
   // rivets
-  g.fillStyle(0xa57f22, 1);
+  g.fillStyle(0x9a8c66, 1);
   g.fillCircle(W * 0.2, H * 0.23, 1.6);
   g.fillCircle(W * 0.8, H * 0.23, 1.6);
   g.fillCircle(W * 0.2, H * 0.46, 1.6);
@@ -365,7 +365,7 @@ function genPod(scene: Phaser.Scene): void {
   g.fillStyle(0xffffff, 0.9);
   g.fillCircle(W * 0.455, H * 0.325, W * 0.022);
   // hull outline
-  g.lineStyle(2, 0x6e5414, 1);
+  g.lineStyle(2, 0x26211a, 1);
   g.strokeRoundedRect(W * 0.15, H * 0.17, W * 0.7, H * 0.54, 9);
   // drill mount nub (the drill itself is a separate, orientable sprite)
   g.fillStyle(0x6b7280, 1);

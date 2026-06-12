@@ -75,7 +75,8 @@ export class Preload extends Phaser.Scene {
     // overlay the authored mineral art on top of the procedural `ore_<id>` overlays
     for (const o of ORES) {
       const srcKey = 'src_ore_' + o.id;
-      if (this.textures.exists(srcKey)) bakeFitted(this, srcKey, 'ore_' + o.id, TILE, 0.86);
+      // smaller embedded nugget (not a tile-filling blob) so dense ore fields don't read as a rash
+      if (this.textures.exists(srcKey)) bakeFitted(this, srcKey, 'ore_' + o.id, TILE, 0.56);
     }
 
     const el = document.getElementById('boot-loader');
