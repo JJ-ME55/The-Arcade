@@ -21,22 +21,31 @@ export class Workshop extends Phaser.Scene {
     const cx = BASE_W / 2;
     const bg = this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
     fitDesign(this, bg);
-    this.add.text(cx, 50, 'WORKSHOP', title(32, COL.accent)).setOrigin(0.5);
+    this.add.text(cx, 50, 'WORKSHOP', title(32)).setOrigin(0.5);
     this.coresText = this.add.text(cx, 86, '', textStyle(18, COL.accent)).setOrigin(0.5);
     this.add.text(cx, 112, 'Spend Cores on permanent upgrades — dying still pays off.', textStyle(12, COL.dim)).setOrigin(0.5);
 
     const bx = 24;
     const bw = BASE_W - 48;
+    const SPRITE: Record<string, string> = { fuelCell: 'up_fuel_0', reinforce: 'up_hull_0', sharpDrill: 'up_drill_0', bigBay: 'up_cargo_0' };
     let y = 140;
     this.add.text(bx, y, 'PERMANENT UPGRADES', textStyle(13, COL.faint)).setLetterSpacing(2);
     y += 24;
     for (const u of META_UPGRADES) {
       makePanel(this, bx, y, bw, 56, { alpha: 0.6 });
-      const dot = this.add.graphics();
-      dot.fillStyle(u.color, 1);
-      dot.fillCircle(bx + 22, y + 20, 7);
-      this.add.text(bx + 40, y + 8, u.name, textStyle(16, COL.text));
-      const level = this.add.text(bx + 40, y + 30, '', textStyle(12, COL.dim));
+      const sk = SPRITE[u.id];
+      if (sk && this.textures.exists(sk)) {
+        const im = this.add.image(bx + 26, y + 28, sk);
+        const src = this.textures.get(sk).getSourceImage() as { width: number; height: number };
+        im.setScale(Math.min(40 / src.width, 44 / src.height));
+      } else {
+        const dot = this.add.graphics();
+        dot.fillStyle(u.color, 1);
+        dot.fillCircle(bx + 24, y + 26, 9);
+        this.add.text(bx + 24, y + 26, '◈', textStyle(13, 0x2a1c05)).setOrigin(0.5);
+      }
+      this.add.text(bx + 52, y + 8, u.name, textStyle(16, COL.text));
+      const level = this.add.text(bx + 52, y + 30, '', textStyle(12, COL.dim));
       const btn = new Button(this, bx + bw - 78, y + 28, 132, 38, '', () => this.buy(u.id), { fontSize: 14 });
       this.rows.push({ id: u.id, level, btn });
       y += 64;

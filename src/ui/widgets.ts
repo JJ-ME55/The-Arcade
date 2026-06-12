@@ -96,6 +96,9 @@ export class Button extends Phaser.GameObjects.Container {
     }
     g.fillStyle(fill, a);
     g.fillRoundedRect(-this.bw / 2, -this.bh / 2, this.bw, this.bh, 10);
+    // steel bevel: a lit top sheen (reads on both dark steel and the gold CTA)
+    g.fillStyle(0xffffff, 0.09);
+    g.fillRoundedRect(-this.bw / 2, -this.bh / 2, this.bw, this.bh * 0.44, { tl: 10, tr: 10, bl: 0, br: 0 });
     g.lineStyle(2, border, a);
     g.strokeRoundedRect(-this.bw / 2, -this.bh / 2, this.bw, this.bh, 10);
     if (this.opts.accent !== undefined) {
@@ -132,8 +135,15 @@ export function drawPanel(
   const a = opts.alpha ?? 0.96;
   g.fillStyle(fill, a);
   g.fillRoundedRect(x, y, w, h, r);
+  // steel bevel: lit top strip + hairline highlight + an inner gold-brown edge for definition
+  g.fillStyle(COL.panelHi, a * 0.55);
+  g.fillRoundedRect(x, y, w, Math.min(h * 0.4, 38), { tl: r, tr: r, bl: 0, br: 0 });
+  g.fillStyle(0xffffff, 0.1);
+  g.fillRect(x + r, y + 1, w - 2 * r, 1);
   g.lineStyle(2, border, 1);
   g.strokeRoundedRect(x, y, w, h, r);
+  g.lineStyle(1, COL.borderHi, 0.35);
+  g.strokeRoundedRect(x + 1.5, y + 1.5, w - 3, h - 3, r - 1);
 }
 
 export function makePanel(
