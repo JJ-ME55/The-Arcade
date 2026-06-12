@@ -46,6 +46,24 @@ export class Preload extends Phaser.Scene {
       ['shell_shop_processor', 'shells/mineral_processing.png'],
     ];
     for (const [k, p] of shells) this.load.image(k, p);
+
+    // authored fossil art for the Collection vault (our fossil id -> handoff file)
+    const FOSSIL_FILE: Record<string, string> = {
+      ammonite: 'ammonite',
+      trilobite: 'trilobite',
+      fern: 'fern',
+      dino_tooth: 'tooth',
+      dino_rib: 'ribs',
+      dino_skull: 'skull',
+      mammoth_tusk: 'tusk',
+    };
+    for (const [id, f] of Object.entries(FOSSIL_FILE)) this.load.image('fossil_' + id, 'world/fossil_' + f + '.png');
+
+    // authored upgrade sprites for the Outpost shop (7 categories × 6 tiers)
+    for (const c of ['drill', 'fuel', 'cargo', 'hull', 'engine', 'radiator', 'scanner']) {
+      for (let n = 0; n < 6; n++) this.load.image(`up_${c}_${n}`, `sprites/${c}_${n}.png`);
+    }
+
     this.load.on('loaderror', (file: Phaser.Loader.File) => {
       // non-fatal: procedural overlays / plain backgrounds stay as the fallback
       console.warn('[preload] asset failed, using fallback:', file.key);

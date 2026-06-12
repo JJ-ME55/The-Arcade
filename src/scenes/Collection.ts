@@ -1,13 +1,28 @@
 import Phaser from 'phaser';
 import { BASE_W, BASE_H } from '../config/gameplay';
-import { COL, textStyle, title } from '../ui/theme';
+import { COL, textStyle, title, monoStyle, css } from '../ui/theme';
 import { Button } from '../ui/widgets';
 import { fitDesign } from '../ui/layout';
 import { App } from '../core/state';
 import { ORES } from '../config/ores';
 import { FOSSILS, ARTIFACTS } from '../config/specials';
 
+type Tab = 'min' | 'fos' | 'art';
+
+interface CardData {
+  known: boolean;
+  art?: string;
+  glyph?: string;
+  name: string;
+  sub: string;
+  tint: number;
+}
+
 export class Collection extends Phaser.Scene {
+  private tab: Tab = 'min';
+  private group?: Phaser.GameObjects.Container;
+  private tabTexts: Partial<Record<Tab, Phaser.GameObjects.Text>> = {};
+
   constructor() {
     super('Collection');
   }
@@ -16,66 +31,132 @@ export class Collection extends Phaser.Scene {
     const cx = BASE_W / 2;
     const bg = this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
     fitDesign(this, bg);
-    this.add.text(cx, 52, 'COLLECTION', title(32)).setOrigin(0.5);
+
+    this.add.text(cx, 44, 'THE VAULT', title(30)).setOrigin(0.5).setLetterSpacing(2);
 
     const col = App.meta.collection;
     const oresFound = ORES.filter((o) => (col.ores[o.id] ?? 0) > 0).length;
     const total = ORES.length + FOSSILS.length + ARTIFACTS.length;
     const found = oresFound + col.fossils.length + col.artifacts.length;
     this.add
-      .text(cx, 86, `${found} / ${total} discovered  ·  ${Math.round((found / total) * 100)}%`, textStyle(15, COL.accent))
-      .setOrigin(0.5);
+      .text(cx, 78, `${found} / ${total} DISCOVERED · ${Math.round((found / total) * 100)}%`, monoStyle(14, COL.accent))
+      .setOrigin(0.5)
+      .setLetterSpacing(1);
 
-    // ---- ores grid ----
-    this.add.text(28, 116, 'MINERALS', textStyle(14, COL.faint)).setLetterSpacing(2);
-    const cols = 5;
-    const cellW = 96;
-    const cellH = 64;
-    const gx = 28;
-    let gy = 140;
-    ORES.forEach((o, i) => {
-      const x = gx + (i % cols) * cellW;
-      const y = gy + Math.floor(i / cols) * cellH;
-      const count = col.ores[o.id] ?? 0;
-      const known = count > 0;
-      const g = this.add.graphics();
-      g.fillStyle(known ? 0x1c1c30 : 0x121220, 1);
-      g.fillRoundedRect(x, y, cellW - 8, cellH - 8, 8);
-      g.lineStyle(1.5, known ? o.color : COL.border, 1);
-      g.strokeRoundedRect(x, y, cellW - 8, cellH - 8, 8);
-      if (known) {
-        this.add.image(x + (cellW - 8) / 2, y + 22, 'ore_' + o.id).setScale(0.7);
-        this.add.text(x + (cellW - 8) / 2, y + 42, `${o.name} ×${count}`, textStyle(10, COL.dim)).setOrigin(0.5);
-      } else {
-        this.add.text(x + (cellW - 8) / 2, y + 26, '?', textStyle(22, COL.faint)).setOrigin(0.5);
-      }
-    });
-    gy += Math.ceil(ORES.length / cols) * cellH + 12;
+    this.tabTexts.min = this.makeTab(cx - 150, 118, `MINERALS ${oresFound}/${ORES.length}`, 'min');
+    this.tabTexts.fos = this.makeTab(cx, 118, `FOSSILS ${col.fossils.length}/${FOSSILS.length}`, 'fos');
+    this.tabTexts.art = this.makeTab(cx + 150, 118, `RELICS ${col.artifacts.length}/${ARTIFACTS.length}`, 'art');
 
-    // ---- fossils ----
-    this.add.text(28, gy, 'FOSSILS', textStyle(14, COL.faint)).setLetterSpacing(2);
-    gy += 22;
-    FOSSILS.forEach((f, i) => {
-      const x = 28 + (i % 2) * 244;
-      const y = gy + Math.floor(i / 2) * 30;
-      const known = col.fossils.includes(f.id);
-      this.add.text(x, y, (known ? '🦴 ' : '◌ ') + (known ? f.name : '???'), textStyle(14, known ? 0xffe9b0 : COL.faint));
-    });
-    gy += Math.ceil(FOSSILS.length / 2) * 30 + 14;
-
-    // ---- artifacts ----
-    this.add.text(28, gy, 'ARTIFACTS', textStyle(14, COL.faint)).setLetterSpacing(2);
-    gy += 22;
-    ARTIFACTS.forEach((a, i) => {
-      const x = 28 + (i % 2) * 244;
-      const y = gy + Math.floor(i / 2) * 30;
-      const known = col.artifacts.includes(a.id);
-      this.add.text(x, y, (known ? '✦ ' : '◌ ') + (known ? a.name : '???'), textStyle(14, known ? 0xeaddff : COL.faint));
-    });
-
-    new Button(this, cx, BASE_H - 50, 240, 50, 'BACK', () => this.scene.start('MainMenu'), {
+    new Button(this, cx, BASE_H - 48, 240, 50, '‹ MENU', () => this.scene.start('MainMenu'), {
       fill: COL.brand,
       textColor: 0x1a1400,
+    });
+
+    this.render();
+  }
+
+  private makeTab(x: number, y: number, label: string, t: Tab): Phaser.GameObjects.Text {
+    const on = this.tab === t;
+    const txt = this.add
+      .text(x, y, label, textStyle(13, on ? COL.brand : COL.dim))
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    txt.on('pointerup', () => {
+      if (this.tab === t) return;
+      this.tab = t;
+      this.refreshTabs();
+      this.render();
+    });
+    return txt;
+  }
+
+  private refreshTabs(): void {
+    (Object.keys(this.tabTexts) as Tab[]).forEach((t) => {
+      this.tabTexts[t]?.setColor(css(this.tab === t ? COL.brand : COL.dim));
+    });
+  }
+
+  private render(): void {
+    this.group?.destroy(true);
+    this.group = this.add.container(0, 0);
+    const cards = this.cards();
+
+    const cols = 4;
+    const cellW = 126;
+    const cellH = 138;
+    const gw = cols * cellW;
+    const x0 = (BASE_W - gw) / 2 + 6;
+    const y0 = 156;
+    cards.forEach((c, i) => {
+      const x = x0 + (i % cols) * cellW;
+      const y = y0 + Math.floor(i / cols) * cellH;
+      this.card(x, y, cellW - 10, cellH - 10, c);
+    });
+  }
+
+  private card(x: number, y: number, w: number, h: number, c: CardData): void {
+    const G = this.group!;
+    const g = this.add.graphics();
+    g.fillStyle(c.known ? 0x171728 : 0x101019, 0.92);
+    g.fillRoundedRect(x, y, w, h, 10);
+    g.lineStyle(1.5, c.known ? c.tint : COL.border, c.known ? 0.9 : 0.45);
+    g.strokeRoundedRect(x, y, w, h, 10);
+    G.add(g);
+
+    if (c.known && c.art && this.textures.exists(c.art)) {
+      const img = this.add.image(x + w / 2, y + h * 0.4, c.art);
+      img.setScale(Math.min((w * 0.62) / img.width, (h * 0.52) / img.height));
+      G.add(img);
+    } else if (c.known && c.glyph) {
+      G.add(this.add.text(x + w / 2, y + h * 0.36, c.glyph, title(30, c.tint)).setOrigin(0.5));
+    } else {
+      G.add(this.add.text(x + w / 2, y + h * 0.34, '?', title(28, COL.faint)).setOrigin(0.5));
+    }
+
+    if (c.known) {
+      G.add(this.add.text(x + w / 2, y + h - 34, c.name, textStyle(11, COL.text, { align: 'center', wordWrap: { width: w - 8 } })).setOrigin(0.5, 0));
+      G.add(this.add.text(x + w / 2, y + h - 16, c.sub, monoStyle(10, COL.crtDim)).setOrigin(0.5, 0));
+    } else {
+      G.add(this.add.text(x + w / 2, y + h - 24, 'UNDISCOVERED', monoStyle(8, COL.faint)).setOrigin(0.5, 0).setLetterSpacing(1));
+    }
+  }
+
+  private cards(): CardData[] {
+    const col = App.meta.collection;
+    if (this.tab === 'min') {
+      return ORES.map((o) => {
+        const count = col.ores[o.id] ?? 0;
+        return {
+          known: count > 0,
+          art: 'src_ore_' + o.id,
+          name: o.name,
+          sub: `$${o.value} ·×${count}`,
+          tint: o.color,
+        };
+      });
+    }
+    if (this.tab === 'fos') {
+      return FOSSILS.map((f) => {
+        const known = col.fossils.includes(f.id);
+        return {
+          known,
+          art: 'fossil_' + f.id,
+          glyph: '🦴',
+          name: f.name,
+          sub: `${f.minDepth}m`,
+          tint: 0xffe9b0,
+        };
+      });
+    }
+    return ARTIFACTS.map((a) => {
+      const known = col.artifacts.includes(a.id);
+      return {
+        known,
+        glyph: '✦',
+        name: a.name,
+        sub: `$${a.value.toLocaleString()}`,
+        tint: 0xc792ff,
+      };
     });
   }
 }
