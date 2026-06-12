@@ -162,15 +162,16 @@ export function useMultiplayerSync() {
           telegramUserId,
         });
       },
-      sendInput(frame: { steer: number; throttle: number; brake: number; drift: boolean }) {
+      sendInput(frame: { steer: number; throttle: number; brake: number; drift: boolean; seq?: number }) {
         ctx.net.sendInput({
           raceId: ctx.roomId,
           kartId: ctx.selfKartId,
+          seq: frame.seq,   // reconciliation: matches the snapshot's ackSeq
           steer: frame.steer,
           throttle: frame.throttle,
           brake: frame.brake,
           drift: frame.drift,
-        });
+        } as any);
       },
       // V2 (2026-06-10): fire the local player's held item. Server resolves
       // the use + any hits authoritatively; effects + projectiles/traps come

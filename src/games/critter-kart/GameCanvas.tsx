@@ -477,6 +477,11 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     // a snapshot describes the server ~RTT/2 ago, so it must be compared against
     // where the LOCAL kart was at that same race-time, not where it is now.
     const localTrail: { t: number; x: number; z: number }[] = [];
+    // Reconciliation state (validated 14/14 by the headless harness, run 4:
+    // drift collapsed 300-540u → ~6u median). pending = inputs sent but not
+    // yet acked by the server (snapshot ackSeq); replayed after each adopt.
+    let mpSeq = 0, mpLastSentAt = 0, mpLastReconTick = -1;
+    let mpPending: { seq: number; throttle: number; steer: number; brake: number; drift: boolean }[] = [];
     let throttleDownSince: number | null = null; // when the player first held throttle during the countdown
     let rocketResolved = false; // rocket-start bonus applied at GO (once)
     let lastHud = '';
@@ -747,15 +752,31 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
 
       if (mp) {
         try {
-          mp.sendInput({
-            steer: racing ? raw.steer : 0,
-            // Throttle is sent UNGATED so the server can see the countdown
-            // throttle-hold and award the rocket start authoritatively (the
-            // runner doesn't move karts pre-GO, so this is timing-only).
-            throttle: raw.throttle,
-            brake: racing ? raw.brake : 0,
-            drift: !!(racing && raw.drift),
-          });
+          // Single 33ms send gate (the net layer no longer throttles) so the
+          // pending buffer contains EXACTLY the frames that went on the wire.
+          if (performance.now() - mpLastSentAt >= 33) {
+            mpLastSentAt = performance.now();
+            const seq = ++mpSeq;
+            mp.sendInput({
+              seq,
+              steer: racing ? raw.steer : 0,
+              // Throttle is sent UNGATED so the server can see the countdown
+              // throttle-hold and award the rocket start authoritatively (the
+              // runner doesn't move karts pre-GO, so this is timing-only).
+              throttle: raw.throttle,
+              brake: racing ? raw.brake : 0,
+              drift: !!(racing && raw.drift),
+            } as any);
+            // Record what the LOCAL physics consumed (smoothed steer) for replay.
+            mpPending.push({
+              seq,
+              throttle: racing ? raw.throttle : 0,
+              steer,
+              brake: racing ? raw.brake : 0,
+              drift: !!(racing && raw.drift),
+            });
+            if (mpPending.length > 120) mpPending.shift();
+          }
           const snap = mp.latestSnapshot;
           // DIAGNOSTIC: log first time we see a non-null snapshot
           if (snap && !(window as any).__ckFirstSnapshotLogged) {
@@ -817,73 +838,54 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
             // heading + speed stay locally predicted for snappy control.
             const selfSnap = (snap as any).karts?.find((kk: any) => kk.kartId === mp.selfKartId);
             if (selfSnap) {
-              states[PLAYER] = {
-                ...states[PLAYER],
-                stunTimer: selfSnap.stunTimer ?? 0,
-                slowTimer: selfSnap.slowTimer ?? 0,
-                shield: !!selfSnap.shield,
-                boostTimer: Math.max(states[PLAYER].boostTimer ?? 0, selfSnap.boostTimer ?? 0),
-              };
               heldItems[PLAYER] = selfSnap.heldItem ?? NO_ITEM;
               heldCount[PLAYER] = selfSnap.heldCount ?? 0;
-              // RECONCILIATION (latency-compensated): a snapshot describes the
-              // server ~RTT/2 ago. Raw "now vs snapshot" distance is dominated
-              // by snapshot AGE at speed (56u/s × 160ms ≈ 9u) — correcting on
-              // it yanks the player backwards at top speed (v1 bug). So:
-              //   trueDrift = snapshot vs where the LOCAL kart was at the
-              //               snapshot's race-time (localTrail lookup)
-              //   correction target = server position EXTRAPOLATED to now.
-              record: {
-                localTrail.push({ t: elapsed, x: states[PLAYER].x, z: states[PLAYER].z });
-                if (localTrail.length > 150) localTrail.shift();
-              }
-              // snapT is on the SAME anchored race clock as `elapsed` (server
-              // stamps tMs from lockedStartAtMs), so this lookup is exact.
+              // Drift meter sampling (time-matched vs the local trail) — with
+              // reconciliation live this reads the replay RESIDUAL (~6u median
+              // in harness run 4, down from 300-540u without it).
+              localTrail.push({ t: elapsed, x: states[PLAYER].x, z: states[PLAYER].z });
+              if (localTrail.length > 150) localTrail.shift();
               const snapT = (((snap as any).tMs ?? 0) / 1000);
               let refPt: { x: number; z: number } | null = null;
               for (let bi = localTrail.length - 1; bi >= 0; bi--) {
                 if (localTrail[bi].t <= snapT) { refPt = localTrail[bi]; break; }
               }
-              const baseX = refPt?.x ?? states[PLAYER].x;
-              const baseZ = refPt?.z ?? states[PLAYER].z;
-              // ERROR VECTOR: where the server says I was at snapT minus where I
-              // actually was at snapT. Latency-independent — no extrapolation
-              // (extrapolating through corners on a bursty link swung the pull
-              // target wildly: the "pulling me all over the place" run).
-              const errX = selfSnap.x - baseX;
-              const errZ = selfSnap.z - baseZ;
-              const trueDrift = Math.hypot(errX, errZ);
-              const rawDrift = Math.hypot(selfSnap.x - states[PLAYER].x, selfSnap.z - states[PLAYER].z);
-              // SAFETY NET — ONE-SHOT resync with a cooldown, never a chain.
-              // Fires only on sustained respawn-grade desync (e.g. the client
-              // froze and the worlds genuinely separated): a single clean reset
-              // to the server's state, like a Lakitu pickup — then 5s immunity
-              // so it can never machine-gun teleports (JJ's "2 laps in quick
-              // succession"). Ordinary racing is NEVER touched.
-              const w: any = window as any;
-              if (trueDrift > 30) {
-                w.__ckDesyncSince = w.__ckDesyncSince ?? performance.now();
-                const sustained = performance.now() - w.__ckDesyncSince > 1000;
-                const offCooldown = !w.__ckResyncAt || performance.now() - w.__ckResyncAt > 5000;
-                if (sustained && offCooldown) {
-                  w.__ckResyncAt = performance.now();
-                  w.__ckDesyncSince = undefined;
-                  states[PLAYER] = {
-                    ...states[PLAYER],
-                    x: selfSnap.x, z: selfSnap.z,
-                    heading: selfSnap.heading, velHeading: selfSnap.velHeading,
-                    speed: selfSnap.speed, y: 0, vy: 0, falling: false,
-                  };
-                  console.warn('[critter-kart/sync] one-shot resync to server state (sustained desync)');
-                }
-              } else {
-                w.__ckDesyncSince = undefined;
-              }
-              // Drift meter — console.warn so it shows on warn-filtered consoles.
-              // TRUE is the verdict number; lag-apparent ~speed×latency is normal.
+              const trueDrift = refPt ? Math.hypot(selfSnap.x - refPt.x, selfSnap.z - refPt.z) : 0;
               if (!(window as any).__ckDriftAt || performance.now() - (window as any).__ckDriftAt > 3000) {
                 (window as any).__ckDriftAt = performance.now();
-                console.warn(`[critter-kart/sync] drift true: ${trueDrift.toFixed(1)}u (lag-apparent ${rawDrift.toFixed(1)}u)${trueDrift > 25 ? ' (correcting)' : ''}`);
+                console.warn(`[critter-kart/sync] drift residual: ${trueDrift.toFixed(1)}u (pending ${mpPending.length})`);
+              }
+              // TEXTBOOK RECONCILIATION (Gambetta; validated 14/14 in harness
+              // run 4): on each NEW snapshot, ADOPT the server's authoritative
+              // state for our kart, then REPLAY the inputs the server hasn't
+              // processed yet (seq > ackSeq) through the same deterministic
+              // physics. The local kart stays converged to the server — no
+              // pulls, no teleports, balloons/items land where you are.
+              const tick = (snap as any).tick;
+              if (typeof tick === 'number' && tick !== mpLastReconTick) {
+                mpLastReconTick = tick;
+                states[PLAYER] = {
+                  ...states[PLAYER],
+                  x: selfSnap.x, z: selfSnap.z,
+                  y: selfSnap.y ?? 0, vy: selfSnap.vy ?? 0,
+                  heading: selfSnap.heading, velHeading: selfSnap.velHeading,
+                  speed: selfSnap.speed,
+                  driftDir: selfSnap.driftDir ?? 0,
+                  boostTimer: selfSnap.boostTimer ?? 0,
+                  stunTimer: selfSnap.stunTimer ?? 0,
+                  slowTimer: selfSnap.slowTimer ?? 0,
+                  shield: !!selfSnap.shield,
+                };
+                mpPending = mpPending.filter((p) => p.seq > (selfSnap.ackSeq ?? 0));
+                for (const p of mpPending) {
+                  for (let k = 0; k < 2; k++) {   // each 30Hz input ≈ two 60Hz sim ticks
+                    states[PLAYER] = stepKart(states[PLAYER], {
+                      throttle: p.throttle, steer: p.steer, brake: p.brake, drift: p.drift,
+                      onTrack: track.isOnTrack(states[PLAYER].x, states[PLAYER].z),
+                      offRoad: offRoadAt(states[PLAYER].x, states[PLAYER].z),
+                    }, TUNING, FIXED);
+                  }
+                }
               }
             }
           }
