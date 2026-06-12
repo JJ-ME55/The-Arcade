@@ -98,10 +98,19 @@ export function createTrackStructures(track: TrackPath, loader: GLTFLoader): Tra
   struct.rampStartProgress = jz.startProgress - rampLenProgress;
 
   let rampHeights: Float32Array | null = null;
+  // Until (or if ever) the GLB bake lands, serve the same LINEAR profile the
+  // server simulates — a failed/slow GLB load otherwise meant the client never
+  // launched while the server always did: a guaranteed splash-correction at
+  // the jump every lap.
+  struct.rampPeakProgress = struct.rampStartProgress + 0.95 * (struct.rampEndProgress - struct.rampStartProgress);
   const SAMPLES = 30;
   struct.rampSurfaceY = (progress) => {
-    if (!rampHeights) return null;
     if (progress < struct.rampStartProgress || progress > struct.rampEndProgress) return null;
+    if (!rampHeights) {
+      // bake pending/failed → linear profile (matches the server exactly)
+      const tf = (progress - struct.rampStartProgress) / (struct.rampEndProgress - struct.rampStartProgress || 1);
+      return 5 * tf; // RAMP_HEIGHT_WORLD
+    }
     const t = (progress - struct.rampStartProgress) / (struct.rampEndProgress - struct.rampStartProgress || 1);
     const idx = t * (SAMPLES - 1);
     const i0 = Math.floor(idx);

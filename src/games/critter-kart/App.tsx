@@ -163,7 +163,17 @@ export default function App({ onRaceFinish }: { onRaceFinish?: (r: ResultRow[], 
   // back to the menu in network mode, or to the track screen in singleplayer.
   const quitRace = () => {
     if (mpRace) {
-      getNetClient().emit('lobby:leave', { lobbyId: mpRace.roomId });
+      // Tell the SERVER we're leaving the RACE (lobby:leave with a raceId was a
+      // no-op — the abandoned kart held the race hostage until the 5min timeout)
+      const net = getNetClient();
+      getArcadeIdentity().then((ident) => {
+        if (ident?.telegramUserId) {
+          net.emit('critterkart:leaveRace' as any, { raceId: mpRace.roomId, telegramUserId: ident.telegramUserId } as any);
+        }
+      }).catch(() => {});
+      // and clear ALL per-race client state so a later reconnect can't
+      // auto-rejoin the abandoned race
+      (net as any).clearRaceSession?.();
       setMpRace(null);
       setActiveLobbyId(null);
       go('menu');

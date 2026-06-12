@@ -77,6 +77,9 @@ export interface NetClient {
     sendInput(frame: RaceInputFrame): void;
     getLatestSnapshot(): RaceSnapshot | null;
     getInterpolatedKart(kartId: string, interpDelayMs?: number): any | null;
+    /** Clear all per-race state. MUST be called when quitting a race —
+     *  otherwise a later reconnect auto-rejoins the abandoned race. */
+    clearRaceSession(): void;
     // Server's locked race-start wall-clock. Set when server emits
     // `race:countdownLocked` AFTER all clients are assets-ready —
     // overrides the stale startAtMs from race:start which was set
@@ -132,6 +135,7 @@ function createRealClient(): NetClient {
     // perfectly even, so bracketing by arrival made karts sweep-freeze-snap.
     let clockOffsetMs: number | null = null;
     let _lastOffsetAt = 0;
+    let _lastSlewAt = 0;
     const g0sec = (now: number) => { const s = _lastOffsetAt ? (now - _lastOffsetAt) / 1000 : 0; _lastOffsetAt = now; return s; };
     // Server's locked race-start wall-clock. Updated when
     // `race:countdownLocked` arrives — that's AFTER all humans have
@@ -264,7 +268,7 @@ function createRealClient(): NetClient {
                 if (ev === ('race:snapshot' as ServerEventKey)) {
                     latestSnapshot = payload as RaceSnapshot;
                     const now = Date.now();
-                    const tMs = (payload as any).tMs ?? 0;
+                    const tMs = (payload as any).tMs ?? now; // missing tMs: degrade to arrival axis, never poison the offset
                     snapBuffer.push({ snap: payload as RaceSnapshot, at: now, tMs } as any);
                     if (lastSnapArrival > 0) {
                         const g = Math.min(1000, now - lastSnapArrival);
@@ -275,12 +279,16 @@ function createRealClient(): NetClient {
                     // Min-tracked clock offset (smallest = least queueing delay),
                     // creeping up ~0.5ms/s so clock drift can't strand it.
                     const off = now - tMs;
-                    clockOffsetMs = clockOffsetMs === null ? off : Math.min(off, clockOffsetMs + 0.5 * Math.min(10, g0sec(now)));
+                    // re-seed on gross deviation (server restart / clock jump)
+                    clockOffsetMs = (clockOffsetMs === null || Math.abs(off - clockOffsetMs) > 2000)
+                        ? off
+                        : Math.min(off, clockOffsetMs + 0.5 * Math.min(10, g0sec(now)));
                     // Trim by SERVER time so bursts can't blow the window.
                     const newestT = (snapBuffer[snapBuffer.length - 1] as any).tMs;
                     while (snapBuffer.length > 0 && (snapBuffer[0] as any).tMs < newestT - SNAP_BUFFER_MS) {
                         snapBuffer.shift();
                     }
+                    while (snapBuffer.length > 90) snapBuffer.shift(); // hard cap regardless of timestamps
                 }
                 // Capture the all-clients-ready locked startAtMs so
                 // GameCanvas's elapsed anchors to the same wall-clock
@@ -293,6 +301,7 @@ function createRealClient(): NetClient {
                     snapBuffer.length = 0;
                     snapGapEma = 33; snapGapMax = 33; lastSnapArrival = 0;
                     clockOffsetMs = null; appliedDelayMs = 100;
+                    _lastOffsetAt = 0; _lastSlewAt = 0;
                 }
                 if (ev === ('race:countdownLocked' as any) && payload?.startAtMs) {
                     raceStartAtMs = payload.startAtMs;
@@ -346,6 +355,15 @@ function createRealClient(): NetClient {
         getLatestSnapshot() {
             return latestSnapshot;
         },
+        clearRaceSession() {
+            lastJoinRacePayload = null;
+            latestSnapshot = null;
+            snapBuffer.length = 0;
+            raceStartAtMs = null;
+            clockOffsetMs = null; appliedDelayMs = 100;
+            snapGapEma = 33; snapGapMax = 33; lastSnapArrival = 0;
+            _lastOffsetAt = 0; _lastSlewAt = 0;
+        },
         getRaceStartAtMs() {
             return raceStartAtMs;
         },
@@ -381,7 +399,12 @@ function createRealClient(): NetClient {
             // Target delay rides the decaying-MAX gap; the APPLIED delay slews
             // toward it (fast widen, slow shrink) so the timeline never jumps.
             const target = Math.min(350, Math.max(interpDelayMs, snapGapMax * 1.5));
-            appliedDelayMs += Math.max(-0.25, Math.min(2.0, target - appliedDelayMs));
+            // TIME-based slew (this fn runs 5x/frame — per-call steps slewed
+            // 5x too fast and defeated the smoothing): widen 120ms/s, shrink 15ms/s.
+            const nowP = Date.now();
+            const dtS = Math.min(0.1, _lastSlewAt ? (nowP - _lastSlewAt) / 1000 : 0);
+            _lastSlewAt = nowP;
+            appliedDelayMs += Math.max(-15 * dtS, Math.min(120 * dtS, target - appliedDelayMs));
             if (clockOffsetMs === null) return findKart(snapBuffer[snapBuffer.length - 1].snap);
             // SERVER-TIME axis: uniform 33ms spacing regardless of burst arrival.
             const renderTime = Date.now() - clockOffsetMs - appliedDelayMs;
