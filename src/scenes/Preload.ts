@@ -44,6 +44,10 @@ export class Preload extends Phaser.Scene {
       ['shell_shop_upgrades', 'shells/Junk_Yard_Shop.png'],
       ['shell_shop_fuel', 'shells/Fuel_Screen.png'],
       ['shell_shop_processor', 'shells/mineral_processing.png'],
+      // CGI surface building exteriors (transparent) — stand on the surface, opened by walking in
+      ['bld_fuel', 'buildings/fuel.png'],
+      ['bld_auto', 'buildings/outpost.png'],
+      ['bld_proc', 'buildings/proc.png'],
     ];
     for (const [k, p] of shells) this.load.image(k, p);
 

@@ -261,75 +261,37 @@ export class GameScene extends Phaser.Scene {
 
   // ---- surface decoration ----
   private drawSurface(): void {
-    const g = this.add.graphics().setDepth(8);
+    const g = this.add.graphics().setDepth(12);
     const groundY = SURFACE_ROW * TILE;
     const startCol = Math.floor(WORLD_WIDTH / 2);
     this.stations = [];
 
-    // a warm-industrial station structure (body + bevelled roof + lit doorway + gold sign)
-    const station = (col: number, mode: ShopMode, label: string, accent: number, big = false) => {
+    // CGI building exteriors (transparent) standing on the surface; walking into one opens its
+    // machine. Behind the pod (depth 50), in front of the soil tiles. Labelled on the roof.
+    const building = (col: number, mode: ShopMode, key: string, label: string, w: number) => {
       const bx = col * TILE;
-      const w = big ? 88 : 72;
-      const h = big ? 104 : 86;
-      const x = bx - w / 2;
-      const top = groundY - h;
-
-      // concrete apron
-      g.fillStyle(0x2b2620, 1);
-      g.fillRect(x - 8, groundY - 6, w + 16, 8);
-      g.fillStyle(0x000000, 0.3);
-      g.fillRect(x - 8, groundY, w + 16, 3);
-
-      // body — lit upper, shadowed lower
-      g.fillStyle(0x000000, 0.35);
-      g.fillRect(x + 4, top + 6, w, h);
-      g.fillStyle(0x42392b, 1);
-      g.fillRect(x, top, w, h);
-      g.fillStyle(0x4f4534, 1);
-      g.fillRect(x, top, w, Math.round(h * 0.42));
-      g.fillStyle(0x2a241b, 1);
-      g.fillRect(x, top + Math.round(h * 0.7), w, Math.round(h * 0.3));
-
-      // bevelled roof + eave shadow
-      g.fillStyle(0x574c39, 1);
-      g.beginPath();
-      g.moveTo(x - 6, top + 2);
-      g.lineTo(bx, top - 16);
-      g.lineTo(x + w + 6, top + 2);
-      g.closePath();
-      g.fillPath();
-      g.fillStyle(0x2a241b, 1);
-      g.fillRect(x - 6, top, w + 12, 4);
-
-      // sign plate + gold label
-      g.fillStyle(0x14110b, 1);
-      g.fillRoundedRect(x + 6, top + 10, w - 12, 20, 4);
-      g.lineStyle(1.5, accent, 0.85);
-      g.strokeRoundedRect(x + 6, top + 10, w - 12, 20, 4);
-      this.add.text(bx, top + 20, label, textStyle(big ? 12 : 11, COL.brand)).setOrigin(0.5).setDepth(9);
-
-      // lit doorway (dark recess + warm accent glow spilling out)
-      const dw = big ? 30 : 24;
-      g.fillStyle(accent, 0.16);
-      g.fillRect(bx - dw / 2 - 4, groundY - Math.round(h * 0.5), dw + 8, Math.round(h * 0.5));
-      g.fillStyle(0x07050a, 1);
-      g.fillRect(bx - dw / 2, groundY - Math.round(h * 0.46), dw, Math.round(h * 0.46));
-      g.fillStyle(accent, 0.5);
-      g.fillRect(bx - dw / 2 + 3, groundY - Math.round(h * 0.46) + 3, dw - 6, 5);
-
-      // lit windows + side pipe
-      g.fillStyle(0xffd98a, 0.55);
-      g.fillRect(x + 8, top + 42, 9, 9);
-      g.fillRect(x + w - 17, top + 42, 9, 9);
-      g.lineStyle(3, 0x4a4236, 1);
-      g.lineBetween(x + w - 3, top + 24, x + w - 3, groundY - 2);
-
-      this.stations.push({ mode, x0: bx - w / 2 - 8, x1: bx + w / 2 + 8, cx: bx });
+      let h = 130;
+      if (this.textures.exists(key)) {
+        const src = this.textures.get(key).getSourceImage() as { width: number; height: number };
+        h = w * (src.height / src.width);
+        g.fillStyle(0x000000, 0.4);
+        g.fillEllipse(bx, groundY + 5, w * 0.8, 13); // contact shadow
+        this.add.image(bx, groundY + 5, key).setOrigin(0.5, 1).setDepth(12).setDisplaySize(w, h);
+      } else {
+        g.fillStyle(0x42392b, 1);
+        g.fillRect(bx - w / 2, groundY - 100, w, 100);
+      }
+      this.add
+        .text(bx, groundY - h - 2, label, textStyle(12, COL.brand))
+        .setOrigin(0.5, 1)
+        .setDepth(13)
+        .setShadow(0, 2, '#000', 5);
+      this.stations.push({ mode, x0: bx - w * 0.42, x1: bx + w * 0.42, cx: bx });
     };
 
-    station(startCol - 4.5, 'fuel', 'FUEL', COL.fuel, false);
-    station(startCol + 0.5, 'auto', 'OUTPOST', COL.brand, true);
-    station(startCol + 5.5, 'proc', 'PROCESSOR', COL.cargo, false);
+    building(startCol - 4.5, 'fuel', 'bld_fuel', 'FUEL', 164);
+    building(startCol + 0.5, 'auto', 'bld_auto', 'OUTPOST', 190);
+    building(startCol + 5.5, 'proc', 'bld_proc', 'PROCESSOR', 164);
 
     // horizon line
     g.fillStyle(0x000000, 0.25);

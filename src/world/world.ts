@@ -101,9 +101,12 @@ export class World {
     // The surface row + a couple below are guaranteed solid clean dirt (good start).
     if (y <= SURFACE_ROW + 1) return Terrain.Dirt;
 
-    // Caves: smooth field, suppressed near the surface.
-    const caveField = fbm2(this.seed, x * 0.09, y * 0.07, 4, 2, 0.5, S_CAVE);
-    const caveThresh = 1 - Math.min(0.42, b.caveDensity * 2.2) * Math.min(1, (depth - 12) / 60);
+    // Caves: bigger, more frequent hollow caverns that gate the ore and force you to navigate
+    // around open space instead of bulldozing straight down (lower freq = larger caverns).
+    const caveField = fbm2(this.seed, x * 0.078, y * 0.062, 4, 2, 0.5, S_CAVE);
+    // baseline + per-biome density (the field tops out ~0.85, so a baseline is needed to make
+    // caverns appear at all shallow); ramps from ~12% near the surface to ~28% in the deep.
+    const caveThresh = 1 - Math.min(0.42, 0.28 + b.caveDensity * 0.9) * Math.min(1, (depth - 12) / 44);
     if (depth > 14 && caveField > caveThresh) return Terrain.Empty;
 
     // Hazard pockets (non-solid, embedded in the strata).
