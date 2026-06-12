@@ -3,7 +3,7 @@ import { useEffect, useRef, type RefObject } from 'react';
 import { useMultiplayerSync } from './game/multiplayer/context';
 import * as THREE from 'three';
 import { createGLTFLoader } from './game/render/loader';
-import { createScene, PREMIUM_RENDER } from './game/render/scene';
+import { createScene, PREMIUM_RENDER, IS_IOS } from './game/render/scene';
 import { archHeightAt } from './game/render/proceduralBridge';
 import { makeTrainTrackGeometry, makeEngineGeometry, makeTenderGeometry, makeWagonGeometry, trainMaterial } from './game/render/proceduralTrain';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -134,7 +134,9 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     // Dev diagnostics (FPS log, race breakdown, collision/progress probes, P/B debug keys) are OFF
     // by default for a clean console at launch — append ?debug to the URL to switch them back on.
     const DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug');
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    // No MSAA on iOS — the multisample buffers are a large slice of the GPU
+    // budget WebKit enforces, and blowing it = context loss (black screen).
+    const renderer = new THREE.WebGLRenderer({ antialias: !IS_IOS, powerPreference: 'high-performance' });
     // iPad/phone GPUs can drop the WebGL context under memory pressure — the
     // canvas goes BLACK with no JS error. Report it remotely (no console on iOS).
     renderer.domElement.addEventListener('webglcontextlost', (ev) => {

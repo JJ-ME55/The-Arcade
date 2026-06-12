@@ -6,10 +6,20 @@ import { createRoadMesh, createStartLine, RoadMesh } from './trackRender';
 
 const SKY = 0x87b7e8;
 
+/** iOS/iPadOS detection. iPads lie ("Macintosh") in desktop-mode Safari, so the
+ *  Mac+multitouch check is required. WebKit kills the WebGL context under GPU
+ *  memory pressure with NO JS error — confirmed via the remote crash sink on
+ *  2026-06-12: two webglcontextlost reports mid-countdown from the iPad tester. */
+export const IS_IOS = typeof navigator !== 'undefined' &&
+  (/iP(hone|ad|od)/.test(navigator.userAgent) ||
+   (/Mac/.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
+
 /** Master toggle for the "premium" render pass (tone mapping, IBL, PBR ground, shadows,
  *  gradient sky, golden-hour sun). Flip to `false` for an instant A/B against the old
- *  flat look. Read by both createScene (here) and GameCanvas (renderer + per-frame sun). */
-export const PREMIUM_RENDER = true;
+ *  flat look. Read by both createScene (here) and GameCanvas (renderer + per-frame sun).
+ *  OFF on iOS: shadow maps + PMREM environment + PBR pushed iPads over their GPU
+ *  memory budget → context loss → black screen at the countdown. */
+export const PREMIUM_RENDER = !IS_IOS;
 
 /** Ground/road surfaces were MeshBasic (unlit) — they ignored all lighting, which is the
  *  main thing dragging the look down. In premium mode use a PBR material so the sun, sky
