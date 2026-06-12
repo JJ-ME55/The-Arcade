@@ -32,21 +32,21 @@ export class Hud {
     this.g = scene.add.graphics().setScrollFactor(0).setDepth(1000);
 
     const rx = scene.scale.width - 18;
-    // gauge letters (F/E on fuel, H/· on hull)
+    // gauge letters centred on each tube (fuel tube centre x=40, hull tube centre x=86)
     const lab = (x: number, y: number, t: string, c: number) =>
-      scene.add.text(x, y, t, textStyle(11, c)).setOrigin(0.5).setScrollFactor(0).setDepth(1002);
+      scene.add.text(x, y, t, textStyle(12, c)).setOrigin(0.5).setScrollFactor(0).setDepth(1002);
     this.labels = [
-      lab(40, 27, 'F', COL.text), lab(40, 138, 'E', COL.dim),
-      lab(86, 27, 'H', COL.text), lab(86, 138, '·', COL.dim),
+      lab(40, 30, 'F', COL.text), lab(40, 137, 'E', COL.faint),
+      lab(86, 30, 'H', COL.text), lab(86, 137, 'E', COL.faint),
     ];
 
-    this.depthT = scene.add.text(22, 160, '', monoStyle(28, 0xe7be4e)).setScrollFactor(0).setDepth(1001);
-    this.biomeT = scene.add.text(24, 194, '', monoStyle(12, COL.crtDim)).setScrollFactor(0).setDepth(1001).setLetterSpacing(3);
+    this.depthT = scene.add.text(22, 162, '', monoStyle(28, 0xe7be4e)).setScrollFactor(0).setDepth(1001);
+    this.biomeT = scene.add.text(24, 196, '', monoStyle(12, COL.crtDim)).setScrollFactor(0).setDepth(1001).setLetterSpacing(3);
 
-    this.cashT = scene.add.text(rx, 14, '', monoStyle(30, 0xe7be4e)).setScrollFactor(0).setDepth(1001).setOrigin(1, 0);
-    this.cargoT = scene.add.text(rx - 139, 70, '', monoStyle(15, 0x2a1c05)).setScrollFactor(0).setDepth(1002).setOrigin(0.5);
-
-    this.menuBtn = new Button(scene, rx - 32, 84, 60, 40, 'MENU', onMenu, { fontSize: 13, fixed: true });
+    this.cashT = scene.add.text(rx, 12, '', monoStyle(28, 0xe7be4e)).setScrollFactor(0).setDepth(1001).setOrigin(1, 0);
+    // cargo chip + MENU: same 104×34 footprint, right-aligned, stacked (centred contents)
+    this.cargoT = scene.add.text(rx - 52, 71, '', monoStyle(15, 0x241a06)).setScrollFactor(0).setDepth(1002).setOrigin(0.5);
+    this.menuBtn = new Button(scene, rx - 52, 113, 104, 34, 'MENU', onMenu, { fontSize: 14, fixed: true });
     this.menuBtn.setScrollFactor(0).setDepth(1001);
 
     this.warnT = scene.add
@@ -59,9 +59,21 @@ export class Hud {
   relayout(): void {
     const rx = this.scene.scale.width - 18;
     this.cashT.setX(rx);
-    this.cargoT.setX(rx - 139);
-    this.menuBtn.setX(rx - 32);
+    this.cargoT.setX(rx - 52);
+    this.menuBtn.setX(rx - 52);
     this.warnT.setX(this.scene.scale.width / 2);
+  }
+
+  /** Hide the whole HUD while a full-screen overlay (the outpost shop) is open. */
+  setVisible(b: boolean): void {
+    this.g.setVisible(b);
+    this.cashT.setVisible(b);
+    this.depthT.setVisible(b);
+    this.biomeT.setVisible(b);
+    this.cargoT.setVisible(b);
+    this.warnT.setVisible(b);
+    this.menuBtn.setVisible(b);
+    this.labels.forEach((l) => l.setVisible(b));
   }
 
   /** A vertical cylinder gauge: steel housing, dark tube, bottom-anchored liquid + meniscus. */
@@ -111,17 +123,17 @@ export class Hud {
     const fuelFrac = run.fuel / Math.max(1, run.fuelMax);
     this.labels[0].setColor(css(fuelFrac < 0.2 ? COL.danger : COL.text));
 
-    // cargo chip (gold) top-right
+    // cargo chip (gold) top-right — same footprint as the MENU button below it
     const rx = this.scene.scale.width - 18;
     g.fillStyle(0x000000, 0.4);
-    g.fillRoundedRect(rx - 200, 60, 122, 36, 9);
-    g.fillStyle(run.cargoUsed >= run.cargoMax ? 0xe0a72a : 0xc2994a, 1);
-    g.fillRoundedRect(rx - 198, 62, 118, 32, 8);
-    g.fillStyle(0xffffff, 0.12);
-    g.fillRoundedRect(rx - 198, 62, 118, 14, 8);
+    g.fillRoundedRect(rx - 106, 52, 108, 38, 9);
+    g.fillStyle(run.cargoUsed >= run.cargoMax ? 0xe0a72a : 0xb8923f, 1);
+    g.fillRoundedRect(rx - 104, 54, 104, 34, 8);
+    g.fillStyle(0xffffff, 0.1);
+    g.fillRoundedRect(rx - 104, 54, 104, 13, 8);
 
     this.cashT.setText('$' + Math.floor(run.cash).toLocaleString());
-    this.cargoT.setText(`${run.cargoUsed}/${run.cargoMax} ⛏`);
+    this.cargoT.setText(`CARGO ${run.cargoUsed}/${run.cargoMax}`);
     this.depthT.setText(`${Math.floor(data.depth)} m`);
     this.biomeT.setText(data.biomeName.toUpperCase());
 

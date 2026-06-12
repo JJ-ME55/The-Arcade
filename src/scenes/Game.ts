@@ -153,6 +153,7 @@ export class GameScene extends Phaser.Scene {
     this.touch = new TouchControls(this, 70);
     this.menu = new SurfaceMenu(this, this.run, () => this.stats, () => this.recompute(), this.fx, () => {
       // pod is still standing in the station it just used — keep it suppressed until it moves off
+      this.hud.setVisible(true);
       App.saveNow();
     });
 
@@ -991,7 +992,11 @@ export class GameScene extends Phaser.Scene {
 
   private openStation(mode: ShopMode): void {
     Sound.setThrust(false);
-    this.menu.open(mode);
+    // surfaced at the OUTPOST carrying a haul? open the Mineral Processor first — selling is the
+    // whole reason you climbed back up. (FUEL and PROCESSOR buildings still open their own machine.)
+    const m: ShopMode = mode === 'auto' && cargoValue(this.run, this.stats.sellMul) > 0 ? 'proc' : mode;
+    this.hud.setVisible(false);
+    this.menu.open(m);
     this.persistRun();
     App.saveNow();
   }

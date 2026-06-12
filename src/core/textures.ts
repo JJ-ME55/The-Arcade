@@ -27,6 +27,28 @@ function hex(c: number): string {
   return '#' + c.toString(16).padStart(6, '0');
 }
 
+/** Pull a colour toward its own luminance (desaturate). amt 0..1. */
+function desat(c: number, amt: number): number {
+  const r = (c >> 16) & 0xff;
+  const g = (c >> 8) & 0xff;
+  const b = c & 0xff;
+  const lum = 0.3 * r + 0.59 * g + 0.11 * b;
+  return (
+    (Math.round(r + (lum - r) * amt) << 16) |
+    (Math.round(g + (lum - g) * amt) << 8) |
+    Math.round(b + (lum - b) * amt)
+  );
+}
+
+/**
+ * Grade a raw terrain colour toward gritty, photoreal earth/rock: knock the saturation back
+ * (kills the "brown-clay / bubblegum" cartoon read) and drop the value a touch. Applied to every
+ * dirt/stone/grass fill at bake time so the whole dig world reads dark, dusty and real.
+ */
+function grit(c: number): number {
+  return darken(desat(c, 0.5), 0.9);
+}
+
 /** Draw a single tile face: fill + bevel (light top-left, dark bottom-right) + speckles. */
 /**
  * A patch of CONTINUOUS soil — no seams, no grid. Adjacent tiles must blend into one
@@ -164,20 +186,23 @@ function genTiles(scene: Phaser.Scene): void {
   const g = scene.make.graphics({ x: 0, y: 0 }, false);
   for (const b of BIOMES) {
     const accent = b.id === 'crystal' || b.id === 'core' ? b.palette.accent : undefined;
+    // grade every fill toward gritty, desaturated earth/rock (see grit())
+    const dirt = grit(b.palette.dirt);
+    const dirtEdge = grit(b.palette.dirtEdge);
     // DIRT — seamless continuous soil, 3 quiet variants picked by world position.
     for (let v = 0; v < 3; v++) {
-      tileFace(g, b.palette.dirt, b.palette.dirtEdge, (b.depthStart + 1) * 7 + v * 31);
+      tileFace(g, dirt, dirtEdge, (b.depthStart + 1) * 7 + v * 31);
       g.generateTexture(`t_${b.id}_dirt_${v}`, TILE, TILE);
     }
     // STONE & HARD — an organic rock pocket on soil, one tile per neighbour-connectivity
     // mask (0..15) so rock fuses with rock and rounds against soil.
     const rock: [string, number, number][] = [
-      ['stone', b.palette.stone, b.palette.stoneEdge],
-      ['hard', b.palette.hard, b.palette.hardEdge],
+      ['stone', grit(b.palette.stone), grit(b.palette.stoneEdge)],
+      ['hard', grit(b.palette.hard), grit(b.palette.hardEdge)],
     ];
     for (const [kind, fill, edge] of rock) {
       for (let mask = 0; mask < 16; mask++) {
-        tileFace(g, b.palette.dirt, b.palette.dirtEdge, mask * 5 + kind.length * 13);
+        tileFace(g, dirt, dirtEdge, mask * 5 + kind.length * 13);
         stoneBlob(g, fill, edge, mask, accent);
         g.generateTexture(`t_${b.id}_${kind}_${mask}`, TILE, TILE);
       }
@@ -191,13 +216,14 @@ function genStaticTiles(scene: Phaser.Scene): void {
 
   // grass-topped soil for the surface row (topsoil → rock cross-section starts here)
   const topsoil = BIOMES[0].palette;
-  tileFace(g, topsoil.dirt, topsoil.dirtEdge, 5);
-  g.fillStyle(0x4e8a3a, 1);
+  tileFace(g, grit(topsoil.dirt), grit(topsoil.dirtEdge), 5);
+  // dry, desaturated turf (not bubblegum lawn-green)
+  g.fillStyle(grit(0x4e8a3a), 1);
   g.fillRect(0, 0, TILE, 7);
-  g.fillStyle(0x6ab04c, 1);
+  g.fillStyle(grit(0x6ab04c), 1);
   g.fillRect(0, 0, TILE, 4);
   for (let x = 2; x < TILE; x += 5) {
-    g.fillStyle(0x7ec85a, 1);
+    g.fillStyle(grit(0x7ec85a), 1);
     g.fillTriangle(x, 4, x + 3, 4, x + 1.5, -2 + (x % 7));
   }
   g.generateTexture('t_grass', TILE, TILE);
@@ -209,16 +235,31 @@ function genStaticTiles(scene: Phaser.Scene): void {
   for (let i = -TILE; i < TILE; i += 8) g.lineBetween(i, 0, i + TILE, TILE);
   g.generateTexture('t_bedrock', TILE, TILE);
 
-  // boulder — round shaded rock
+  // boulder — gritty, desaturated round rock with speckle, cracks + key-light shading
   g.clear();
-  g.fillStyle(0x5a5560, 1);
-  g.fillCircle(TILE / 2, TILE / 2, TILE / 2 - 2);
-  g.fillStyle(0x736d7c, 1);
-  g.fillCircle(TILE / 2 - 5, TILE / 2 - 5, TILE / 2 - 9);
-  g.fillStyle(0x3a3640, 0.6);
-  g.fillCircle(TILE / 2 + 6, TILE / 2 + 7, TILE / 4);
-  g.lineStyle(2, 0x2a2730, 1);
-  g.strokeCircle(TILE / 2, TILE / 2, TILE / 2 - 2);
+  {
+    const bc = TILE / 2;
+    const br = TILE / 2 - 2;
+    g.fillStyle(grit(0x6a6470), 1);
+    g.fillCircle(bc, bc, br);
+    g.fillStyle(grit(0x837c8a), 1);
+    g.fillCircle(bc - 5, bc - 6, br - 8); // key-lit shoulder (top-left)
+    g.fillStyle(0x000000, 0.42);
+    g.fillCircle(bc + 6, bc + 8, br * 0.55); // occluded underside
+    let bs = 4242;
+    const brnd = () => ((bs = (bs * 9301 + 49297) % 233280) / 233280);
+    for (let i = 0; i < 16; i++) {
+      const a = brnd() * Math.PI * 2;
+      const rr = brnd() * (br - 4);
+      g.fillStyle(brnd() > 0.5 ? 0x000000 : grit(0x9a93a0), 0.22);
+      g.fillRect(bc + Math.cos(a) * rr, bc + Math.sin(a) * rr, 1 + Math.floor(brnd() * 2), 1);
+    }
+    g.lineStyle(1, 0x000000, 0.4);
+    g.lineBetween(bc - br * 0.4, bc - br * 0.2, bc + br * 0.1, bc + br * 0.5);
+    g.lineBetween(bc + br * 0.2, bc - br * 0.4, bc + br * 0.45, bc + br * 0.1);
+    g.lineStyle(2, darken(grit(0x6a6470), 0.55), 1);
+    g.strokeCircle(bc, bc, br);
+  }
   g.generateTexture('t_boulder', TILE, TILE);
 
   // lava — glowing molten
