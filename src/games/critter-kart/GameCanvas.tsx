@@ -752,6 +752,18 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
 
       if (mp) {
         try {
+          // ALWAYS-ON MP status banner (every 5s, console.warn so no filter
+          // hides it): after a silent-console incident we guarantee the MP
+          // state is observable — snapshot flow, selfSnap match, pending size.
+          {
+            const w: any = window as any;
+            if (!w.__ckMpStatusAt || performance.now() - w.__ckMpStatusAt > 5000) {
+              w.__ckMpStatusAt = performance.now();
+              const s0: any = mp.latestSnapshot;
+              const found = !!s0?.karts?.find((kk: any) => kk.kartId === mp.selfKartId);
+              console.warn(`[critter-kart/mp] status: selfKartId=${mp.selfKartId} slot=${mp.selfSlot} snap=${s0 ? `tick ${s0.tick}` : 'NONE'} selfInSnap=${found} pending=${mpPending.length}`);
+            }
+          }
           // Single 33ms send gate (the net layer no longer throttles) so the
           // pending buffer contains EXACTLY the frames that went on the wire.
           if (performance.now() - mpLastSentAt >= 33) {
@@ -868,6 +880,9 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                   ...states[PLAYER],
                   x: selfSnap.x, z: selfSnap.z,
                   y: selfSnap.y ?? 0, vy: selfSnap.vy ?? 0,
+                  // mid-air adoption must keep falling=true or the y-clamp
+                  // grounds the kart instantly (false splash in the gap)
+                  falling: (selfSnap.vy ?? 0) !== 0 || (selfSnap.y ?? 0) > 0.05,
                   heading: selfSnap.heading, velHeading: selfSnap.velHeading,
                   speed: selfSnap.speed,
                   driftDir: selfSnap.driftDir ?? 0,
@@ -884,6 +899,24 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                       onTrack: track.isOnTrack(states[PLAYER].x, states[PLAYER].z),
                       offRoad: offRoadAt(states[PLAYER].x, states[PLAYER].z),
                     }, TUNING, FIXED);
+                    // REPLAY WORLD (Fish's "pulled back over the jump / invisible
+                    // wall" report): bare-physics replay dragged the kart flat
+                    // through the water gap (→ false splash + respawn) and inside
+                    // wall geometry. Replay must run the same world pipeline as
+                    // the local substep: walls + ramp ride/launch + arch pin.
+                    const rb = resolveBarriers(states[PLAYER], barriers, KART_RADIUS, TUNING);
+                    if (rb) states[PLAYER] = { ...states[PLAYER], ...rb };
+                    const pr = track.nearest(states[PLAYER].x, states[PLAYER].z).progress;
+                    const az = track.archBridgeZone;
+                    if (az && pr >= az.startProgress && pr <= az.endProgress) {
+                      states[PLAYER] = { ...states[PLAYER], y: archHeightAt((pr - az.startProgress) / ((az.endProgress - az.startProgress) || 1)), vy: 0, falling: false };
+                    }
+                    const rampY = structures.rampSurfaceY(pr);
+                    if (rampY !== null && !states[PLAYER].respawnAt && !states[PLAYER].falling) {
+                      states[PLAYER] = pr >= structures.rampPeakProgress
+                        ? { ...states[PLAYER], y: rampY, vy: TUNING.jumpLaunch, falling: true }
+                        : { ...states[PLAYER], y: rampY, vy: 0, falling: false };
+                    }
                   }
                 }
               }
