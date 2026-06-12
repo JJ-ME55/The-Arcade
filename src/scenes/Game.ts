@@ -25,7 +25,7 @@ import { hash2, weightedIndex } from '../core/rng';
 import { computeScore } from '../systems/score';
 import { Button } from '../ui/widgets';
 import { uiHit, swallowHit } from '../ui/hit';
-import { COL, textStyle, title } from '../ui/theme';
+import { COL, textStyle, title, monoStyle } from '../ui/theme';
 import { getActiveSeason, awardSeasonPoints, podTint } from '../systems/season';
 import type { SeasonDef } from '../config/seasons';
 import { saveRun, clearRun, type RunSave } from '../systems/runsave';
@@ -148,7 +148,7 @@ export class GameScene extends Phaser.Scene {
 
     this.fx = new Fx(this);
     this.darkness = new Darkness(this);
-    this.hud = new Hud(this);
+    this.hud = new Hud(this, () => this.togglePause());
     this.touch = new TouchControls(this, 70);
     this.menu = new SurfaceMenu(this, this.run, () => this.stats, () => this.recompute(), this.fx, () => {
       this.surfaceArmed = false;
@@ -297,24 +297,37 @@ export class GameScene extends Phaser.Scene {
     g.fillRect(0, groundY - 2, WORLD_WIDTH * TILE, 4);
   }
 
-  // ---- item quick bar (right side, touch + shows hotkeys) ----
+  // ---- consumables hotbar (bottom-centre — on-screen at any width, DesignHandoff target) ----
+  private hotbarPos(i: number, n: number): { x: number; y: number } {
+    const slot = 64;
+    const gap = 8;
+    const total = n * slot + (n - 1) * gap;
+    return {
+      x: this.scale.width / 2 - total / 2 + slot / 2 + i * (slot + gap),
+      y: this.scale.height - 52,
+    };
+  }
+
   private buildItemBar(): void {
     const order = ITEMS.slice(0, 6);
     order.forEach((it, i) => {
-      const y = 150 + i * 64;
-      const cont = this.add.container(this.scale.width - 38, y).setScrollFactor(0).setDepth(1400);
+      const p = this.hotbarPos(i, order.length);
+      const cont = this.add.container(p.x, p.y).setScrollFactor(0).setDepth(1400);
       const g = this.add.graphics();
-      g.fillStyle(COL.panel, 0.8);
-      g.fillRoundedRect(-28, -26, 56, 52, 10);
-      g.lineStyle(2, it.color, 0.9);
-      g.strokeRoundedRect(-28, -26, 56, 52, 10);
+      g.fillStyle(COL.panel, 0.94);
+      g.fillRoundedRect(-30, -30, 60, 60, 11);
+      g.fillStyle(0xffffff, 0.07);
+      g.fillRoundedRect(-30, -30, 60, 18, { tl: 11, tr: 11, bl: 0, br: 0 });
+      g.lineStyle(2, COL.border, 1);
+      g.strokeRoundedRect(-30, -30, 60, 60, 11);
       g.fillStyle(it.color, 1);
-      g.fillCircle(0, -6, 9);
-      const count = this.add.text(0, 10, '0', textStyle(13, COL.text)).setOrigin(0.5);
-      const key = this.add.text(-20, -18, `${i + 1}`, textStyle(10, COL.faint)).setOrigin(0.5);
-      cont.add([g, count, key]);
-      cont.setSize(56, 52);
-      cont.setInteractive(new Phaser.Geom.Rectangle(-28, -26, 56, 52), uiHit);
+      g.fillCircle(0, -4, 9);
+      const count = this.add.text(22, 18, '0', monoStyle(12, COL.brand)).setOrigin(1, 0.5);
+      const key = this.add.text(-22, -20, `${i + 1}`, monoStyle(11, COL.dim)).setOrigin(0.5);
+      const nm = this.add.text(0, 38, it.name.split(' ')[0].toUpperCase(), textStyle(8, COL.dim)).setOrigin(0.5).setLetterSpacing(1);
+      cont.add([g, count, key, nm]);
+      cont.setSize(60, 60);
+      cont.setInteractive(new Phaser.Geom.Rectangle(-30, -30, 60, 60), uiHit);
       cont.on('pointerdown', () => this.useItem(it.id));
       this.itemBar.push({ id: it.id, cont, count });
     });
@@ -1025,7 +1038,10 @@ export class GameScene extends Phaser.Scene {
     const h = this.scale.height;
     for (const img of this.bgImgs) img.setDisplaySize(w, h).setPosition(0, 0);
     this.parallax?.setSize(w, h);
-    for (let i = 0; i < this.itemBar.length; i++) this.itemBar[i].cont.setPosition(w - 38, 150 + i * 64);
+    for (let i = 0; i < this.itemBar.length; i++) {
+      const p = this.hotbarPos(i, this.itemBar.length);
+      this.itemBar[i].cont.setPosition(p.x, p.y);
+    }
     this.outpostBtn?.setPosition(w / 2, 134);
     this.outpostHint?.setPosition(w / 2, 168);
     this.hud?.relayout();

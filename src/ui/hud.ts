@@ -1,7 +1,12 @@
-/** In-run HUD: the three squeeze meters (fuel/hull/cargo), depth, cash, heat + warnings. */
+/**
+ * In-run HUD (DesignHandoff "Gameplay Target"): two vertical cylinder gauges (orange fuel /
+ * blue hull) top-left with depth + biome beneath, cash + a CARGO chip + a MENU button top-right,
+ * and a low-fuel warning. Muted/earthy — no neon, no shop button (selling happens at the outpost).
+ * Consumables live in the bottom hotbar (see Game.buildItemBar).
+ */
 import Phaser from 'phaser';
-import { COL, textStyle, css } from './theme';
-import { FUEL } from '../config/gameplay';
+import { COL, monoStyle, textStyle, css } from './theme';
+import { Button } from './widgets';
 import type { RunState } from '../core/types';
 import type { DerivedStats } from '../systems/stats';
 
@@ -14,92 +19,113 @@ export interface HudData {
 export class Hud {
   private scene: Phaser.Scene;
   private g: Phaser.GameObjects.Graphics;
-  private fuelT: Phaser.GameObjects.Text;
-  private hullT: Phaser.GameObjects.Text;
-  private cargoT: Phaser.GameObjects.Text;
   private cashT: Phaser.GameObjects.Text;
   private depthT: Phaser.GameObjects.Text;
   private biomeT: Phaser.GameObjects.Text;
-  private haulT: Phaser.GameObjects.Text;
+  private cargoT: Phaser.GameObjects.Text;
   private warnT: Phaser.GameObjects.Text;
+  private labels: Phaser.GameObjects.Text[] = [];
+  private menuBtn: Button;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, onMenu: () => void) {
     this.scene = scene;
     this.g = scene.add.graphics().setScrollFactor(0).setDepth(1000);
 
-    const mk = (x: number, y: number, c: number, size = 13, origin = 0) =>
-      scene.add
-        .text(x, y, '', textStyle(size, c))
-        .setScrollFactor(0)
-        .setDepth(1001)
-        .setOrigin(origin, 0);
-
     const rx = scene.scale.width - 18;
-    this.fuelT = mk(20, 17, COL.text, 12);
-    this.hullT = mk(20, 43, COL.text, 12);
-    this.cargoT = mk(20, 69, COL.text, 12);
-    this.cashT = mk(rx, 16, COL.cash, 24, 1);
-    this.depthT = mk(rx, 48, COL.accent, 20, 1);
-    this.biomeT = mk(rx, 74, COL.dim, 12, 1);
-    this.haulT = mk(rx, 92, COL.cargo, 13, 1);
+    // gauge letters (F/E on fuel, H/· on hull)
+    const lab = (x: number, y: number, t: string, c: number) =>
+      scene.add.text(x, y, t, textStyle(11, c)).setOrigin(0.5).setScrollFactor(0).setDepth(1002);
+    this.labels = [
+      lab(40, 27, 'F', COL.text), lab(40, 138, 'E', COL.dim),
+      lab(86, 27, 'H', COL.text), lab(86, 138, '·', COL.dim),
+    ];
+
+    this.depthT = scene.add.text(22, 160, '', monoStyle(28, 0xe7be4e)).setScrollFactor(0).setDepth(1001);
+    this.biomeT = scene.add.text(24, 194, '', monoStyle(12, COL.crtDim)).setScrollFactor(0).setDepth(1001).setLetterSpacing(3);
+
+    this.cashT = scene.add.text(rx, 14, '', monoStyle(30, 0xe7be4e)).setScrollFactor(0).setDepth(1001).setOrigin(1, 0);
+    this.cargoT = scene.add.text(rx - 139, 70, '', monoStyle(15, 0x2a1c05)).setScrollFactor(0).setDepth(1002).setOrigin(0.5);
+
+    this.menuBtn = new Button(scene, rx - 32, 84, 60, 40, 'MENU', onMenu, { fontSize: 13, fixed: true });
+    this.menuBtn.setScrollFactor(0).setDepth(1001);
 
     this.warnT = scene.add
-      .text(scene.scale.width / 2, 116, '', textStyle(15, COL.danger))
+      .text(scene.scale.width / 2, 124, '', textStyle(15, COL.danger))
       .setScrollFactor(0)
       .setDepth(1002)
       .setOrigin(0.5);
   }
 
-  /** Re-anchor the right-aligned & centred elements after a window resize. */
   relayout(): void {
     const rx = this.scene.scale.width - 18;
     this.cashT.setX(rx);
-    this.depthT.setX(rx);
-    this.biomeT.setX(rx);
-    this.haulT.setX(rx);
+    this.cargoT.setX(rx - 139);
+    this.menuBtn.setX(rx - 32);
     this.warnT.setX(this.scene.scale.width / 2);
   }
 
-  private bar(x: number, y: number, w: number, h: number, frac: number, color: number): void {
+  /** A vertical cylinder gauge: steel housing, dark tube, bottom-anchored liquid + meniscus. */
+  private gauge(x: number, y: number, w: number, h: number, frac: number, kind: 'fuel' | 'hull'): void {
     const g = this.g;
-    g.fillStyle(0x000000, 0.45);
-    g.fillRoundedRect(x - 2, y - 2, w + 4, h + 4, 4);
-    g.fillStyle(0x14110b, 1); // warm track (was navy 0x20202e)
-    g.fillRoundedRect(x, y, w, h, 3);
-    const fw = Math.max(0, Math.min(1, frac)) * w;
-    if (fw > 2) {
-      g.fillStyle(color, 1);
-      g.fillRoundedRect(x, y, fw, h, 3);
-      g.fillStyle(0xffffff, 0.1); // muted gloss (was 0.18)
-      g.fillRoundedRect(x, y, fw, h / 2, 3);
+    g.fillStyle(0x000000, 0.5);
+    g.fillRoundedRect(x - 2, y - 2, w + 4, h + 4, 9);
+    g.fillStyle(COL.panelHi, 1);
+    g.fillRoundedRect(x, y, w, h, 8);
+    g.fillStyle(COL.panel, 1);
+    g.fillRoundedRect(x, y + h * 0.18, w, h * 0.82, { tl: 0, tr: 0, bl: 8, br: 8 });
+    // tube
+    const tx = x + 5;
+    const ty = y + 5;
+    const tw = w - 10;
+    const th = h - 10;
+    g.fillStyle(0x070504, 1);
+    g.fillRoundedRect(tx, ty, tw, th, 6);
+    // liquid (light-top → dark-bottom fake gradient), muted — no glow
+    const f = Math.max(0, Math.min(1, frac));
+    const lh = f * (th - 4);
+    const ly = ty + th - 2 - lh;
+    const cols: [number, number, number] = kind === 'fuel' ? [0xc79c52, 0x9c6c28, 0x5f3f12] : [0x9bb6c4, 0x587f92, 0x2e4d5e];
+    if (lh > 1) {
+      g.fillStyle(cols[2], 1);
+      g.fillRoundedRect(tx + 2, ly, tw - 4, lh, 4);
+      g.fillStyle(cols[1], 1);
+      g.fillRect(tx + 2, ly, tw - 4, lh * 0.5);
+      g.fillStyle(cols[0], 1);
+      g.fillRect(tx + 2, ly, tw - 4, Math.min(lh, 4));
+      g.fillStyle(0xffffff, 0.2);
+      g.fillRect(tx + 2, ly, tw - 4, 2);
     }
+    // glass gloss streak
+    g.fillStyle(0xffffff, 0.1);
+    g.fillRoundedRect(tx + 3, ty + 3, 3, th - 6, 2);
   }
 
-  update(run: RunState, stats: DerivedStats, data: HudData): void {
+  update(run: RunState, _stats: DerivedStats, data: HudData): void {
     const g = this.g;
     g.clear();
 
-    const bw = 168;
+    this.gauge(20, 18, 40, 130, run.fuel / Math.max(1, run.fuelMax), 'fuel');
+    this.gauge(66, 18, 40, 130, run.hull / Math.max(1, run.hullMax), 'hull');
+
+    // low-fuel tint on the fuel letter
     const fuelFrac = run.fuel / Math.max(1, run.fuelMax);
-    this.bar(20, 28, bw, 12, fuelFrac, fuelFrac < 0.2 ? COL.danger : COL.fuel);
-    this.bar(20, 54, bw, 12, run.hull / Math.max(1, run.hullMax), COL.hull);
-    this.bar(20, 80, bw, 12, run.cargoUsed / Math.max(1, run.cargoMax), COL.cargo);
+    this.labels[0].setColor(css(fuelFrac < 0.2 ? COL.danger : COL.text));
 
-    this.fuelT.setText(`FUEL  ${Math.ceil(run.fuel)}/${run.fuelMax}`);
-    this.hullT.setText(`HULL  ${Math.ceil(run.hull)}/${run.hullMax}`);
-    this.cargoT.setText(`CARGO  ${run.cargoUsed}/${run.cargoMax}`);
-
-    if (run.heat > 1) {
-      this.bar(20, 106, bw, 8, run.heat / 100, COL.heat);
-    }
+    // cargo chip (gold) top-right
+    const rx = this.scene.scale.width - 18;
+    g.fillStyle(0x000000, 0.4);
+    g.fillRoundedRect(rx - 200, 60, 122, 36, 9);
+    g.fillStyle(run.cargoUsed >= run.cargoMax ? 0xe0a72a : 0xc2994a, 1);
+    g.fillRoundedRect(rx - 198, 62, 118, 32, 8);
+    g.fillStyle(0xffffff, 0.12);
+    g.fillRoundedRect(rx - 198, 62, 118, 14, 8);
 
     this.cashT.setText('$' + Math.floor(run.cash).toLocaleString());
+    this.cargoT.setText(`${run.cargoUsed}/${run.cargoMax} ⛏`);
     this.depthT.setText(`${Math.floor(data.depth)} m`);
     this.biomeT.setText(data.biomeName.toUpperCase());
-    this.haulT.setText(data.haulValue > 0 ? `haul $${data.haulValue.toLocaleString()}` : '');
 
-    // fuel-to-return warning. Climbing costs ~0.4 fuel/m (thrust drain ÷ climb speed);
-    // 0.45 + a small buffer keeps the warning honest instead of permanently-on deep down.
+    // fuel-to-return warning (same honest math as before)
     const estReturn = data.depth * 0.45 + 8;
     if (data.depth > 30 && run.fuel < estReturn * 1.25) {
       const crit = run.fuel < estReturn;
