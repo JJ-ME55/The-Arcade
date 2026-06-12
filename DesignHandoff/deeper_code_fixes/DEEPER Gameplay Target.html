@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEEPER — Gameplay Target</title>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#ffcf57; --crt:#6fe88a; --crt-dim:#3f9e52; --txt:#e9ddc4; --muted:#9b8f76;
+    --steel-hi:#3b352a; --steel-lo:#1c1812; --edge:#0c0a07;
+    --fuel:#ffb24a; --hull:#7fd2ff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#040302;overflow:hidden;
+    font-family:'Oxanium',system-ui,sans-serif;color:var(--txt)}
+  #scaler{position:fixed;top:0;left:0;transform-origin:top left}
+  .frame{position:relative;width:1360px;height:850px;background:#0a0805;overflow:hidden;
+    box-shadow:0 0 0 2px #000, 0 30px 80px rgba(0,0,0,.7)}
+  canvas#world{position:absolute;inset:0;display:block}
+
+  /* ---------------- HUD ---------------- */
+  .hud{position:absolute;inset:0;pointer-events:none}
+  .hud > *{pointer-events:auto}
+
+  /* top-left gauges */
+  .gauges{position:absolute;left:20px;top:18px;display:flex;gap:12px;align-items:flex-end}
+  .gauge{width:46px;height:138px;border-radius:9px;padding:5px;position:relative;
+    background:linear-gradient(180deg,#4e4738,#2a251c 18%,#15110b);
+    box-shadow:0 0 0 2px var(--edge), inset 0 1px 0 rgba(255,255,255,.18), 0 6px 14px rgba(0,0,0,.55)}
+  .gauge .tube{position:absolute;inset:5px;border-radius:6px;overflow:hidden;background:#070504;
+    box-shadow:inset 0 2px 6px rgba(0,0,0,.95), inset 0 0 0 1px #000}
+  .gauge .liq{position:absolute;left:2px;right:2px;bottom:2px;border-radius:4px 4px 5px 5px;transition:height .3s}
+  .gauge.fuel .liq{height:84%;background:linear-gradient(180deg,#bb924a,#9c6c28 42%,#5f3f12);
+    box-shadow:inset 0 -6px 10px rgba(80,48,0,.6)}
+  .gauge.hull .liq{height:96%;background:linear-gradient(180deg,#88a6b6,#587f92 42%,#2e4d5e);
+    box-shadow:inset 0 -6px 10px rgba(12,45,68,.6)}
+  .gauge .liq::before{content:"";position:absolute;left:0;right:0;top:0;height:5px;border-radius:50%;
+    background:linear-gradient(90deg,rgba(255,255,255,.12),rgba(255,255,255,.42) 40%,rgba(255,255,255,.1))}
+  .gauge .lab{position:absolute;left:0;right:0;text-align:center;font-family:'Oxanium';font-weight:800;
+    font-size:12px;letter-spacing:.12em;color:var(--txt);text-shadow:0 1px 0 #000;z-index:2}
+  .gauge .lab.top{top:9px} .gauge .lab.bot{bottom:9px;color:var(--muted)}
+  .gauge .gloss{position:absolute;top:8px;bottom:8px;left:9px;width:9px;border-radius:99px;
+    background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.03));z-index:3}
+
+  .depth{position:absolute;left:22px;top:170px;font-family:'Share Tech Mono',monospace;line-height:1}
+  .depth .ft{font-size:30px;color:#e7be4e;text-shadow:0 0 5px rgba(255,207,87,.16),0 2px 0 #000}
+  .depth .biome{font-size:12px;letter-spacing:.28em;color:var(--crt-dim);margin-top:5px}
+
+  /* top-right cash + buttons */
+  .topright{position:absolute;right:20px;top:18px;display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+  .cash{font-family:'Share Tech Mono',monospace;font-size:34px;color:#e7be4e;
+    text-shadow:0 0 6px rgba(255,207,87,.18),0 2px 0 #000;line-height:1}
+  .cash small{font-size:20px;vertical-align:.06em;color:#e0a72a}
+  .iconbtns{display:flex;gap:9px}
+  .ibtn{display:flex;flex-direction:column;align-items:center;gap:3px;width:64px;padding:8px 0 6px;cursor:pointer;
+    border-radius:10px;background:linear-gradient(180deg,var(--steel-hi),var(--steel-lo));
+    box-shadow:0 0 0 2px var(--edge),inset 0 1px 0 rgba(255,255,255,.14),0 4px 9px rgba(0,0,0,.5)}
+  .ibtn:hover{filter:brightness(1.16)}
+  .ibtn .gi{width:24px;height:24px;display:grid;place-items:center}
+  .ibtn .t{font-family:'Oxanium';font-weight:800;font-size:10px;letter-spacing:.1em;color:var(--txt)}
+  .ibtn.cargo{background:linear-gradient(180deg,#c2994a,#876520)}
+  .ibtn.cargo .t{color:#2a1c05}
+  .ibtn.cargo .cc{font-family:'Share Tech Mono',monospace;font-size:13px;color:#2a1c05;font-weight:700}
+
+  /* bottom hotbar */
+  .hotbar{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);display:flex;gap:10px}
+  .slot{width:70px;height:70px;border-radius:11px;position:relative;cursor:pointer;
+    background:linear-gradient(180deg,#2a251d,#14110b);
+    box-shadow:0 0 0 2px var(--edge),inset 0 1px 0 rgba(255,255,255,.1),0 5px 12px rgba(0,0,0,.55);
+    display:grid;place-items:center}
+  .slot:hover{filter:brightness(1.15)}
+  .slot .ic{width:34px;height:34px}
+  .slot .key{position:absolute;left:6px;top:5px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted)}
+  .slot .ct{position:absolute;right:6px;bottom:5px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--gold)}
+  .slot .nm{position:absolute;left:0;right:0;bottom:-16px;text-align:center;font-family:'Oxanium';font-weight:700;
+    font-size:9px;letter-spacing:.12em;color:var(--muted)}
+  .slot.empty{opacity:.4}
+
+  /* annotation ribbon */
+  .note{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;
+    font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.14em;color:#7a7060;
+    background:rgba(8,6,4,.6);border:1px solid rgba(255,255,255,.07);border-radius:7px;padding:5px 12px}
+  .note b{color:var(--crt-dim)}
+</style>
+</head>
+<body>
+<div id="scaler">
+  <div class="frame" data-screen-label="dig-gameplay">
+    <canvas id="world" width="1360" height="850"></canvas>
+
+    <div class="hud">
+      <div class="note"><b>TARGET MOCK</b> · real CGI ore · gritty pixelated soil · carved recesses · trailing tunnel</div>
+
+      <!-- gauges -->
+      <div class="gauges">
+        <div class="gauge fuel"><div class="tube"><div class="liq"></div></div><span class="gloss"></span>
+          <span class="lab top">F</span><span class="lab bot">E</span></div>
+        <div class="gauge hull"><div class="tube"><div class="liq"></div></div><span class="gloss"></span>
+          <span class="lab top">H</span><span class="lab bot">·</span></div>
+      </div>
+      <div class="depth"><div class="ft">−75 FT</div><div class="biome">LOAM STRATA</div></div>
+
+      <!-- cash + buttons (SHOP removed; cargo + menu only) -->
+      <div class="topright">
+        <div class="cash"><small>$</small>1,240</div>
+        <div class="iconbtns">
+          <div class="ibtn cargo"><div class="cc">7/12</div><div class="t">CARGO</div></div>
+          <div class="ibtn"><div class="gi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e9ddc4" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></div><div class="t">MENU</div></div>
+        </div>
+      </div>
+
+      <!-- hotbar -->
+      <div class="hotbar">
+        <div class="slot"><span class="key">1</span><svg class="ic" viewBox="0 0 32 32"><rect x="11" y="9" width="10" height="18" rx="3" fill="#c0341c"/><rect x="11" y="9" width="10" height="5" rx="2" fill="#e85a3a"/><path d="M16 9 V3" stroke="#caa42e" stroke-width="2"/><circle cx="16" cy="3" r="2.4" fill="#ffcf57"/></svg><span class="ct">2</span><span class="nm">DYNAMITE</span></div>
+        <div class="slot"><span class="key">2</span><svg class="ic" viewBox="0 0 32 32"><circle cx="16" cy="16" r="9" fill="none" stroke="#6fe88a" stroke-width="2.4"/><circle cx="16" cy="16" r="3.2" fill="#6fe88a"/></svg><span class="ct">1</span><span class="nm">TELEPORT</span></div>
+        <div class="slot empty"><span class="key">3</span><svg class="ic" viewBox="0 0 32 32"><path d="M16 6 l9 5 v9 l-9 5 -9-5 v-9 z" fill="none" stroke="#9b8f76" stroke-width="2"/></svg><span class="ct">0</span><span class="nm">REPAIR</span></div>
+        <div class="slot"><span class="key">4</span><svg class="ic" viewBox="0 0 32 32"><rect x="9" y="7" width="14" height="18" rx="2" fill="none" stroke="#ffb24a" stroke-width="2.2"/><rect x="11" y="15" width="10" height="8" fill="#ffb24a"/></svg><span class="ct">3</span><span class="nm">FUEL CAN</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const W=1360,H=850;
+  const cv=document.getElementById('world'),ctx=cv.getContext('2d');
+
+  function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  function lerpHex(c1,c2,t){const a=[c1>>16&255,c1>>8&255,c1&255],b=[c2>>16&255,c2>>8&255,c2&255];
+    return `rgb(${a.map((v,i)=>Math.round(v+(b[i]-v)*t)).join(',')})`;}
+
+  const D0=0.16, D1=0.5;
+  function depthAt(y){return D0+(D1-D0)*(y/H);}
+
+  const POD={x:W*0.5,y:H*0.52,w:84,h:74};
+
+  function roundRect(c,x,y,w,h,r){c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);
+    c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);}
+
+  /* ---- GRITTY SOIL LAYER ----
+     Rendered to a reduced-res offscreen canvas then upscaled with smoothing OFF, so the dirt
+     reads slightly pixelated / photoreal-coarse — NOT smooth toy-cartoon. Dark warm earth,
+     heavy grime, sediment strata, embedded pebbles, and recessed (shadowed) carved cavities. */
+  const PX=0.6;
+  const soil=document.createElement('canvas');soil.width=Math.round(W*PX);soil.height=Math.round(H*PX);
+  const sx=soil.getContext('2d');sx.scale(PX,PX);
+
+  function paintSoil(){
+    // dark warm base, darkening with depth
+    for(let y=0;y<H;y+=2){const d=depthAt(y);sx.fillStyle=lerpHex(0x4a3017,0x1d1106,d);sx.fillRect(0,y,W,2);}
+    // sediment strata — faint darker horizontal bands
+    const rs=mulberry32(51);
+    for(let i=0;i<26;i++){const y=rs()*H,hh=10+rs()*26;sx.fillStyle=`rgba(0,0,0,${0.06+rs()*0.07})`;sx.fillRect(0,y,W,hh);}
+    // large grime mottling
+    const r1=mulberry32(99);
+    for(let i=0;i<120;i++){const x=r1()*W,y=r1()*H,rad=60+r1()*170;const g=sx.createRadialGradient(x,y,0,x,y,rad);
+      const dark=r1()>0.42;g.addColorStop(0,dark?'rgba(12,6,2,0.16)':'rgba(140,95,48,0.07)');g.addColorStop(1,'rgba(0,0,0,0)');
+      sx.fillStyle=g;sx.beginPath();sx.arc(x,y,rad,0,7);sx.fill();}
+    // dense COARSE grain (grit)
+    const r2=mulberry32(7);
+    for(let i=0;i<34000;i++){const x=r2()*W,y=r2()*H,s=1.2+r2()*2.4,v=r2();
+      sx.fillStyle = v<0.52 ? 'rgba(0,0,0,0.26)' : v<0.8 ? 'rgba(255,220,170,0.08)' : 'rgba(110,72,36,0.28)';
+      sx.fillRect(x,y,s,s);}
+    // embedded pebbles / rock chips for realism
+    const r3=mulberry32(21);
+    for(let i=0;i<420;i++){const x=r3()*W,y=r3()*H,rad=2+r3()*5;
+      sx.fillStyle=`rgba(${30+r3()*30|0},${22+r3()*22|0},${14+r3()*14|0},0.9)`;
+      sx.beginPath();sx.arc(x,y,rad,0,7);sx.fill();
+      sx.fillStyle='rgba(255,235,200,0.16)';sx.beginPath();sx.arc(x-rad*0.3,y-rad*0.34,rad*0.4,0,7);sx.fill();}
+  }
+
+  // an empty carved space: a dark recess (shadow) scooped from the soil, gritty rim, faint lit floor
+  function carve(cx,cy,w,h){
+    sx.save();
+    // darker soil rim for separation
+    sx.beginPath();roundRect(sx,cx-w/2-5,cy-h/2-5,w+10,h+10,18);sx.fillStyle='rgba(0,0,0,0.34)';sx.fill();
+    // recess: deep shadow at top fading to a dimly-lit floor
+    const g=sx.createLinearGradient(0,cy-h/2,0,cy+h/2);
+    g.addColorStop(0,'#0c0703');g.addColorStop(0.5,'#241608');g.addColorStop(1,'#3a2613');
+    sx.beginPath();roundRect(sx,cx-w/2,cy-h/2,w,h,15);sx.fillStyle=g;sx.fill();
+    // gritty floor speckle + a couple of fallen chips
+    sx.beginPath();roundRect(sx,cx-w/2,cy-h/2,w,h,15);sx.clip();
+    const r=mulberry32((cx*31+cy)|0);
+    for(let i=0;i<Math.round(w*h/90);i++){sx.fillStyle=r()>0.5?'rgba(0,0,0,0.28)':'rgba(255,215,160,0.05)';
+      sx.fillRect(cx-w/2+r()*w,cy-h/2+r()*h,1.6,1.6);}
+    sx.restore();
+  }
+
+  function carveWorld(){
+    const holes=[
+      [W*0.13,H*0.28,150,80],[W*0.40,H*0.20,90,82],[W*0.62,H*0.13,86,78],[W*0.82,H*0.24,150,80],
+      [W*0.20,H*0.50,150,78],[W*0.07,H*0.66,84,80],[W*0.30,H*0.74,150,80],[W*0.55,H*0.81,90,80],
+      [W*0.80,H*0.58,150,82],[W*0.92,H*0.78,86,80],[W*0.45,H*0.46,84,78],[W*0.70,H*0.70,150,80],
+    ];
+    holes.forEach(h=>carve(h[0],h[1],h[2],h[3]));
+    carve(POD.x, -H*0.06, POD.w*1.16, H*0.62);   // trailing vertical tunnel from the top
+    carve(POD.x, POD.y, POD.w*1.22, POD.h*1.2);   // the pocket the pod sits in
+  }
+
+  // ---- pod (procedural, worn gunmetal) ----
+  function rr(c,x,y,w,h,r){c.beginPath();roundRect(c,x,y,w,h,r);}
+  function drawPod(){
+    const {x,y,w,h}=POD;
+    // soft symmetric glow around the pod (a lamp glow, not a directional beam)
+    const lg=ctx.createRadialGradient(x,y,0,x,y,200);
+    lg.addColorStop(0,'rgba(255,226,168,0.15)');lg.addColorStop(0.45,'rgba(255,212,148,0.06)');lg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=lg;ctx.beginPath();ctx.arc(x,y,200,0,7);ctx.fill();
+    for(let i=0;i<5;i++){ctx.fillStyle=`rgba(210,215,225,${0.14-i*0.022})`;ctx.beginPath();ctx.arc(x-w*0.36-i*6,y-h*0.4-i*11,7+i*4,0,7);ctx.fill();}
+    ctx.save();ctx.translate(x,y);
+    ctx.fillStyle='#4f483d';rr(ctx,-w*0.42,-h*0.34,w*0.84,h*0.7,12);ctx.fill();
+    ctx.fillStyle='#6b6253';rr(ctx,-w*0.38,-h*0.3,w*0.76,h*0.2,8);ctx.fill();
+    ctx.fillStyle='#2f2a21';rr(ctx,-w*0.42,h*0.04,w*0.84,h*0.3,12);ctx.fill();
+    ctx.fillStyle='#1c1914';ctx.fillRect(-w*0.38,h*0.1,w*0.76,h*0.12);
+    ctx.fillStyle='#c79a2a';for(let i=0;i<5;i++){const x0=-w*0.36+i*w*0.16;
+      ctx.beginPath();ctx.moveTo(x0,h*0.22);ctx.lineTo(x0+w*0.06,h*0.1);ctx.lineTo(x0+w*0.12,h*0.22);ctx.fill();}
+    ctx.fillStyle='#0e141b';ctx.beginPath();ctx.arc(0,-h*0.04,w*0.2,0,7);ctx.fill();
+    const vg=ctx.createRadialGradient(-w*0.05,-h*0.1,0,0,-h*0.04,w*0.18);
+    vg.addColorStop(0,'#bdefff');vg.addColorStop(0.5,'#2ec4ff');vg.addColorStop(1,'#136086');
+    ctx.fillStyle=vg;ctx.beginPath();ctx.arc(0,-h*0.04,w*0.15,0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.9)';ctx.beginPath();ctx.arc(-w*0.06,-h*0.1,w*0.03,0,7);ctx.fill();
+    ctx.fillStyle='#857a58';[[-0.32,-0.24],[0.32,-0.24],[-0.32,0.0],[0.32,0.0]].forEach(p=>{ctx.beginPath();ctx.arc(p[0]*w,p[1]*h,2,0,7);ctx.fill();});
+    ctx.lineWidth=2.5;ctx.strokeStyle='#1c180f';rr(ctx,-w*0.42,-h*0.34,w*0.84,h*0.7,12);ctx.stroke();
+    ctx.strokeStyle='#7a828d';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(w*0.28,-h*0.3);ctx.lineTo(w*0.36,-h*0.5);ctx.stroke();
+    ctx.fillStyle='#ff5a5a';ctx.beginPath();ctx.arc(w*0.36,-h*0.52,3,0,7);ctx.fill();
+    ctx.translate(w*0.42,0);
+    ctx.fillStyle='#aab0b9';ctx.beginPath();ctx.moveTo(0,-h*0.18);ctx.lineTo(w*0.34,0);ctx.lineTo(0,h*0.18);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#54595f';ctx.lineWidth=2;for(let i=1;i<5;i++){ctx.beginPath();ctx.moveTo(i*w*0.07,-h*0.18+i*h*0.045);ctx.lineTo(i*w*0.07,h*0.18-i*h*0.045);ctx.stroke();}
+    ctx.restore();
+  }
+
+  function darkness(){
+    const g=ctx.createRadialGradient(POD.x,POD.y,70,POD.x,POD.y,800);
+    g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(0.5,'rgba(0,0,0,0.16)');g.addColorStop(1,'rgba(0,0,0,0.7)');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    const b=ctx.createLinearGradient(0,H*0.45,0,H);b.addColorStop(0,'rgba(0,0,0,0)');b.addColorStop(1,'rgba(0,0,0,0.46)');
+    ctx.fillStyle=b;ctx.fillRect(0,H*0.45,W,H*0.55);
+  }
+
+  // ---- real CGI ore PNGs scattered through the soil ----
+  const ORE_SRC={
+    copper:'art/world/ore_copper.png', silver:'art/world/ore_silver.png', iron:'art/world/ore_iron.png',
+    coal:'art/world/ore_coal.png', gold:'art/world/ore_gold.png', emerald:'art/world/gem_emerald.png',
+  };
+  const SCATTER=[
+    [W*0.10,H*0.40,'silver',74],[W*0.16,H*0.84,'copper',82],[W*0.27,H*0.60,'coal',80],
+    [W*0.37,H*0.36,'iron',72],[W*0.49,H*0.67,'coal',84],[W*0.58,H*0.29,'silver',70],
+    [W*0.66,H*0.50,'gold',86],[W*0.75,H*0.84,'copper',80],[W*0.86,H*0.42,'coal',78],
+    [W*0.91,H*0.62,'iron',74],[W*0.40,H*0.89,'emerald',76],[W*0.22,H*0.19,'coal',66],
+  ];
+  const imgs={};
+  function load(src){return new Promise(res=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src;});}
+
+  async function build(){
+    await Promise.all(Object.entries(ORE_SRC).map(async([k,s])=>{imgs[k]=await load(s);}));
+    paintSoil();carveWorld();
+    // blit gritty soil upscaled (pixelated)
+    ctx.imageSmoothingEnabled=false;ctx.drawImage(soil,0,0,W,H);
+    ctx.imageSmoothingEnabled=true;
+    // ore (real renders) with a soft contact shadow so each sits IN the earth
+    SCATTER.forEach(([x,y,k,sz])=>{const im=imgs[k];if(!im)return;
+      // no drop shadow — ore is embedded IN the dirt face, not sitting in front of it
+      const w=sz,h=sz*(im.height/im.width);ctx.drawImage(im,x-w/2,y-h/2,w,h);});
+    drawPod();
+    darkness();
+  }
+  build();
+
+  const scaler=document.getElementById('scaler');
+  function fit(){const s=Math.min(window.innerWidth/W,window.innerHeight/H);
+    scaler.style.transform=`translate(${(window.innerWidth-W*s)/2}px,${(window.innerHeight-H*s)/2}px) scale(${s})`;}
+  fit();window.addEventListener('resize',fit);
+})();
+</script>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#2a1c0c"/>
+    <rect x="44" y="12" width="12" height="52" fill="#140d05"/>
+    <rect x="40" y="40" width="20" height="16" rx="5" fill="#4f483d"/>
+    <circle cx="50" cy="48" r="4" fill="#2ec4ff"/>
+    <circle cx="24" cy="70" r="7" fill="#b9791f"/>
+    <circle cx="74" cy="60" r="6" fill="#ffcf57"/>
+  </svg>
+</template>
+</body>
+</html>
