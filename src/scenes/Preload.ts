@@ -35,9 +35,20 @@ export class Preload extends Phaser.Scene {
       const f = ORE_FILE[o.id];
       if (f) this.load.image('src_ore_' + o.id, f + '.png');
     }
+    // CGI machine/cabinet shells used as composited screen backgrounds.
+    const shells: [string, string][] = [
+      ['shell_menu_hero', 'shells/Drill_HOMESCREEN.png'],
+      ['shell_menu_monitor', 'shells/menu-monitor.png'],
+      ['shell_lb_cab', 'shells/leaderboard-cab.png'],
+      ['shell_gameover', 'shells/gameover-plaque.png'],
+      ['shell_shop_upgrades', 'shells/Junk_Yard_Shop.png'],
+      ['shell_shop_fuel', 'shells/Fuel_Screen.png'],
+      ['shell_shop_processor', 'shells/mineral_processing.png'],
+    ];
+    for (const [k, p] of shells) this.load.image(k, p);
     this.load.on('loaderror', (file: Phaser.Loader.File) => {
-      // non-fatal: the procedural overlay generated below stays as the fallback
-      console.warn('[preload] asset failed, using procedural fallback:', file.key);
+      // non-fatal: procedural overlays / plain backgrounds stay as the fallback
+      console.warn('[preload] asset failed, using fallback:', file.key);
     });
   }
 

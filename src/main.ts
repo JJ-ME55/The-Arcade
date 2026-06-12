@@ -33,13 +33,37 @@ const config: Phaser.Types.Core.GameConfig = {
   scene: [Boot, Preload, MainMenu, GameScene, GameOver, HowTo, Leaderboard, Collection, Season, Workshop, Settings],
 };
 
-const game = new Phaser.Game(config);
-
-if (import.meta.env.DEV) {
-  import('./core/state').then(({ App }) => {
-    (window as unknown as { __deeper: unknown }).__deeper = { game, App };
-  });
+/**
+ * Phaser rasterises text to canvas at creation, so a web font that arrives late renders in
+ * the fallback. Wait for the DesignHandoff fonts (Oxanium / Share Tech Mono) before boot —
+ * with a short timeout so a slow/offline font CDN never blocks the game from starting.
+ */
+async function waitForFonts(): Promise<void> {
+  const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
+  if (!fonts) return;
+  try {
+    await Promise.race([
+      Promise.all([
+        fonts.load('800 64px Oxanium'),
+        fonts.load('700 24px Oxanium'),
+        fonts.load('400 18px "Share Tech Mono"'),
+      ]).then(() => fonts.ready),
+      new Promise((res) => window.setTimeout(res, 2500)),
+    ]);
+  } catch {
+    /* offline / CDN blocked — fall back to system font */
+  }
 }
+
+let game: Phaser.Game;
+void waitForFonts().then(() => {
+  game = new Phaser.Game(config);
+  if (import.meta.env.DEV) {
+    import('./core/state').then(({ App }) => {
+      (window as unknown as { __deeper: unknown }).__deeper = { game, App };
+    });
+  }
+});
 
 // Block context menu / gesture zoom on the canvas for a clean mobile feel.
 window.addEventListener('contextmenu', (e) => e.preventDefault());

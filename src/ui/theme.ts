@@ -21,10 +21,26 @@ export const COL = {
   heat: 0xff7a2a,
 } as const;
 
-export const FONT = 'Segoe UI, system-ui, -apple-system, Arial, sans-serif';
+// DesignHandoff type system: Oxanium for display/UI, Share Tech Mono for numeric readouts.
+export const FONT = 'Oxanium, "Segoe UI", system-ui, -apple-system, Arial, sans-serif';
+export const MONO = '"Share Tech Mono", "Courier New", ui-monospace, monospace';
 
 export function css(c: number): string {
   return '#' + c.toString(16).padStart(6, '0');
+}
+
+/** Monospaced readout style (depth, cash, fuel) — the CRT/instrument numerals. */
+export function monoStyle(
+  size: number,
+  color: number = COL.text,
+  opts: Partial<Phaser.Types.GameObjects.Text.TextStyle> = {},
+): Phaser.Types.GameObjects.Text.TextStyle {
+  return {
+    fontFamily: MONO,
+    fontSize: `${size}px`,
+    color: css(color),
+    ...opts,
+  };
 }
 
 export function textStyle(

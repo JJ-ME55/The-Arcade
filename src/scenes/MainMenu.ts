@@ -28,6 +28,15 @@ export class MainMenu extends Phaser.Scene {
     const cx = BASE_W / 2;
     const sky = this.add.image(0, 0, 'bg_sky');
 
+    // hero CGI pod (DesignHandoff) — cover the design rect, then a dark scrim for legibility
+    if (this.textures.exists('shell_menu_hero')) {
+      const hero = this.add.image(cx, BASE_H * 0.46, 'shell_menu_hero');
+      const hs = Math.max(BASE_W / hero.width, BASE_H / hero.height);
+      hero.setScale(hs);
+      ensureMenuScrim(this);
+      this.add.image(cx, BASE_H / 2, 'menu_scrim').setDisplaySize(BASE_W, BASE_H);
+    }
+
     // drifting dust motes for atmosphere
     const parts = this.add.particles(0, 0, 'soft', {
       x: { min: 0, max: BASE_W },
@@ -45,9 +54,9 @@ export class MainMenu extends Phaser.Scene {
     new Button(this, BASE_W - 38, 40, 52, 48, '⚙', () => this.scene.start('Settings'), { fontSize: 24 });
 
     // ---- Title ----
-    const tGlow = this.add.text(cx, 188, 'DEEPER', title(84)).setOrigin(0.5);
+    const tGlow = this.add.text(cx, 188, 'DEEPER', title(84)).setOrigin(0.5).setLetterSpacing(8);
     tGlow.setTint(COL.brand);
-    tGlow.setShadow(0, 0, css(COL.brand), 28, true, true);
+    tGlow.setShadow(0, 3, 'rgba(0,0,0,0.7)', 10, true, true);
     this.tweens.add({ targets: tGlow, scale: { from: 0.98, to: 1.02 }, duration: 2600, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     this.add
       .text(cx, 252, 'DIG DEEP · GET RICH · DON’T GET STRANDED', textStyle(15, COL.dim, { fontStyle: 'bold' }))
@@ -160,6 +169,8 @@ export class MainMenu extends Phaser.Scene {
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Game'));
   }
 
+  // (helper defined at module scope below)
+
   private startRun(mode: 'free' | 'daily'): void {
     const list = this.unlocked();
     const loadout = list[this.loadoutIdx % list.length]?.id ?? 'prospector';
@@ -175,4 +186,25 @@ export class MainMenu extends Phaser.Scene {
     this.cameras.main.fadeOut(220, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Game'));
   }
+}
+
+/**
+ * A vertical scrim over the hero CGI: a touch of shade up top (so the gold wordmark reads),
+ * clear through the middle (the pod shows), and a deep fade at the bottom (so the button
+ * stack stays legible). Built once as a canvas texture.
+ */
+function ensureMenuScrim(scene: Phaser.Scene): void {
+  if (scene.textures.exists('menu_scrim')) return;
+  const ct = scene.textures.createCanvas('menu_scrim', BASE_W, BASE_H);
+  if (!ct) return;
+  const ctx = ct.getContext();
+  const g = ctx.createLinearGradient(0, 0, 0, BASE_H);
+  g.addColorStop(0, 'rgba(6,5,10,0.55)');
+  g.addColorStop(0.22, 'rgba(6,5,10,0.18)');
+  g.addColorStop(0.5, 'rgba(6,5,10,0.12)');
+  g.addColorStop(0.72, 'rgba(6,5,10,0.55)');
+  g.addColorStop(1, 'rgba(4,3,8,0.94)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, BASE_W, BASE_H);
+  ct.refresh();
 }

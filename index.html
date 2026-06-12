@@ -12,6 +12,13 @@
     <meta name="theme-color" content="#0a0a12" />
     <meta name="description" content="DEEPER — dig deep, get rich, don't get stranded. A high-score mining descent." />
     <title>DEEPER</title>
+    <!-- DesignHandoff type: Oxanium (display/UI) + Share Tech Mono (numeric readouts). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;700;800&family=Share+Tech+Mono&display=swap"
+      rel="stylesheet"
+    />
     <style>
       :root {
         color-scheme: dark;
@@ -61,6 +68,9 @@
         transition: opacity 0.4s ease;
       }
       #boot-loader .title {
+        font-family: 'Oxanium', 'Segoe UI', system-ui, sans-serif;
+        font-weight: 800;
+        letter-spacing: 0.13em;
         font-size: clamp(28px, 8vw, 64px);
         text-shadow: 0 0 24px rgba(255, 207, 77, 0.5);
       }
