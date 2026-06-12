@@ -38,6 +38,36 @@ interface Cell {
   glow: GlowKind | null;
 }
 
+interface BaseSpec {
+  key: string;
+  /** sample the texture by world position (continuous authored soil/rock), else a fixed tile. */
+  byPos: boolean;
+  tint: number;
+}
+
+/** Per-channel linear blend a→b. */
+function lerpCol(a: number, b: number, t: number): number {
+  const r = Math.round(((a >> 16) & 0xff) + (((b >> 16) & 0xff) - ((a >> 16) & 0xff)) * t);
+  const g = Math.round(((a >> 8) & 0xff) + (((b >> 8) & 0xff) - ((a >> 8) & 0xff)) * t);
+  const bl = Math.round((a & 0xff) + ((b & 0xff) - (a & 0xff)) * t);
+  return (r << 16) | (g << 8) | bl;
+}
+function darkenCol(c: number, f: number): number {
+  return (
+    (Math.round(((c >> 16) & 0xff) * f) << 16) |
+    (Math.round(((c >> 8) & 0xff) * f) << 8) |
+    Math.round((c & 0xff) * f)
+  );
+}
+// gentle biome wash multiplied onto the (neutral, dark) authored textures — keeps them earthy
+// while still shifting hue per band, without crushing them to black.
+function soilTint(dirt: number): number {
+  return lerpCol(0xffffff, dirt, 0.24);
+}
+function rockTint(stone: number): number {
+  return lerpCol(0xffffff, stone, 0.42);
+}
+
 export class TileRenderer {
   private scene: Phaser.Scene;
   private world: World;
@@ -47,10 +77,31 @@ export class TileRenderer {
   private shadePool: Phaser.GameObjects.Image[] = [];
   private dirty = new Set<string>();
   private last = { c0: 1, c1: 0, r0: 1, r1: 0 };
+  private useAuthored = false;
+  private gridN = 26; // soil/rock texture is gridN × gridN tiles (world-position frames)
 
   constructor(scene: Phaser.Scene, world: World) {
     this.scene = scene;
     this.world = world;
+    // authored CGI soil/rock: cut each into a gridN² mosaic of TILE-sized frames so every cell
+    // can show its own world-position slice (seamless + detailed, not a blurry 48px downscale).
+    this.useAuthored = scene.textures.exists('soil_tex') && scene.textures.exists('rock_tex');
+    if (this.useAuthored) {
+      const src = scene.textures.get('soil_tex').getSourceImage() as { width: number };
+      this.gridN = Math.max(1, Math.floor(src.width / TILE));
+      this.addGrid('soil_tex');
+      this.addGrid('rock_tex');
+    }
+  }
+
+  private addGrid(key: string): void {
+    const tex = this.scene.textures.get(key);
+    for (let r = 0; r < this.gridN; r++) {
+      for (let c = 0; c < this.gridN; c++) {
+        const fn = c + '_' + r;
+        if (!tex.has(fn)) tex.add(fn, 0, c * TILE, r * TILE, TILE, TILE);
+      }
+    }
   }
 
   /** Mark a changed tile — and its neighbours, whose edge shading depends on it. */
@@ -97,31 +148,37 @@ export class TileRenderer {
     this.active.delete(key);
   }
 
-  private baseTexture(x: number, y: number, t: Terrain): string | null {
+  private soilSpec(x: number, y: number, dirt: number): BaseSpec {
+    if (this.useAuthored) return { key: 'soil_tex', byPos: true, tint: soilTint(dirt) };
+    const v = Math.floor(hash2(this.world.seed, x, y, 200) * 3);
+    const biome = biomeAt(this.world.depthMeters(y));
+    return { key: `t_${biome.id}_dirt_${v}`, byPos: false, tint: 0xffffff };
+  }
+
+  private baseSpec(x: number, y: number, t: Terrain): BaseSpec | null {
     if (t === Terrain.Sky) return null;
     // dug-out / cave space below the surface is a dark scooped recess, not a bright cut-out
-    if (t === Terrain.Empty) return y > SURFACE_ROW ? 'recess' : null;
-    // boulder is a round sprite laid over a soil base (below) so its corners read as
-    // earth, not a black square — the round rock itself is drawn on the overlay layer.
-    if (t === Terrain.Boulder) {
-      const biome = biomeAt(this.world.depthMeters(y));
-      const v = Math.floor(hash2(this.world.seed, x, y, 200) * 3);
-      return `t_${biome.id}_dirt_${v}`;
-    }
-    if (t === Terrain.Bedrock) return 't_bedrock';
-    if (t === Terrain.Lava) return 't_lava';
-    if (t === Terrain.Gas) return 't_gas';
-    const kind = KIND_NAME[t];
-    if (!kind) return null;
-    // grass cap on the very top diggable row
-    if (y === SURFACE_ROW && t === Terrain.Dirt) return 't_grass';
+    if (t === Terrain.Empty) return y > SURFACE_ROW ? { key: 'recess', byPos: false, tint: 0xffffff } : null;
+    if (t === Terrain.Bedrock) return { key: 't_bedrock', byPos: false, tint: 0xffffff };
+    if (t === Terrain.Lava) return { key: 't_lava', byPos: false, tint: 0xffffff };
+    if (t === Terrain.Gas) return { key: 't_gas', byPos: false, tint: 0xffffff };
     const biome = biomeAt(this.world.depthMeters(y));
-    // stone/hard pick a connectivity-masked rock tile (fuses with rock, rounds against soil)
-    if (t === Terrain.Stone || t === Terrain.HardStone) {
-      return `t_${biome.id}_${kind}_${this.rockMask(x, y)}`;
+    // boulder rides a soil base (the round rock is drawn on the overlay layer above)
+    if (t === Terrain.Boulder) return this.soilSpec(x, y, biome.palette.dirt);
+    if (t === Terrain.Dirt) {
+      if (y === SURFACE_ROW) return { key: 't_grass', byPos: false, tint: 0xffffff };
+      return this.soilSpec(x, y, biome.palette.dirt);
     }
-    const v = Math.floor(hash2(this.world.seed, x, y, 200) * 3);
-    return `t_${biome.id}_${kind}_${v}`;
+    if (t === Terrain.Stone || t === Terrain.HardStone) {
+      if (this.useAuthored) {
+        const tint = t === Terrain.HardStone ? darkenCol(rockTint(biome.palette.stone), 0.82) : rockTint(biome.palette.stone);
+        return { key: 'rock_tex', byPos: true, tint };
+      }
+      // fallback: connectivity-masked procedural rock
+      const kind = KIND_NAME[t];
+      return { key: `t_${biome.id}_${kind}_${this.rockMask(x, y)}`, byPos: false, tint: 0xffffff };
+    }
+    return null;
   }
 
   /** Is the cell a rock pocket (stone or hard) — i.e. should it fuse with this one? */
@@ -153,8 +210,8 @@ export class TileRenderer {
   private renderCell(x: number, y: number): void {
     const key = x + ',' + y;
     const tile = this.world.getTile(x, y);
-    const tex = this.baseTexture(x, y, tile.t);
-    if (!tex) {
+    const spec = this.baseSpec(x, y, tile.t);
+    if (!spec) {
       this.release(key);
       return;
     }
@@ -165,7 +222,14 @@ export class TileRenderer {
     }
     const cx = x * TILE + TILE / 2;
     const cy = y * TILE + TILE / 2;
-    cell.base.setTexture(tex).setPosition(cx, cy);
+    const b = cell.base;
+    if (spec.byPos) {
+      const N = this.gridN;
+      b.setTexture(spec.key, (((x % N) + N) % N) + '_' + (((y % N) + N) % N));
+    } else {
+      b.setTexture(spec.key);
+    }
+    b.setPosition(cx, cy).setTint(spec.tint);
 
     // edge-relief shading on square solids that border open space (skip round boulders)
     const wantShade = SOLID[tile.t] && tile.t !== Terrain.Boulder;
