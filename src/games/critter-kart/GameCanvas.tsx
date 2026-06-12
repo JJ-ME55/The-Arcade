@@ -1237,7 +1237,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       // the current state instead of sliding the kart across the map. Used by the kart meshes AND
       // everything attached to them (shield rings, storm clouds, lightning) so they never separate.
       // decay the reconciliation smoothing offset (render-only, ~15%/frame)
-      mpSmoothX *= 0.88; mpSmoothZ *= 0.88; mpSmoothH *= 0.88;
+      mpSmoothX *= 0.92; mpSmoothZ *= 0.92; mpSmoothH *= 0.92;
       const renderPose = (i: number): KartState => {
         const cur = states[i], prev = prevStates[i] ?? cur;
         if (Math.hypot(cur.x - prev.x, cur.z - prev.z) > 8) return cur; // teleport → snap

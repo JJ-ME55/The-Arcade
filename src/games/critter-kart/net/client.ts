@@ -117,6 +117,11 @@ function createRealClient(): NetClient {
     const SNAP_BUFFER_MS = 1000;
     type SnapEntry = { snap: RaceSnapshot; at: number };
     const snapBuffer: SnapEntry[] = [];
+    // Adaptive interp delay: EMA of snapshot inter-arrival gaps. On clean links
+    // gaps ~33ms -> delay stays ~100ms; on bursty links (long-polling) gaps hit
+    // 150-400ms and a fixed 100ms buffer starves between bursts -> remote karts
+    // visibly step. Delay rides at ~3x the typical gap, capped at 350ms.
+    let snapGapEma = 33, lastSnapArrival = 0;
     // Server's locked race-start wall-clock. Updated when
     // `race:countdownLocked` arrives — that's AFTER all humans have
     // emitted critterkart:ready (or after the 15s fallback fires on
@@ -249,6 +254,8 @@ function createRealClient(): NetClient {
                     latestSnapshot = payload as RaceSnapshot;
                     const now = Date.now();
                     snapBuffer.push({ snap: payload as RaceSnapshot, at: now });
+                    if (lastSnapArrival > 0) { const g = Math.min(1000, now - lastSnapArrival); snapGapEma = snapGapEma * 0.85 + g * 0.15; }
+                    lastSnapArrival = now;
                     // Trim entries older than SNAP_BUFFER_MS so we don't
                     // grow unbounded over a 5-minute race.
                     const cutoff = now - SNAP_BUFFER_MS;
@@ -343,7 +350,8 @@ function createRealClient(): NetClient {
             const findKart = (s: RaceSnapshot | null) =>
                 s?.karts.find((k: any) => k.kartId === kartId) ?? null;
 
-            const renderTime = Date.now() - interpDelayMs;
+            const adaptive = Math.min(350, Math.max(interpDelayMs, snapGapEma * 3));
+            const renderTime = Date.now() - adaptive;
 
             // Find leftIdx = largest i with snapBuffer[i].at <= renderTime.
             // Walk from newest backward — typical case it's the second-to-last.
