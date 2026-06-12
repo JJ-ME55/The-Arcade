@@ -64,13 +64,13 @@ export class Hud {
     const g = this.g;
     g.fillStyle(0x000000, 0.45);
     g.fillRoundedRect(x - 2, y - 2, w + 4, h + 4, 4);
-    g.fillStyle(0x20202e, 1);
+    g.fillStyle(0x14110b, 1); // warm track (was navy 0x20202e)
     g.fillRoundedRect(x, y, w, h, 3);
     const fw = Math.max(0, Math.min(1, frac)) * w;
     if (fw > 2) {
       g.fillStyle(color, 1);
       g.fillRoundedRect(x, y, fw, h, 3);
-      g.fillStyle(0xffffff, 0.18);
+      g.fillStyle(0xffffff, 0.1); // muted gloss (was 0.18)
       g.fillRoundedRect(x, y, fw, h / 2, 3);
     }
   }

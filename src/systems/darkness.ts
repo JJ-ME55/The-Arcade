@@ -72,12 +72,12 @@ export class Darkness {
     const r = radiusPx * flick;
 
     this.rt.clear();
-    this.rt.fill(0x04050a, Math.min(0.94, amount));
-    // main lamp: wide soft pool + tighter bright core
-    this.stamp(sx, sy, r);
-    this.stamp(sx, sy, r * 0.5);
-    // headlight pool thrown in the facing direction
-    this.stamp(sx + facing * r * 0.62, sy, r * 0.5);
+    // warm near-black fill (was cool 0x04050a) for the earthy descent
+    this.rt.fill(0x070402, Math.min(0.94, amount));
+    // a SOFT SYMMETRIC lamp glow around the pod (not a directional beam) — wide pool + bright core
+    this.stamp(sx, sy, r * 1.08);
+    this.stamp(sx, sy, r * 0.58);
+    void facing;
 
     if (glints) {
       const t = this.flicker;
