@@ -482,6 +482,10 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     // yet acked by the server (snapshot ackSeq); replayed after each adopt.
     let mpSeq = 0, mpLastSentAt = 0, mpLastReconTick = -1;
     let mpPending: { seq: number; throttle: number; steer: number; brake: number; drift: boolean }[] = [];
+    // Visual smoothing of reconciliation corrections: physics corrections are
+    // absorbed into this decaying render-only offset instead of appearing as
+    // 30Hz micro-jumps ("glitching every millisecond").
+    let mpSmoothX = 0, mpSmoothZ = 0;
     let throttleDownSince: number | null = null; // when the player first held throttle during the countdown
     let rocketResolved = false; // rocket-start bonus applied at GO (once)
     let lastHud = '';
@@ -780,14 +784,19 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
               drift: !!(racing && raw.drift),
             } as any);
             // Record what the LOCAL physics consumed (smoothed steer) for replay.
-            mpPending.push({
-              seq,
-              throttle: racing ? raw.throttle : 0,
-              steer,
-              brake: racing ? raw.brake : 0,
-              drift: !!(racing && raw.drift),
-            });
-            if (mpPending.length > 120) mpPending.shift();
+            // Only while racing — the server's runner doesn't exist pre-GO, so
+            // countdown inputs are never acked and the buffer balloons to its
+            // cap (then gets replayed in one heavy, wrong burst at GO).
+            if (racing) {
+              mpPending.push({
+                seq,
+                throttle: raw.throttle,
+                steer,
+                brake: raw.brake,
+                drift: !!raw.drift,
+              });
+              if (mpPending.length > 120) mpPending.shift();
+            }
           }
           const snap = mp.latestSnapshot;
           // DIAGNOSTIC: log first time we see a non-null snapshot
@@ -876,6 +885,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
               const tick = (snap as any).tick;
               if (typeof tick === 'number' && tick !== mpLastReconTick) {
                 mpLastReconTick = tick;
+                const preX = states[PLAYER].x, preZ = states[PLAYER].z;
                 states[PLAYER] = {
                   ...states[PLAYER],
                   x: selfSnap.x, z: selfSnap.z,
@@ -919,6 +929,12 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                     }
                   }
                 }
+                // Absorb the correction into the render-only smoothing offset
+                // (decays each frame) so it never shows as a position jump.
+                mpSmoothX += preX - states[PLAYER].x;
+                mpSmoothZ += preZ - states[PLAYER].z;
+                const sm = Math.hypot(mpSmoothX, mpSmoothZ);
+                if (sm > 6) { mpSmoothX *= 6 / sm; mpSmoothZ *= 6 / sm; } // cap: big corrections may show
               }
             }
           }
@@ -1220,16 +1236,22 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       // train-flatten, lake/Lakitu reset) moves further than any single step could, so we snap to
       // the current state instead of sliding the kart across the map. Used by the kart meshes AND
       // everything attached to them (shield rings, storm clouds, lightning) so they never separate.
+      // decay the reconciliation smoothing offset (render-only, ~15%/frame)
+      mpSmoothX *= 0.85; mpSmoothZ *= 0.85;
       const renderPose = (i: number): KartState => {
         const cur = states[i], prev = prevStates[i] ?? cur;
         if (Math.hypot(cur.x - prev.x, cur.z - prev.z) > 8) return cur; // teleport → snap
-        return {
+        const pose = {
           ...cur,
           x: prev.x + (cur.x - prev.x) * alpha,
           z: prev.z + (cur.z - prev.z) * alpha,
           y: (prev.y ?? 0) + ((cur.y ?? 0) - (prev.y ?? 0)) * alpha,
           heading: angleLerp(prev.heading, cur.heading, alpha),
         };
+        // local player in MP: render through the decaying correction offset so
+        // 30Hz reconciliation never reads as micro-jumps
+        if (mp && i === PLAYER) { pose.x += mpSmoothX; pose.z += mpSmoothZ; }
+        return pose;
       };
 
       // SLIPSTREAM / DRAFT: tuck directly into the wake of a kart ahead (within range + a tight

@@ -71,14 +71,19 @@ export function buildMultiplayerRaceValue(args: {
     }
   });
 
-  // Find self — first non-bot member is treated as self because the
-  // server validates identity via the handshake JWT. Order is preserved
-  // through match:found so position-based self-detection is reliable.
-  // TODO 2c-followup: server include telegramUserId on Member for exact
-  // self-match.
-  let selfIdx = -1;
-  for (let i = 0; i < args.members.length; i++) {
-    if (!args.members[i].isBot) { selfIdx = i; break; }
+  // Find self by telegramUserId — the wire carries it on every member.
+  // The old "first non-bot member is self" guess gave EVERY client kart-0:
+  // the joiner watched the host's server kart ("car self-driving, dragging
+  // him around" — JJ 2026-06-12) while BOTH players' inputs fought over the
+  // host's kart (the host's "glitching every millisecond").
+  let selfIdx = args.members.findIndex(
+    (m: any) => !m.isBot && Number(m.telegramUserId) === Number(args.selfTelegramUserId),
+  );
+  if (selfIdx < 0) {
+    // legacy fallback (pre-telegramUserId wire shapes only)
+    for (let i = 0; i < args.members.length; i++) {
+      if (!args.members[i].isBot) { selfIdx = i; break; }
+    }
   }
   if (selfIdx < 0) return null;
   const selfMember = args.members[selfIdx];
