@@ -113,8 +113,8 @@ export class World {
     if (b.lavaDensity > 0 && hash2(this.seed, x, y, S_LAVA) < b.lavaDensity) return Terrain.Lava;
     if (b.gasDensity > 0 && hash2(this.seed, x, y, S_GAS) < b.gasDensity) return Terrain.Gas;
 
-    // Boulders (solid, fall when unsupported).
-    if (hash2(this.seed, x, y, S_BOULDER) < b.boulderDensity) return Terrain.Boulder;
+    // Soil gap hazards: void pockets that break up strata — navigational obstacles, not solid balls.
+    if (depth > 8 && hash2(this.seed, x, y, S_BOULDER) < b.boulderDensity * 0.7) return Terrain.Empty;
 
     // Solid kind.
     const kindRoll = hash2(this.seed, x, y, S_KIND);

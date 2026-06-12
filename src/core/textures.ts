@@ -542,6 +542,11 @@ function genBackgrounds(scene: Phaser.Scene): void {
 function genSky(scene: Phaser.Scene): void {
   const key = 'bg_sky';
   if (scene.textures.exists(key)) return;
+  // use the authored dusk sky if Preload loaded it (tiles/sky.png)
+  if (scene.textures.exists('sky_authored')) {
+    scene.textures.addImage(key, scene.textures.get('sky_authored').getSourceImage() as HTMLImageElement);
+    return;
+  }
   const ct = scene.textures.createCanvas(key, BASE_W, BASE_H);
   if (!ct) return;
   const ctx = ct.getContext();

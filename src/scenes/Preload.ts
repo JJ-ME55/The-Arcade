@@ -72,6 +72,7 @@ export class Preload extends Phaser.Scene {
     this.load.image('soil_tex', 'tiles/soil.png');
     this.load.image('rock_tex', 'tiles/rock.png');
     this.load.image('sky_authored', 'tiles/sky.png');
+    this.load.image('grass_tex', 'tiles/grass.png');
 
     this.load.on('loaderror', (file: Phaser.Loader.File) => {
       // non-fatal: procedural overlays / plain backgrounds stay as the fallback
@@ -81,11 +82,6 @@ export class Preload extends Phaser.Scene {
 
   create(): void {
     generateAllTextures(this);
-    // swap the procedural sky for the authored dusk sky (both menu + surface use `bg_sky`)
-    if (this.textures.exists('sky_authored')) {
-      if (this.textures.exists('bg_sky')) this.textures.remove('bg_sky');
-      this.textures.addImage('bg_sky', this.textures.get('sky_authored').getSourceImage() as HTMLImageElement);
-    }
     // overlay the authored mineral art on top of the procedural `ore_<id>` overlays
     for (const o of ORES) {
       const srcKey = 'src_ore_' + o.id;
