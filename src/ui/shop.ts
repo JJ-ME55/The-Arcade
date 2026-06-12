@@ -1,7 +1,7 @@
 /** The surface outpost menu: sell, refuel, repair, upgrades, consumables. */
 import Phaser from 'phaser';
 import { BASE_W, BASE_H, FUEL, HULL } from '../config/gameplay';
-import { COL, textStyle } from './theme';
+import { COL, textStyle, monoStyle } from './theme';
 import { Button } from './widgets';
 import { UPGRADES, nextTierCost, UPGRADE_BY_ID, type UpgradeCategory } from '../config/upgrades';
 import { ITEMS } from '../config/items';
@@ -29,7 +29,7 @@ export class SurfaceMenu {
   private sellBtn!: Button;
   private fuelBtn!: Button;
   private repairBtn!: Button;
-  private upRows: { id: UpgradeCategory; tierText: Phaser.GameObjects.Text; btn: Button }[] = [];
+  private upRows: { id: UpgradeCategory; tierText: Phaser.GameObjects.Text; btn: Button; thumb: Phaser.GameObjects.Image }[] = [];
   private itemRows: { id: string; ownText: Phaser.GameObjects.Text; btn: Button }[] = [];
 
   constructor(
@@ -88,23 +88,21 @@ export class SurfaceMenu {
     this.repairBtn = new Button(this.scene, BASE_W / 2 + 160, 132, 150, 44, '', () => this.doRepair(), { accent: COL.hull, fontSize: 15, fixed: true });
     this.root.add([this.sellBtn, this.fuelBtn, this.repairBtn]);
 
-    // upgrades
-    this.root.add(this.scene.add.text(px + 16, 168, 'UPGRADES', textStyle(14, COL.faint)).setLetterSpacing(2));
+    // upgrades — each row shows the authored sprite for the owned tier
+    this.root.add(this.scene.add.text(px + 16, 168, 'UPGRADES', monoStyle(14, COL.crt)).setLetterSpacing(2));
     let y = 196;
     for (const u of UPGRADES) {
-      const dot = this.scene.add.graphics();
-      dot.fillStyle(u.color, 1);
-      dot.fillCircle(px + 24, y + 14, 6);
-      const name = this.scene.add.text(px + 40, y, u.name, textStyle(16, COL.text));
-      const tier = this.scene.add.text(px + 40, y + 18, '', textStyle(12, COL.dim));
+      const thumb = this.scene.add.image(px + 34, y + 16, 'up_' + u.id + '_0');
+      const name = this.scene.add.text(px + 64, y, u.name, textStyle(16, COL.text));
+      const tier = this.scene.add.text(px + 64, y + 18, '', textStyle(12, COL.dim));
       const btn = new Button(this.scene, BASE_W - px - 78, y + 14, 128, 36, '', () => this.buyUpgrade(u.id), { fontSize: 14, fixed: true });
-      this.root.add([dot, name, tier, btn]);
-      this.upRows.push({ id: u.id, tierText: tier, btn });
-      y += 44;
+      this.root.add([thumb, name, tier, btn]);
+      this.upRows.push({ id: u.id, tierText: tier, btn, thumb });
+      y += 46;
     }
 
     // items
-    this.root.add(this.scene.add.text(px + 16, y + 6, 'CONSUMABLES', textStyle(14, COL.faint)).setLetterSpacing(2));
+    this.root.add(this.scene.add.text(px + 16, y + 6, 'CONSUMABLES', monoStyle(14, COL.crt)).setLetterSpacing(2));
     y += 32;
     for (const it of ITEMS) {
       const dot = this.scene.add.graphics();
@@ -234,6 +232,12 @@ export class SurfaceMenu {
       const def = UPGRADE_BY_ID[row.id];
       const cur = this.run.upgrades[row.id] ?? 0;
       const cost = nextTierCost(row.id, cur);
+      // swap the row's sprite to the owned tier (art runs 0..5)
+      const key = 'up_' + row.id + '_' + Math.min(cur, 5);
+      if (this.scene.textures.exists(key)) {
+        const src = this.scene.textures.get(key).getSourceImage() as { width: number; height: number };
+        row.thumb.setTexture(key).setScale(Math.min(44 / src.width, 38 / src.height));
+      }
       row.tierText.setText(`${def.tiers[cur].name}  ·  ${def.tiers[cur].value}${def.unit}`);
       if (cost === null) {
         row.btn.setLabel('MAX').setEnabled(false);
