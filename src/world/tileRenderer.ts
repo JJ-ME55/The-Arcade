@@ -98,7 +98,9 @@ export class TileRenderer {
   }
 
   private baseTexture(x: number, y: number, t: Terrain): string | null {
-    if (t === Terrain.Empty || t === Terrain.Sky) return null;
+    if (t === Terrain.Sky) return null;
+    // dug-out / cave space below the surface is a dark scooped recess, not a bright cut-out
+    if (t === Terrain.Empty) return y > SURFACE_ROW ? 'recess' : null;
     // boulder is a round sprite laid over a soil base (below) so its corners read as
     // earth, not a black square — the round rock itself is drawn on the overlay layer.
     if (t === Terrain.Boulder) {

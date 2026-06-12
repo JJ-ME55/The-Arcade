@@ -41,31 +41,61 @@ function tileFace(g: G, fill: number, edge: number, variant: number): void {
   let s = (variant * 9301 + 49297) % 233280;
   const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
 
-  // soft organic mottling — barely-there patches of lighter/darker earth
-  for (let i = 0; i < 4; i++) {
+  // soft mottling — large, low-contrast patches (keeps the band continuous, no per-tile read)
+  for (let i = 0; i < 3; i++) {
     const x = rnd() * TILE;
     const y = rnd() * TILE;
-    const r = 8 + rnd() * 12;
-    g.fillStyle(rnd() > 0.5 ? darken(fill, 0.9) : lighten(fill, 7), 0.09);
+    const r = 10 + rnd() * 16;
+    g.fillStyle(rnd() > 0.5 ? darken(fill, 0.84) : lighten(fill, 8), 0.1);
     g.fillCircle(x, y, r);
   }
 
-  // fine soil grains — the actual texture of dirt
-  const n = 18 + Math.floor(rnd() * 10);
+  // COARSE grit — dense hard specks (the gritty, pixelated photoreal earth, not toy-smooth).
+  // Modest contrast, drawn as integer rects so it reads coarse rather than airbrushed.
+  const n = 58 + Math.floor(rnd() * 16);
   for (let i = 0; i < n; i++) {
-    const x = rnd() * TILE;
-    const y = rnd() * TILE;
-    const r = 0.6 + rnd() * 1.3;
-    g.fillStyle(rnd() > 0.55 ? lighten(fill, 13) : darken(fill, 0.8), 0.3);
-    g.fillCircle(x, y, r);
+    const x = Math.floor(rnd() * TILE);
+    const y = Math.floor(rnd() * TILE);
+    const sz = 1 + Math.floor(rnd() * 2.3);
+    const v = rnd();
+    if (v < 0.5) g.fillStyle(darken(fill, 0.6), 0.24);
+    else if (v < 0.8) g.fillStyle(lighten(fill, 26), 0.09);
+    else g.fillStyle(darken(edge, 0.8), 0.26);
+    g.fillRect(x, y, sz, sz);
   }
 
-  // a few small embedded pebbles (edge-tinted)
-  const peb = Math.floor(rnd() * 3);
+  // embedded pebbles / rock chips (dark body + a single light glint) for realism
+  const peb = 1 + Math.floor(rnd() * 2);
   for (let i = 0; i < peb; i++) {
-    g.fillStyle(darken(edge, 0.85), 0.38);
-    g.fillCircle(4 + rnd() * (TILE - 8), 4 + rnd() * (TILE - 8), 2 + rnd() * 1.5);
+    const x = 4 + rnd() * (TILE - 8);
+    const y = 4 + rnd() * (TILE - 8);
+    const r = 1.6 + rnd() * 2.2;
+    g.fillStyle(darken(edge, 0.68), 0.85);
+    g.fillCircle(x, y, r);
+    g.fillStyle(lighten(fill, 44), 0.22);
+    g.fillCircle(x - r * 0.3, y - r * 0.34, r * 0.4);
   }
+}
+
+/**
+ * A dug-out / cave interior — a dark, warm scooped recess (NOT a bright tan cut-out). Uniform
+ * so a vertical tunnel of stacked empties reads as one continuous hole; the carved 3-D comes
+ * from the edge-relief on the surrounding solid walls + the pod lamp. (Target: `carve()`.)
+ */
+function genRecess(scene: Phaser.Scene): void {
+  const g = scene.make.graphics({ x: 0, y: 0 }, false);
+  g.fillStyle(0x1b1108, 1);
+  g.fillRect(0, 0, TILE, TILE);
+  g.fillStyle(0x000000, 0.28);
+  g.fillRect(0, 0, TILE, TILE);
+  let s = 9173;
+  const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+  for (let i = 0; i < 22; i++) {
+    g.fillStyle(rnd() > 0.5 ? 0x000000 : 0x3a2613, rnd() > 0.5 ? 0.3 : 0.12);
+    g.fillRect(Math.floor(rnd() * TILE), Math.floor(rnd() * TILE), 1, 1 + Math.floor(rnd() * 2));
+  }
+  g.generateTexture('recess', TILE, TILE);
+  g.destroy();
 }
 
 /**
@@ -620,6 +650,7 @@ function genLightMask(scene: Phaser.Scene): void {
 export function generateAllTextures(scene: Phaser.Scene): void {
   genTiles(scene);
   genStaticTiles(scene);
+  genRecess(scene);
   genEdgeShades(scene);
   genFlame(scene);
   genCaveParallax(scene);
