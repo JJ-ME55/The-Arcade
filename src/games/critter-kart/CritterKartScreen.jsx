@@ -46,14 +46,46 @@ if (typeof window !== 'undefined' && !window.__ckCrashTrap) {
     }
   } catch (_) { /* no storage */ }
   const record = (msg) => { try { sessionStorage.setItem('ck_lastCrash', String(msg).slice(0, 2000)); } catch (_) {} };
+  // REMOTE crash reporting — iPads/phones give us no console, so the report
+  // must reach the server. text/plain keeps it a CORS "simple request" (no
+  // preflight — sendBeacon can't do preflights); keepalive survives teardown.
+  const send = (kind, msg) => {
+    try {
+      const body = JSON.stringify({
+        kind,
+        msg: String(msg).slice(0, 2000),
+        stage: window.__ckStage || null,
+        rafAgoMs: window.__ckLastRaf ? Math.round(performance.now() - window.__ckLastRaf) : null,
+        ua: navigator.userAgent,
+        at: new Date().toISOString(),
+      });
+      const url = 'https://solshot.onrender.com/api/games/critter-kart/client-crash';
+      const beaconOk = navigator.sendBeacon && navigator.sendBeacon(url, new Blob([body], { type: 'text/plain' }));
+      if (!beaconOk) fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, keepalive: true }).catch(() => {});
+    } catch (_) { /* reporting must never throw */ }
+  };
+  window.__ckReportCrash = send; // GameCanvas uses this for webglcontextlost
   window.addEventListener('error', (e) => {
     record(`${e.message} @ ${e.filename}:${e.lineno}\n${e.error?.stack || ''}`);
+    send('error', `${e.message} @ ${e.filename}:${e.lineno}\n${e.error?.stack || ''}`);
     console.warn('[critter-kart/CRASH] ⚠', e.message, e.error?.stack || '');
   });
   window.addEventListener('unhandledrejection', (e) => {
     record(`unhandledrejection: ${e.reason?.message || e.reason}\n${e.reason?.stack || ''}`);
+    send('unhandledrejection', `${e.reason?.message || e.reason}\n${e.reason?.stack || ''}`);
     console.warn('[critter-kart/CRASH] ⚠ unhandledrejection:', e.reason);
   });
+  // rAF watchdog: a black-stuck screen with NO error event (silent context
+  // loss, rAF death) still phones home. Reports once per page life.
+  setInterval(() => {
+    const last = window.__ckLastRaf;
+    const stage = window.__ckStage;
+    if (!last || window.__ckRafStallSent) return;
+    if ((stage === 'countdown' || stage === 'racing') && performance.now() - last > 8000) {
+      window.__ckRafStallSent = true;
+      send('raf-stall', `render loop dead ${Math.round((performance.now() - last) / 1000)}s during ${stage}`);
+    }
+  }, 5000);
 }
 
 export function CritterKartScreen() {

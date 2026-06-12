@@ -135,6 +135,12 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     // by default for a clean console at launch — append ?debug to the URL to switch them back on.
     const DEBUG = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug');
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    // iPad/phone GPUs can drop the WebGL context under memory pressure — the
+    // canvas goes BLACK with no JS error. Report it remotely (no console on iOS).
+    renderer.domElement.addEventListener('webglcontextlost', (ev) => {
+      ev.preventDefault();
+      (window as any).__ckReportCrash?.('webglcontextlost', 'WebGL context lost (GPU memory pressure or driver reset)');
+    }, false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1)); // render at 1x — biggest fill-rate win on hi-DPI/integrated GPUs
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     if (PREMIUM_RENDER) {
@@ -521,11 +527,16 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     const fz = Math.cos(pose.heading);
     const ppx = Math.cos(pose.heading);
     const ppz = -Math.sin(pose.heading);
-    // 6-kart starting grid: two staggered rows of three (lat across the road, fwd back from
-    // the line). Player takes the front-left slot.
+    // 6-kart starting grid: REAL-RACE formation (Fish 2026-06-12 — the old
+    // 3-wide rows were so bunched the start was a scramble). Two columns,
+    // three rows, right column staggered half a row back, everyone BEHIND the
+    // line. 10u between columns / 7u between rows = clean air at lights-out.
+    // MUST equal the server's clientStartGrid layout exactly (trackFeatures.js)
+    // or karts diverge from frame one.
     const grid = [
-      { lat: -7, fwd: 6 }, { lat: 0, fwd: 6 }, { lat: 7, fwd: 6 },
-      { lat: -7, fwd: 0 }, { lat: 0, fwd: 0 }, { lat: 7, fwd: 0 },
+      { lat: -5, fwd: 0 },   { lat: 5, fwd: -3.5 },
+      { lat: -5, fwd: -7 },  { lat: 5, fwd: -10.5 },
+      { lat: -5, fwd: -14 }, { lat: 5, fwd: -17.5 },
     ];
     states = grid.map(({ lat, fwd }) => ({
       x: pose.x + fx * fwd + ppx * lat, z: pose.z + fz * fwd + ppz * lat,
@@ -699,6 +710,10 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     let raf = 0;
     let perfT = 0, perfN = 0; // FPS sampling
     const loop = (now: number) => {
+      // crash-reporting breadcrumbs: heartbeat + stage (read by the watchdog
+      // + crash reports in CritterKartScreen — tells us WHERE a device died)
+      (window as any).__ckLastRaf = performance.now();
+      (window as any).__ckStage = phaseLocal === 'countdown' ? 'countdown' : phaseLocal === 'racing' ? 'racing' : 'finished';
       let frame = (now - last) / 1000;
       last = now;
       if (frame > 0.25) frame = 0.25;
