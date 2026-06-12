@@ -170,11 +170,12 @@ export function useMultiplayerSync() {
           telegramUserId,
         });
       },
-      sendInput(frame: { steer: number; throttle: number; brake: number; drift: boolean; seq?: number }) {
+      sendInput(frame: { steer: number; throttle: number; brake: number; drift: boolean; seq?: number; t?: number }) {
         ctx.net.sendInput({
           raceId: ctx.roomId,
           kartId: ctx.selfKartId,
           seq: frame.seq,   // reconciliation: matches the snapshot's ackSeq
+          t: frame.t,       // race-clock ms — server input timeline + rewind (lag comp)
           steer: frame.steer,
           throttle: frame.throttle,
           brake: frame.brake,

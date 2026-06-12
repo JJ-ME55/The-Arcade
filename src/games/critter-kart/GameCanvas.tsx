@@ -485,7 +485,10 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     // Visual smoothing of reconciliation corrections: physics corrections are
     // absorbed into this decaying render-only offset instead of appearing as
     // 30Hz micro-jumps ("glitching every millisecond").
-    let mpSmoothX = 0, mpSmoothZ = 0, mpSmoothH = 0;
+    let mpSmoothX = 0, mpSmoothZ = 0, mpSmoothH = 0, mpSmoothY = 0;
+    // Correction telemetry — the REAL smoothness metric: how often and how far
+    // the reconciler actually moved the kart (deadband makes steady-state = 0).
+    let mpCorrCount = 0, mpCorrMax = 0;
     let throttleDownSince: number | null = null; // when the player first held throttle during the countdown
     let rocketResolved = false; // rocket-start bonus applied at GO (once)
     let lastHud = '';
@@ -798,6 +801,11 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
             const seq = ++mpSeq;
             mp.sendInput({
               seq,
+              // Race-clock timestamp (ms since GO, lockedStartAtMs axis). The
+              // server self-calibrates the constant clock/transport offset and
+              // uses this to schedule the input on its sim timeline — and to
+              // REWIND-REPLAY when a stall delivers inputs late (lag comp).
+              t: Math.round(elapsed * 1000),
               steer: racing ? raw.steer : 0,
               // Throttle is sent UNGATED so the server can see the countdown
               // throttle-hold and award the rocket start authoritatively (the
@@ -901,7 +909,12 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
               const trueDrift = refPt ? Math.hypot(selfSnap.x - refPt.x, selfSnap.z - refPt.z) : 0;
               if (!(window as any).__ckDriftAt || performance.now() - (window as any).__ckDriftAt > 3000) {
                 (window as any).__ckDriftAt = performance.now();
-                console.warn(`[critter-kart/sync] drift residual: ${trueDrift.toFixed(1)}u (pending ${mpPending.length})`);
+                // corrections = times the reconciler actually MOVED the kart
+                // (deadband target: 0/window in steady state). The old "drift
+                // residual" floored to the previous trail frame and read up to
+                // one tick of travel (~0.9u) even when perfectly converged.
+                console.warn(`[critter-kart/sync] corrections: ${mpCorrCount} (max ${mpCorrMax.toFixed(1)}u) | drift ${trueDrift.toFixed(1)}u | pending ${mpPending.length}`);
+                mpCorrCount = 0; mpCorrMax = 0;
               }
               // TEXTBOOK RECONCILIATION (Gambetta; validated 14/14 in harness
               // run 4): on each NEW snapshot, ADOPT the server's authoritative
@@ -912,8 +925,22 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
               const tick = (snap as any).tick;
               if (typeof tick === 'number' && tick !== mpLastReconTick) {
                 mpLastReconTick = tick;
-                const preX = states[PLAYER].x, preZ = states[PLAYER].z, preH = states[PLAYER].heading, preY = states[PLAYER].y ?? 0;
-                states[PLAYER] = {
+                // Server seq reset (reconnect/reclaim) makes ackSeq jump backwards —
+                // our whole buffer is then unacked-but-stale: clear it.
+                if ((selfSnap.ackSeq ?? 0) + 500 < mpSeq && mpPending.length > 30) mpPending.length = 0;
+                mpPending = mpPending.filter((p) => p.seq > (selfSnap.ackSeq ?? 0));
+                // STUNNED: the server ignores our inputs — replaying them is
+                // fiction, and if acks stall during the stun the buffer explodes
+                // into 60+ physics steps per snapshot (the bee-hit "lag wall").
+                const stunned = (selfSnap.stunTimer ?? 0) > 0;
+                if (stunned) mpPending.length = 0;
+                // Beyond ~0.5s of unacked inputs the replay is wrong anyway and
+                // each entry costs a wall-scan per tick — hard-cap the work.
+                if (mpPending.length > 16) mpPending.splice(0, mpPending.length - 16);
+                // Build the CANDIDATE: adopt the server's authoritative state,
+                // replay unacked inputs (seq > ackSeq) through the same
+                // deterministic physics + world pipeline (Gambetta).
+                let cand: any = {
                   ...states[PLAYER],
                   x: selfSnap.x, z: selfSnap.z,
                   y: selfSnap.y ?? 0, vy: selfSnap.vy ?? 0,
@@ -928,60 +955,76 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                   slowTimer: selfSnap.slowTimer ?? 0,
                   shield: !!selfSnap.shield,
                 };
-                // Server seq reset (reconnect/reclaim) makes ackSeq jump backwards —
-                // our whole buffer is then unacked-but-stale: clear it.
-                if ((selfSnap.ackSeq ?? 0) + 500 < mpSeq && mpPending.length > 30) mpPending.length = 0;
-                mpPending = mpPending.filter((p) => p.seq > (selfSnap.ackSeq ?? 0));
-                // STUNNED: the server ignores our inputs — replaying them is
-                // fiction, and if acks stall during the stun the buffer explodes
-                // into 60+ physics steps per snapshot (the bee-hit "lag wall").
-                if ((selfSnap.stunTimer ?? 0) > 0) mpPending.length = 0;
-                // Beyond ~0.5s of unacked inputs the replay is wrong anyway and
-                // each entry costs a wall-scan per tick — hard-cap the work.
-                if (mpPending.length > 16) mpPending.splice(0, mpPending.length - 16);
                 for (const p of mpPending) {
                   const reps = (p as any).ticks ?? 2; // ?? not ||: a genuine 0 means "not yet simulated locally — do not replay"
                   for (let k = 0; k < reps; k++) {   // replay the ACTUAL sim ticks this input drove
-                    states[PLAYER] = stepKart(states[PLAYER], {
+                    cand = stepKart(cand, {
                       throttle: p.throttle, steer: p.steer, brake: p.brake, drift: p.drift,
-                      onTrack: track.isOnTrack(states[PLAYER].x, states[PLAYER].z),
-                      offRoad: offRoadAt(states[PLAYER].x, states[PLAYER].z),
+                      onTrack: track.isOnTrack(cand.x, cand.z),
+                      offRoad: offRoadAt(cand.x, cand.z),
                     }, TUNING, FIXED);
                     // REPLAY WORLD (Fish's "pulled back over the jump / invisible
                     // wall" report): bare-physics replay dragged the kart flat
                     // through the water gap (→ false splash + respawn) and inside
                     // wall geometry. Replay must run the same world pipeline as
                     // the local substep: walls + ramp ride/launch + arch pin.
-                    const rb = resolveBarriers(states[PLAYER], barriers, KART_RADIUS, TUNING);
-                    if (rb) states[PLAYER] = { ...states[PLAYER], ...rb };
-                    const pr = track.nearest(states[PLAYER].x, states[PLAYER].z).progress;
+                    const rb = resolveBarriers(cand, barriers, KART_RADIUS, TUNING);
+                    if (rb) cand = { ...cand, ...rb };
+                    const pr = track.nearest(cand.x, cand.z).progress;
                     const az = track.archBridgeZone;
                     if (az && pr >= az.startProgress && pr <= az.endProgress) {
-                      states[PLAYER] = { ...states[PLAYER], y: archHeightAt((pr - az.startProgress) / ((az.endProgress - az.startProgress) || 1)), vy: 0, falling: false };
+                      cand = { ...cand, y: archHeightAt((pr - az.startProgress) / ((az.endProgress - az.startProgress) || 1)), vy: 0, falling: false };
                     }
                     const rampY = structures.rampSurfaceY(pr);
-                    if (rampY !== null && !states[PLAYER].respawnAt && !states[PLAYER].falling) {
-                      states[PLAYER] = pr >= structures.rampPeakProgress
-                        ? { ...states[PLAYER], y: rampY, vy: TUNING.jumpLaunch, falling: true }
-                        : { ...states[PLAYER], y: rampY, vy: 0, falling: false };
+                    if (rampY !== null && !cand.respawnAt && !cand.falling) {
+                      cand = pr >= structures.rampPeakProgress
+                        ? { ...cand, y: rampY, vy: TUNING.jumpLaunch, falling: true }
+                        : { ...cand, y: rampY, vy: 0, falling: false };
                     }
                   }
                 }
-                // Absorb the FULL correction (x, z, heading) into the render-only
-                // offset AND shift prevStates by the same delta — otherwise the
-                // prev→cur render lerp painted (1−alpha)·correction REVERSED for
-                // one frame, 30x/sec: the micro-judder.
-                const cdx = states[PLAYER].x - preX, cdz = states[PLAYER].z - preZ;
-                const cdy = (states[PLAYER].y ?? 0) - preY;
-                let cdh = states[PLAYER].heading - preH;
+                // DEADBAND (the "zero perceptible correction" rule): if the
+                // prediction agrees with the server within tolerance, DO NOT
+                // touch the kart at all — adopting 30x/sec turned sub-kart-width
+                // noise into permanent micro-jitter. Server truth still bounds
+                // us: any real divergence crosses the threshold and corrects.
+                const cur = states[PLAYER];
+                const cdx = cand.x - cur.x, cdz = cand.z - cur.z;
+                const cdy = (cand.y ?? 0) - (cur.y ?? 0);
+                let cdh = cand.heading - cur.heading;
                 while (cdh > Math.PI) cdh -= 2 * Math.PI;
                 while (cdh < -Math.PI) cdh += 2 * Math.PI;
-                mpSmoothX -= cdx; mpSmoothZ -= cdz; mpSmoothH -= cdh;
-                const pv = prevStates[PLAYER];
-                if (pv) prevStates[PLAYER] = { ...pv, x: pv.x + cdx, z: pv.z + cdz, y: (pv.y ?? 0) + cdy, heading: pv.heading + cdh };
-                const sm = Math.hypot(mpSmoothX, mpSmoothZ);
-                if (sm > 30) { mpSmoothX *= 30 / sm; mpSmoothZ *= 30 / sm; } // beyond 30u = genuine teleport, allowed to show
-                if (Math.abs(mpSmoothH) > 1.2) mpSmoothH *= 1.2 / Math.abs(mpSmoothH);
+                const dpos = Math.hypot(cdx, cdz);
+                const dspeed = Math.abs((cand.speed ?? 0) - (cur.speed ?? 0));
+                const forced = stunned ||
+                  !!cand.shield !== !!cur.shield ||
+                  (cand.slowTimer ?? 0) > (cur.slowTimer ?? 0) + 0.2;
+                if (forced || dpos > 0.9 || Math.abs(cdh) > 0.06 || Math.abs(cdy) > 0.6 || dspeed > 3) {
+                  states[PLAYER] = cand;
+                  mpCorrCount++; if (dpos > mpCorrMax) mpCorrMax = dpos;
+                  // Absorb the FULL correction (x, z, y, heading) into the
+                  // render-only offset AND shift prevStates by the same delta —
+                  // otherwise the prev→cur render lerp painted
+                  // (1−alpha)·correction REVERSED for one frame: micro-judder.
+                  mpSmoothX -= cdx; mpSmoothZ -= cdz; mpSmoothH -= cdh; mpSmoothY -= cdy;
+                  const pv = prevStates[PLAYER];
+                  if (pv) prevStates[PLAYER] = { ...pv, x: pv.x + cdx, z: pv.z + cdz, y: (pv.y ?? 0) + cdy, heading: pv.heading + cdh };
+                  const sm = Math.hypot(mpSmoothX, mpSmoothZ);
+                  if (sm > 30) { mpSmoothX *= 30 / sm; mpSmoothZ *= 30 / sm; } // beyond 30u = genuine teleport, allowed to show
+                  if (Math.abs(mpSmoothH) > 1.2) mpSmoothH *= 1.2 / Math.abs(mpSmoothH);
+                  if (Math.abs(mpSmoothY) > 6) mpSmoothY *= 6 / Math.abs(mpSmoothY);
+                } else {
+                  // Within tolerance: keep the locally-predicted pose untouched
+                  // (zero visual disturbance), but still take the server's
+                  // EFFECT timers so item state can never desync.
+                  states[PLAYER] = {
+                    ...cur,
+                    boostTimer: Math.max(cur.boostTimer ?? 0, cand.boostTimer ?? 0),
+                    stunTimer: cand.stunTimer ?? 0,
+                    slowTimer: cand.slowTimer ?? 0,
+                    shield: !!cand.shield,
+                  };
+                }
               }
             }
           }
@@ -1295,7 +1338,26 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       // the current state instead of sliding the kart across the map. Used by the kart meshes AND
       // everything attached to them (shield rings, storm clouds, lightning) so they never separate.
       // decay the reconciliation smoothing offset (render-only, ~15%/frame)
-      { const dk = Math.pow(0.92, frame * 60); mpSmoothX *= dk; mpSmoothZ *= dk; mpSmoothH *= dk; }
+      {
+        // RATE-LIMITED correction absorption. Pure exponential decay moved big
+        // offsets fast (visible jolt on the first frames); a fixed rate dragged
+        // small ones forever. Blend: proportional (≈exponential, τ≈0.67s) with
+        // a floor so the tail finishes. A 0.9u correction slides at ~1.4u/s —
+        // 2.5% of driving speed, imperceptible; a 10u one at 15u/s, a smooth
+        // glide instead of a yank.
+        const sm = Math.hypot(mpSmoothX, mpSmoothZ);
+        if (sm > 1e-3) {
+          const step = Math.min(sm, Math.max(0.8, sm * 1.5) * frame);
+          const f = (sm - step) / sm;
+          mpSmoothX *= f; mpSmoothZ *= f;
+        } else { mpSmoothX = 0; mpSmoothZ = 0; }
+        const ah = Math.abs(mpSmoothH);
+        if (ah > 1e-4) mpSmoothH *= Math.max(0, (ah - Math.min(ah, Math.max(0.2, ah * 1.5) * frame)) / ah);
+        else mpSmoothH = 0;
+        const ay = Math.abs(mpSmoothY);
+        if (ay > 1e-3) mpSmoothY *= Math.max(0, (ay - Math.min(ay, Math.max(1.2, ay * 2) * frame)) / ay);
+        else mpSmoothY = 0;
+      }
       const renderPose = (i: number): KartState => {
         const cur = states[i], prev = prevStates[i] ?? cur;
         if (Math.hypot(cur.x - prev.x, cur.z - prev.z) > 8) return cur; // teleport → snap
@@ -1308,7 +1370,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         };
         // local player in MP: render through the decaying correction offset so
         // 30Hz reconciliation never reads as micro-jumps
-        if (mp && i === PLAYER) { pose.x += mpSmoothX; pose.z += mpSmoothZ; pose.heading += mpSmoothH; }
+        if (mp && i === PLAYER) { pose.x += mpSmoothX; pose.z += mpSmoothZ; pose.heading += mpSmoothH; pose.y = Math.max(0, (pose.y ?? 0) + mpSmoothY); }
         return pose;
       };
 
