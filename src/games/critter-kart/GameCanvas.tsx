@@ -488,7 +488,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     // Reconciliation state (validated 14/14 by the headless harness, run 4:
     // drift collapsed 300-540u → ~6u median). pending = inputs sent but not
     // yet acked by the server (snapshot ackSeq); replayed after each adopt.
-    let mpSeq = 0, mpLastSentAt = 0, mpLastReconTick = -1;
+    let mpSeq = 0, mpLastSentAt = 0, mpLastReconTick = -1, mpLastReconAt = 0;
     let mpPending: { seq: number; throttle: number; steer: number; brake: number; drift: boolean }[] = [];
     // Visual smoothing of reconciliation corrections: physics corrections are
     // absorbed into this decaying render-only offset instead of appearing as
@@ -961,7 +961,15 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
               // physics. The local kart stays converged to the server — no
               // pulls, no teleports, balloons/items land where you are.
               const tick = (snap as any).tick;
-              if (typeof tick === 'number' && tick !== mpLastReconTick) {
+              // Reconcile on a 100ms CADENCE, not per-snapshot. At 60Hz
+              // snapshots over a long/jittery round trip, the candidate is a
+              // NOISY estimate — probing it 60x/sec turned that noise into a
+              // commit storm (Fish's race with pending 22-27 ≈ 400ms RTT).
+              // 10Hz reconciliation is the textbook rate; the deadband and the
+              // absorber do the rest.
+              if (typeof tick === 'number' && tick !== mpLastReconTick &&
+                  performance.now() - mpLastReconAt >= 100) {
+                mpLastReconAt = performance.now();
                 mpLastReconTick = tick;
                 // Server seq reset (reconnect/reclaim) makes ackSeq jump backwards —
                 // our whole buffer is then unacked-but-stale: clear it.
@@ -988,6 +996,8 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                   heading: selfSnap.heading, velHeading: selfSnap.velHeading,
                   speed: selfSnap.speed,
                   driftDir: selfSnap.driftDir ?? 0,
+                  driftCharge: (selfSnap as any).dc ?? states[PLAYER].driftCharge ?? 0,
+                  recoverTimer: (selfSnap as any).rt ?? states[PLAYER].recoverTimer ?? 0,
                   boostTimer: selfSnap.boostTimer ?? 0,
                   stunTimer: selfSnap.stunTimer ?? 0,
                   slowTimer: selfSnap.slowTimer ?? 0,
@@ -1046,7 +1056,11 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                 const forced = stunned ||
                   !!cand.shield !== !!cur.shield ||
                   (cand.slowTimer ?? 0) > (cur.slowTimer ?? 0) + 0.2;
-                if (forced || dpos > 0.9 || Math.abs(cdh) > 0.06 || Math.abs(cdy) > 0.6 || dspeed > 3) {
+                // Tolerances sized for a long-RTT link: the candidate's own
+                // noise grows with the replay window, and committing on noise
+                // IS the jitter. 1.6u is still well inside a kart length; real
+                // divergence (wall clip, item hit) blows past these instantly.
+                if (forced || dpos > 1.6 || Math.abs(cdh) > 0.1 || Math.abs(cdy) > 0.6 || dspeed > 4) {
                   states[PLAYER] = cand;
                   mpCorrCount++; if (dpos > mpCorrMax) mpCorrMax = dpos;
                   // Absorb the FULL correction (x, z, y, heading) into the
