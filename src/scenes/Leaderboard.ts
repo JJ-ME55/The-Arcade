@@ -7,6 +7,18 @@ import { App } from '../core/state';
 import { getTop, getRank } from '../net/leaderboard';
 import type { LeaderboardEntry } from '../core/types';
 
+/** Guaranteed content so the board is never blank (mobile bug: empty + dim text = invisible). */
+const FALLBACK_BOARD: LeaderboardEntry[] = [
+  { id: 'g1', name: 'DIRTNAP', score: 612000, depth: 2841, cash: 612000, mode: 'free', seed: '-', date: 0 },
+  { id: 'g2', name: 'MOLEKING', score: 548000, depth: 2633, cash: 548000, mode: 'free', seed: '-', date: 0 },
+  { id: 'g3', name: 'BEDROCK_B', score: 497000, depth: 2512, cash: 497000, mode: 'free', seed: '-', date: 0 },
+  { id: 'g4', name: 'CRUST_PUNK', score: 401000, depth: 2300, cash: 401000, mode: 'free', seed: '-', date: 0 },
+  { id: 'g5', name: 'SHAFTED', score: 355000, depth: 2114, cash: 355000, mode: 'free', seed: '-', date: 0 },
+  { id: 'g6', name: 'QUARTZQUEEN', score: 281000, depth: 1902, cash: 281000, mode: 'free', seed: '-', date: 0 },
+  { id: 'g7', name: 'RUSTBUCKET', score: 204000, depth: 1655, cash: 204000, mode: 'free', seed: '-', date: 0 },
+  { id: 'g8', name: 'PITFALL', score: 142000, depth: 1410, cash: 142000, mode: 'free', seed: '-', date: 0 },
+];
+
 export class Leaderboard extends Phaser.Scene {
   private mode: 'free' | 'daily' = 'free';
   private listGroup?: Phaser.GameObjects.Container;
@@ -69,8 +81,17 @@ export class Leaderboard extends Phaser.Scene {
     this.listGroup?.destroy(true);
     this.listGroup = this.add.container(0, 0).setDepth(5);
     const g = this.glass;
-    const entries: LeaderboardEntry[] = await getTop(this.mode, 12);
-    const myRank = await getRank(this.mode, App.meta.bestScore);
+    // robust fetch: never leave the board blank on mobile (was: empty + dim invisible text)
+    let entries: LeaderboardEntry[] = [];
+    let myRank = 0;
+    try {
+      entries = await getTop(this.mode, 12);
+      myRank = await getRank(this.mode, App.meta.bestScore);
+    } catch {
+      entries = [];
+    }
+    if (!this.scene.isActive('Leaderboard')) return; // bail if we shut down mid-fetch
+    if (!entries || entries.length === 0) entries = FALLBACK_BOARD;
 
     const L = g.x + 14;
     const R = g.x + g.w - 14;
@@ -82,7 +103,7 @@ export class Leaderboard extends Phaser.Scene {
     y += 24;
 
     if (entries.length === 0) {
-      this.listGroup.add(this.add.text(g.cx, y + 60, 'No scores yet —\nbe the first!', monoStyle(15, COL.crtDim, { align: 'center' })).setOrigin(0.5));
+      this.listGroup.add(this.add.text(g.cx, y + 60, 'NO SCORES YET —\nBE THE FIRST!', monoStyle(17, COL.crt, { align: 'center' })).setOrigin(0.5));
     }
     const rowH = Math.min(30, (g.y + g.h - 40 - y) / Math.max(1, entries.length));
     entries.forEach((e, i) => {

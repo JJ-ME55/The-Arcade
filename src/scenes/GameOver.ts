@@ -49,8 +49,8 @@ export class GameOver extends Phaser.Scene {
 
     // ---- CGI plaque; the run summary reads on its green CRT screen ----
     const glass =
-      placeShell(this, 'shell_gameover', cx, 322, 760, [0.21, 0.22, 0.21, 0.26]) ??
-      { x: cx - 220, y: 150, w: 440, h: 320, cx, cy: 310 };
+      placeShell(this, 'shell_gameover', cx, 346, 800, [0.21, 0.22, 0.21, 0.26]) ??
+      { x: cx - 220, y: 150, w: 440, h: 340, cx, cy: 320 };
     if (!this.textures.exists('shell_gameover')) {
       makePanel(this, glass.x - 14, glass.y - 14, glass.w + 28, glass.h + 28, { border: COL.brand });
     }
@@ -93,8 +93,9 @@ export class GameOver extends Phaser.Scene {
       y += rowH;
     }
 
-    // ---- below the plaque: rewards + rank ----
-    let by = 600;
+    // ---- below the plaque: rewards + rank (framed so the lower half reads intentional) ----
+    makePanel(this, cx - 228, 624, 456, 296, { alpha: 0.5 });
+    let by = 638;
     const rankText = this.add.text(cx, by, 'ranking…', textStyle(16, COL.brand)).setOrigin(0.5);
     by += 28;
     const bits: string[] = [`◈ ${coresEarned} cores`];
@@ -127,15 +128,15 @@ export class GameOver extends Phaser.Scene {
     const entry = makeEntry(App.meta.playerName, score.total, run.depthMax, run.cashBanked, run.mode, run.seed);
     submitScore(entry).then((rank) => rankText.setText(`RANK #${rank} · ${run.mode.toUpperCase()}`));
 
-    // buttons
-    new Button(this, cx, BASE_H - 150, 360, 58, '▶  PLAY AGAIN', () => this.again(false), {
+    // buttons (tightened so there's no dead band above them)
+    new Button(this, cx, BASE_H - 192, 360, 58, '▶  PLAY AGAIN', () => this.again(false), {
       fill: COL.brand,
       textColor: 0x1a1400,
       fontSize: 24,
     });
-    new Button(this, cx - 92, BASE_H - 82, 176, 50, 'RETRY SEED', () => this.again(true), { fontSize: 16 });
-    new Button(this, cx + 92, BASE_H - 82, 176, 50, 'MAIN MENU', () => this.scene.start('MainMenu'), { fontSize: 16 });
-    this.add.text(cx, BASE_H - 38, 'R — instant retry  ·  ENTER — same seed', monoStyle(11, COL.faint)).setOrigin(0.5);
+    new Button(this, cx - 92, BASE_H - 124, 176, 50, 'RETRY SEED', () => this.again(true), { fontSize: 16 });
+    new Button(this, cx + 92, BASE_H - 124, 176, 50, 'MAIN MENU', () => this.scene.start('MainMenu'), { fontSize: 16 });
+    this.add.text(cx, BASE_H - 84, 'R — instant retry  ·  ENTER — same seed', monoStyle(11, COL.faint)).setOrigin(0.5);
 
     // zero-friction restart: R = new run, ENTER = same seed
     this.input.keyboard?.once('keydown-R', () => this.again(false));
