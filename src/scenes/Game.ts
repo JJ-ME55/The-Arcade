@@ -10,7 +10,7 @@ import { BoulderSystem } from '../world/hazards';
 import { Pod, type PodInput } from '../entities/pod';
 import { Hud } from '../ui/hud';
 import { TouchControls } from '../ui/touch';
-import { SurfaceMenu } from '../ui/shop';
+import { SurfaceMenu, type ShopMode } from '../ui/shop';
 import { Fx } from '../systems/fx';
 import { Darkness, type GlintPoint } from '../systems/darkness';
 import { Sound } from '../systems/audio';
@@ -64,8 +64,9 @@ export class GameScene extends Phaser.Scene {
   private lastBiomeBanner = -1;
   private coreReached = false;
   private commsRoot?: Phaser.GameObjects.Container;
-  private outpostBtn?: Button;
-  private outpostHint?: Phaser.GameObjects.Text;
+  // surface shop stations (drive onto one → its shop auto-opens; no ENTER button)
+  private stations: { mode: ShopMode; x0: number; x1: number; cx: number }[] = [];
+  private shoppedStation: ShopMode | null = null;
   private parallax!: Phaser.GameObjects.TileSprite;
   private glowBuf: GlowCell[] = [];
   private glintBuf: GlintPoint[] = [];
@@ -151,25 +152,11 @@ export class GameScene extends Phaser.Scene {
     this.hud = new Hud(this, () => this.togglePause());
     this.touch = new TouchControls(this, 70);
     this.menu = new SurfaceMenu(this, this.run, () => this.stats, () => this.recompute(), this.fx, () => {
-      this.surfaceArmed = false;
+      // pod is still standing in the station it just used — keep it suppressed until it moves off
       App.saveNow();
     });
 
     this.buildItemBar();
-
-    // Surface outpost prompt — always available when you're on the surface, so it's
-    // obvious how to sell / refuel / repair / upgrade (not just after a dive).
-    this.outpostBtn = new Button(this, this.scale.width / 2, 134, 264, 50, '⌂  ENTER OUTPOST', () => {
-      if (!this.menu.isOpen) this.openOutpost();
-    }, { fill: COL.brand, border: COL.brand, textColor: 0x1a1400, fontSize: 20, fixed: true });
-    this.outpostBtn.setScrollFactor(0).setDepth(1450).setVisible(false);
-    this.outpostHint = this.add
-      .text(this.scale.width / 2, 168, 'sell · refuel · repair · upgrade', textStyle(13, COL.dim))
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(1450)
-      .setVisible(false);
-    this.tweens.add({ targets: this.outpostBtn, scaleX: 1.04, scaleY: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
     // camera
     const cam = this.cameras.main;
@@ -276,22 +263,73 @@ export class GameScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(8);
     const groundY = SURFACE_ROW * TILE;
     const startCol = Math.floor(WORLD_WIDTH / 2);
-    const building = (cx: number, w: number, h: number, color: number, label: string) => {
-      const x = cx * TILE - w / 2;
+    this.stations = [];
+
+    // a warm-industrial station structure (body + bevelled roof + lit doorway + gold sign)
+    const station = (col: number, mode: ShopMode, label: string, accent: number, big = false) => {
+      const bx = col * TILE;
+      const w = big ? 88 : 72;
+      const h = big ? 104 : 86;
+      const x = bx - w / 2;
+      const top = groundY - h;
+
+      // concrete apron
+      g.fillStyle(0x2b2620, 1);
+      g.fillRect(x - 8, groundY - 6, w + 16, 8);
       g.fillStyle(0x000000, 0.3);
-      g.fillRect(x + 3, groundY - h + 3, w, h);
-      g.fillStyle(color, 1);
-      g.fillRect(x, groundY - h, w, h);
-      g.fillStyle(0xffffff, 0.12);
-      g.fillRect(x, groundY - h, w, 6);
-      this.add
-        .text(cx * TILE, groundY - h - 12, label, textStyle(11, COL.dim))
-        .setOrigin(0.5)
-        .setDepth(8);
+      g.fillRect(x - 8, groundY, w + 16, 3);
+
+      // body — lit upper, shadowed lower
+      g.fillStyle(0x000000, 0.35);
+      g.fillRect(x + 4, top + 6, w, h);
+      g.fillStyle(0x42392b, 1);
+      g.fillRect(x, top, w, h);
+      g.fillStyle(0x4f4534, 1);
+      g.fillRect(x, top, w, Math.round(h * 0.42));
+      g.fillStyle(0x2a241b, 1);
+      g.fillRect(x, top + Math.round(h * 0.7), w, Math.round(h * 0.3));
+
+      // bevelled roof + eave shadow
+      g.fillStyle(0x574c39, 1);
+      g.beginPath();
+      g.moveTo(x - 6, top + 2);
+      g.lineTo(bx, top - 16);
+      g.lineTo(x + w + 6, top + 2);
+      g.closePath();
+      g.fillPath();
+      g.fillStyle(0x2a241b, 1);
+      g.fillRect(x - 6, top, w + 12, 4);
+
+      // sign plate + gold label
+      g.fillStyle(0x14110b, 1);
+      g.fillRoundedRect(x + 6, top + 10, w - 12, 20, 4);
+      g.lineStyle(1.5, accent, 0.85);
+      g.strokeRoundedRect(x + 6, top + 10, w - 12, 20, 4);
+      this.add.text(bx, top + 20, label, textStyle(big ? 12 : 11, COL.brand)).setOrigin(0.5).setDepth(9);
+
+      // lit doorway (dark recess + warm accent glow spilling out)
+      const dw = big ? 30 : 24;
+      g.fillStyle(accent, 0.16);
+      g.fillRect(bx - dw / 2 - 4, groundY - Math.round(h * 0.5), dw + 8, Math.round(h * 0.5));
+      g.fillStyle(0x07050a, 1);
+      g.fillRect(bx - dw / 2, groundY - Math.round(h * 0.46), dw, Math.round(h * 0.46));
+      g.fillStyle(accent, 0.5);
+      g.fillRect(bx - dw / 2 + 3, groundY - Math.round(h * 0.46) + 3, dw - 6, 5);
+
+      // lit windows + side pipe
+      g.fillStyle(0xffd98a, 0.55);
+      g.fillRect(x + 8, top + 42, 9, 9);
+      g.fillRect(x + w - 17, top + 42, 9, 9);
+      g.lineStyle(3, 0x4a4236, 1);
+      g.lineBetween(x + w - 3, top + 24, x + w - 3, groundY - 2);
+
+      this.stations.push({ mode, x0: bx - w / 2 - 8, x1: bx + w / 2 + 8, cx: bx });
     };
-    building(startCol - 4, 56, 64, 0x3a5f4a, 'FUEL');
-    building(startCol + 0.5, 70, 80, 0x4a3f6a, 'OUTPOST');
-    building(startCol + 5, 56, 58, 0x5a4a3a, 'PROCESSOR');
+
+    station(startCol - 4.5, 'fuel', 'FUEL', COL.fuel, false);
+    station(startCol + 0.5, 'auto', 'OUTPOST', COL.brand, true);
+    station(startCol + 5.5, 'proc', 'PROCESSOR', COL.cargo, false);
+
     // horizon line
     g.fillStyle(0x000000, 0.25);
     g.fillRect(0, groundY - 2, WORLD_WIDTH * TILE, 4);
@@ -401,18 +439,18 @@ export class GameScene extends Phaser.Scene {
     this.tiles.update();
     this.updateBackground(dt);
 
-    // surface / outpost
+    // surface stations: once you've dived, driving onto a station auto-opens its shop.
     const depth = this.world.depthMeters(Math.floor(this.pod.py / TILE));
     if (depth > 12) this.surfaceArmed = true;
-    // open the outpost the moment you crest back to the surface (you fly up your own
-    // shaft into open sky, so don't require landing on solid ground)
-    if (this.surfaceArmed && depth <= 0 && this.pod.vy > -40) {
-      this.openOutpost();
+    if (!this.menu.isOpen && this.surfaceArmed && this.pod.onGround && depth <= 2) {
+      const st = this.stationAt(this.pod.px);
+      if (st && st.mode !== this.shoppedStation) {
+        this.shoppedStation = st.mode; // suppress re-open until the pod leaves this station
+        this.openStation(st.mode);
+      } else if (!st) {
+        this.shoppedStation = null; // left all stations — re-armable
+      }
     }
-    // show the manual OUTPOST prompt whenever resting on the surface
-    const atSurface = depth <= 0 && this.pod.onGround && !this.menu.isOpen;
-    this.outpostBtn?.setVisible(atSurface);
-    this.outpostHint?.setVisible(atSurface);
 
     // HUD
     const haul = cargoValue(this.run, this.stats.sellMul);
@@ -946,11 +984,14 @@ export class GameScene extends Phaser.Scene {
     void saveRun(this.run, this.pod.px, this.pod.py, this.activeSeason?.id ?? null);
   }
 
-  // ---- outpost ----
-  private openOutpost(): void {
-    this.surfaceArmed = false;
+  // ---- surface stations ----
+  private stationAt(px: number): { mode: ShopMode; x0: number; x1: number; cx: number } | null {
+    return this.stations.find((s) => px >= s.x0 && px <= s.x1) ?? null;
+  }
+
+  private openStation(mode: ShopMode): void {
     Sound.setThrust(false);
-    this.menu.open();
+    this.menu.open(mode);
     this.persistRun();
     App.saveNow();
   }
@@ -1042,8 +1083,6 @@ export class GameScene extends Phaser.Scene {
       const p = this.hotbarPos(i, this.itemBar.length);
       this.itemBar[i].cont.setPosition(p.x, p.y);
     }
-    this.outpostBtn?.setPosition(w / 2, 134);
-    this.outpostHint?.setPosition(w / 2, 168);
     this.hud?.relayout();
     this.darkness?.resize();
   }
