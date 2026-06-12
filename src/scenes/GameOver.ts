@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import { BASE_W, BASE_H } from '../config/gameplay';
-import { COL, textStyle, title } from '../ui/theme';
+import { COL, textStyle, title, monoStyle } from '../ui/theme';
 import { Button, makePanel } from '../ui/widgets';
-import { fitDesign } from '../ui/layout';
+import { fitDesign, placeShell } from '../ui/layout';
 import type { RunState, ScoreBreakdown, DeathCause } from '../core/types';
 import { App, randomSeedString } from '../core/state';
 import { submitScore, makeEntry } from '../net/leaderboard';
@@ -46,89 +46,96 @@ export class GameOver extends Phaser.Scene {
     this.cameras.main.fadeIn(260, 0, 0, 0);
 
     const [head, col] = HEADLINE[cause];
-    this.add.text(cx, 70, head, title(34, col)).setOrigin(0.5);
-    this.add.text(cx, 108, `${Math.floor(run.depthMax)} m deep · ${run.seed}`, textStyle(14, COL.dim)).setOrigin(0.5);
+
+    // ---- CGI plaque; the run summary reads on its green CRT screen ----
+    const glass =
+      placeShell(this, 'shell_gameover', cx, 322, 760, [0.21, 0.22, 0.21, 0.26]) ??
+      { x: cx - 220, y: 150, w: 440, h: 320, cx, cy: 310 };
+    if (!this.textures.exists('shell_gameover')) {
+      makePanel(this, glass.x - 14, glass.y - 14, glass.w + 28, glass.h + 28, { border: COL.brand });
+    }
+    const gL = glass.x + 18;
+    const gR = glass.x + glass.w - 18;
+
+    // headline + cause line
+    this.add.text(glass.cx, glass.y + 22, head, title(30, col)).setOrigin(0.5);
+    this.add
+      .text(glass.cx, glass.y + 48, `${Math.floor(run.depthMax)} m deep · ${run.seed}`, monoStyle(13, COL.crtDim))
+      .setOrigin(0.5);
 
     // big score
-    makePanel(this, cx - 220, 138, 440, 96, { border: COL.brand });
-    this.add.text(cx, 158, 'SCORE', textStyle(14, COL.faint)).setOrigin(0.5).setLetterSpacing(2);
-    const scoreText = this.add.text(cx, 196, '0', title(48)).setOrigin(0.5);
+    this.add.text(glass.cx, glass.y + 78, 'RUN SCORE', monoStyle(13, COL.crt)).setOrigin(0.5).setLetterSpacing(2);
+    const scoreText = this.add.text(glass.cx, glass.y + 112, '0', title(46)).setOrigin(0.5);
     this.tweenCount(scoreText, score.total, 900);
     if (score.total >= App.meta.bestScore && score.total > 0) {
-      this.add.text(cx + 150, 158, 'NEW BEST', textStyle(13, COL.success)).setOrigin(0.5);
+      this.add.text(glass.cx, glass.y + 140, '★ NEW RECORD ★', textStyle(14, COL.success)).setOrigin(0.5);
       Sound.jackpot();
     } else if (score.total > 0) {
-      // "so close" — the gap to your best is the strongest one-more-run pull there is
       const gap = App.meta.bestScore - score.total;
       this.add
-        .text(cx, 226, `best ${App.meta.bestScore.toLocaleString()} — ${gap.toLocaleString()} short`, textStyle(12, COL.faint))
+        .text(glass.cx, glass.y + 140, `best ${App.meta.bestScore.toLocaleString()} — ${gap.toLocaleString()} short`, monoStyle(12, COL.crtDim))
         .setOrigin(0.5);
     }
 
-    // breakdown
+    // breakdown rows, on the screen
     const rows: [string, number, number][] = [
-      ['Cash banked', score.cashScore, COL.cash],
-      ['Depth reached', score.depthScore, COL.accent],
-      ['Ore variety', score.collectionScore, COL.cargo],
-      ['Fossils', score.fossilScore, 0xffe9b0],
+      ['CASH BANKED', score.cashScore, COL.cash],
+      ['DEPTH REACHED', score.depthScore, COL.accent],
+      ['ORE VARIETY', score.collectionScore, COL.cargo],
+      ['FOSSILS', score.fossilScore, 0xffe9b0],
     ];
-    if (score.bonusScore > 0) rows.push(['Reached the Core', score.bonusScore, COL.brand]);
-    let y = 256;
-    makePanel(this, cx - 220, y, 440, rows.length * 30 + 20, { alpha: 0.6 });
-    y += 14;
+    if (score.bonusScore > 0) rows.push(['REACHED THE CORE', score.bonusScore, COL.brand]);
+    let y = glass.y + 168;
+    const rowH = Math.min(26, (glass.y + glass.h - 14 - y) / rows.length);
     for (const [label, val, c] of rows) {
-      this.add.text(cx - 200, y, label, textStyle(15, COL.dim));
-      this.add.text(cx + 200, y, (val >= 0 ? '+' : '') + val.toLocaleString(), textStyle(15, c)).setOrigin(1, 0);
-      y += 30;
+      this.add.text(gL, y, label, monoStyle(13, COL.crtDim));
+      this.add.text(gR, y, (val >= 0 ? '+' : '') + val.toLocaleString(), monoStyle(14, c)).setOrigin(1, 0);
+      y += rowH;
     }
-    y += 20;
 
-    // cores + tickets + rank
-    makePanel(this, cx - 220, y, 440, 64, { alpha: 0.6 });
-    this.add.text(cx - 200, y + 12, 'Cores earned', textStyle(15, COL.dim));
-    this.add.text(cx - 200, y + 34, `◈ ${coresEarned}`, textStyle(20, COL.accent));
-    if (run.ticketsEarned > 0) {
-      this.add.text(cx, y + 12, 'Tickets', textStyle(15, COL.dim)).setOrigin(0.5, 0);
-      this.add.text(cx, y + 34, `🎟 ${run.ticketsEarned}`, textStyle(20, COL.brand)).setOrigin(0.5, 0);
-    }
-    const rankText = this.add.text(cx + 200, y + 22, 'ranking…', textStyle(18, COL.brand)).setOrigin(1, 0.5);
-    y += 84;
+    // ---- below the plaque: rewards + rank ----
+    let by = 600;
+    const rankText = this.add.text(cx, by, 'ranking…', textStyle(16, COL.brand)).setOrigin(0.5);
+    by += 28;
+    const bits: string[] = [`◈ ${coresEarned} cores`];
+    if (run.ticketsEarned > 0) bits.push(`🎟 ${run.ticketsEarned} tickets`);
+    this.add.text(cx, by, bits.join('   ·   '), textStyle(15, COL.accent)).setOrigin(0.5);
+    by += 30;
 
-    // streak + freshly-completed goals (staggered pop-ins — the reward parade)
     if (streak && streak.ticketsAwarded > 0) {
       const t = this.add
-        .text(cx, y, `🔥 DAY ${streak.count} STREAK  +🎟 ${streak.ticketsAwarded}`, textStyle(17, COL.warn))
+        .text(cx, by, `🔥 DAY ${streak.count} STREAK  +🎟 ${streak.ticketsAwarded}`, textStyle(16, COL.warn))
         .setOrigin(0.5)
         .setAlpha(0);
       this.tweens.add({ targets: t, alpha: 1, scale: { from: 0.7, to: 1 }, delay: 500, duration: 300, ease: 'Back.out' });
-      y += 30;
+      by += 28;
     }
     if (goals && goals.length > 0) {
-      for (let i = 0; i < Math.min(goals.length, 3); i++) {
+      for (let i = 0; i < Math.min(goals.length, 2); i++) {
         const g = goals[i];
         const t = this.add
-          .text(cx, y, `✓ GOAL: ${g.desc}   +◈${g.cores} +🎟${g.tickets}`, textStyle(15, COL.success))
+          .text(cx, by, `✓ ${g.desc}  +◈${g.cores} +🎟${g.tickets}`, textStyle(14, COL.success))
           .setOrigin(0.5)
           .setAlpha(0);
         this.tweens.add({ targets: t, alpha: 1, scale: { from: 0.7, to: 1 }, delay: 750 + i * 220, duration: 300, ease: 'Back.out' });
         Sound.milestone();
-        y += 26;
+        by += 24;
       }
     }
 
     // submit to leaderboard
     const entry = makeEntry(App.meta.playerName, score.total, run.depthMax, run.cashBanked, run.mode, run.seed);
-    submitScore(entry).then((rank) => rankText.setText(`#${rank} ${run.mode}`));
+    submitScore(entry).then((rank) => rankText.setText(`RANK #${rank} · ${run.mode.toUpperCase()}`));
 
     // buttons
-    new Button(this, cx, BASE_H - 150, 360, 60, '▶  PLAY AGAIN', () => this.again(false), {
+    new Button(this, cx, BASE_H - 150, 360, 58, '▶  PLAY AGAIN', () => this.again(false), {
       fill: COL.brand,
       textColor: 0x1a1400,
       fontSize: 24,
     });
-    new Button(this, cx - 92, BASE_H - 80, 176, 50, 'RETRY SEED', () => this.again(true), { fontSize: 16 });
-    new Button(this, cx + 92, BASE_H - 80, 176, 50, 'MAIN MENU', () => this.scene.start('MainMenu'), { fontSize: 16 });
-    this.add.text(cx, BASE_H - 36, 'R — instant retry', textStyle(11, COL.faint)).setOrigin(0.5);
+    new Button(this, cx - 92, BASE_H - 82, 176, 50, 'RETRY SEED', () => this.again(true), { fontSize: 16 });
+    new Button(this, cx + 92, BASE_H - 82, 176, 50, 'MAIN MENU', () => this.scene.start('MainMenu'), { fontSize: 16 });
+    this.add.text(cx, BASE_H - 38, 'R — instant retry  ·  ENTER — same seed', monoStyle(11, COL.faint)).setOrigin(0.5);
 
     // zero-friction restart: R = new run, ENTER = same seed
     this.input.keyboard?.once('keydown-R', () => this.again(false));

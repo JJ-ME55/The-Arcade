@@ -19,6 +19,9 @@ export const COL = {
   hull: 0xff6b8a,
   cargo: 0x7db7ff,
   heat: 0xff7a2a,
+  // DesignHandoff CRT phosphor (green screen text on the CGI shells)
+  crt: 0x5fe87a,
+  crtDim: 0x3f9e52,
 } as const;
 
 // DesignHandoff type system: Oxanium for display/UI, Share Tech Mono for numeric readouts.

@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import { BASE_W, BASE_H } from '../config/gameplay';
-import { COL, textStyle, title } from '../ui/theme';
+import { COL, textStyle, title, monoStyle, css } from '../ui/theme';
 import { Button, makePanel } from '../ui/widgets';
-import { fitDesign } from '../ui/layout';
+import { fitDesign, placeShell, type GlassRect } from '../ui/layout';
 import { App } from '../core/state';
 import { getTop, getRank } from '../net/leaderboard';
 import type { LeaderboardEntry } from '../core/types';
@@ -10,6 +10,8 @@ import type { LeaderboardEntry } from '../core/types';
 export class Leaderboard extends Phaser.Scene {
   private mode: 'free' | 'daily' = 'free';
   private listGroup?: Phaser.GameObjects.Container;
+  private glass!: GlassRect;
+  private tabs: { free?: Phaser.GameObjects.Text; daily?: Phaser.GameObjects.Text } = {};
 
   constructor() {
     super('Leaderboard');
@@ -19,23 +21,42 @@ export class Leaderboard extends Phaser.Scene {
     const cx = BASE_W / 2;
     const bg = this.add.rectangle(0, 0, BASE_W, BASE_H, COL.bg).setOrigin(0);
     fitDesign(this, bg);
-    this.add.text(cx, 56, 'LEADERBOARD', title(32)).setOrigin(0.5);
 
-    new Button(this, cx - 92, 108, 170, 44, 'GLOBAL', () => this.setMode('free'), {
-      fontSize: 16,
-      border: this.mode === 'free' ? COL.brand : COL.border,
-    });
-    new Button(this, cx + 92, 108, 170, 44, 'DAILY', () => this.setMode('daily'), {
-      fontSize: 16,
-      border: this.mode === 'daily' ? COL.brand : COL.border,
-    });
+    // ---- CGI arcade cabinet; rankings read on its green CRT screen ----
+    this.glass =
+      placeShell(this, 'shell_lb_cab', cx, 480, 560, [0.225, 0.285, 0.225, 0.225]) ??
+      { x: cx - 220, y: 150, w: 440, h: 600, cx, cy: 450 };
+    const haveShell = this.textures.exists('shell_lb_cab');
+    if (!haveShell) {
+      this.add.text(cx, 56, 'LEADERBOARD', title(32)).setOrigin(0.5);
+      makePanel(this, this.glass.x - 14, this.glass.y - 14, this.glass.w + 28, this.glass.h + 28, {});
+    } else {
+      // gold marquee on the cabinet header plate
+      this.add.text(cx, 480 - 420 + 0.19 * 840, 'TOP OPERATORS', title(26)).setOrigin(0.5).setLetterSpacing(1);
+    }
 
-    new Button(this, cx, BASE_H - 50, 240, 50, 'BACK', () => this.scene.start('MainMenu'), {
-      fill: COL.brand,
-      textColor: 0x1a1400,
-    });
+    new Button(this, 64, 40, 104, 44, '‹ MENU', () => this.scene.start('MainMenu'), { fontSize: 15 });
+
+    // phosphor tabs at the top of the screen
+    const ty = this.glass.y + 18;
+    this.tabs.free = this.tab(this.glass.cx - 70, ty, 'ALL-TIME', 'free');
+    this.tabs.daily = this.tab(this.glass.cx + 70, ty, 'DAILY DIG', 'daily');
 
     this.refresh();
+  }
+
+  private tab(x: number, y: number, label: string, m: 'free' | 'daily'): Phaser.GameObjects.Text {
+    const on = this.mode === m;
+    const t = this.add
+      .text(x, y, label, monoStyle(15, on ? COL.crt : COL.crtDim))
+      .setOrigin(0.5)
+      .setLetterSpacing(1)
+      .setInteractive({ useHandCursor: true });
+    if (on) t.setShadow(0, 0, 'rgba(120,255,150,0.7)', 6, true, true);
+    t.on('pointerover', () => t.setColor('#d8ffe2'));
+    t.on('pointerout', () => t.setColor(css(on ? COL.crt : COL.crtDim)));
+    t.on('pointerup', () => this.setMode(m));
+    return t;
   }
 
   private setMode(m: 'free' | 'daily'): void {
@@ -46,38 +67,44 @@ export class Leaderboard extends Phaser.Scene {
 
   private async refresh(): Promise<void> {
     this.listGroup?.destroy(true);
-    this.listGroup = this.add.container(0, 0);
+    this.listGroup = this.add.container(0, 0).setDepth(5);
+    const g = this.glass;
     const entries: LeaderboardEntry[] = await getTop(this.mode, 12);
     const myRank = await getRank(this.mode, App.meta.bestScore);
 
-    const bx = 24;
-    const bw = BASE_W - 48;
-    let y = 150;
+    const L = g.x + 14;
+    const R = g.x + g.w - 14;
+    // header row
+    let y = g.y + 52;
+    this.listGroup.add(this.add.text(L, y, '#', monoStyle(12, COL.crtDim)));
+    this.listGroup.add(this.add.text(L + 30, y, 'OPERATOR', monoStyle(12, COL.crtDim)));
+    this.listGroup.add(this.add.text(R, y, 'DEPTH   CASH', monoStyle(12, COL.crtDim)).setOrigin(1, 0));
+    y += 24;
+
     if (entries.length === 0) {
-      this.listGroup.add(this.add.text(BASE_W / 2, 300, 'No scores yet — be the first!', textStyle(16, COL.dim)).setOrigin(0.5));
+      this.listGroup.add(this.add.text(g.cx, y + 60, 'No scores yet —\nbe the first!', monoStyle(15, COL.crtDim, { align: 'center' })).setOrigin(0.5));
     }
+    const rowH = Math.min(30, (g.y + g.h - 40 - y) / Math.max(1, entries.length));
     entries.forEach((e, i) => {
       const mine = e.name === App.meta.playerName && e.date > 0;
-      const g = this.add.graphics();
-      g.fillStyle(mine ? 0x24243f : COL.panel, 0.85);
-      g.fillRoundedRect(bx, y, bw, 42, 8);
-      if (mine) {
-        g.lineStyle(2, COL.brand, 1);
-        g.strokeRoundedRect(bx, y, bw, 42, 8);
-      }
-      this.listGroup!.add(g);
-      const rankCol = i === 0 ? COL.brand : i === 1 ? 0xd8d8e0 : i === 2 ? 0xc98a4a : COL.dim;
-      this.listGroup!.add(this.add.text(bx + 16, y + 11, `${i + 1}`, textStyle(18, rankCol)));
-      this.listGroup!.add(this.add.text(bx + 54, y + 6, e.name, textStyle(15, mine ? COL.brand : COL.text)));
-      this.listGroup!.add(this.add.text(bx + 54, y + 24, `${e.depth} m`, textStyle(11, COL.faint)));
-      this.listGroup!.add(this.add.text(bx + bw - 16, y + 11, e.score.toLocaleString(), textStyle(16, COL.cash)).setOrigin(1, 0));
-      y += 48;
+      const rankCol = i === 0 ? COL.brand : i === 1 ? 0xd8d8e0 : i === 2 ? 0xc98a4a : COL.crt;
+      const nameCol = mine ? COL.brand : COL.crt;
+      this.listGroup!.add(this.add.text(L, y, `${i + 1}`, monoStyle(15, rankCol)));
+      this.listGroup!.add(this.add.text(L + 30, y, (e.name + (mine ? ' ◀' : '')).slice(0, 14), monoStyle(15, nameCol)));
+      this.listGroup!.add(this.add.text(R, y, `${e.depth}m  ${shortCash(e.cash)}`, monoStyle(14, mine ? COL.brand : COL.cash)).setOrigin(1, 0));
+      y += rowH;
     });
 
     this.listGroup.add(
       this.add
-        .text(BASE_W / 2, BASE_H - 96, `Your best: ${App.meta.bestScore.toLocaleString()}  ·  rank #${myRank}`, textStyle(15, COL.accent))
+        .text(g.cx, g.y + g.h - 18, `YOUR BEST ${App.meta.bestScore.toLocaleString()} · RANK #${myRank}`, monoStyle(13, COL.crtDim))
         .setOrigin(0.5),
     );
   }
+}
+
+function shortCash(n: number): string {
+  if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1000) return '$' + Math.round(n / 1000) + 'k';
+  return '$' + n;
 }
