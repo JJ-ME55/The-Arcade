@@ -131,7 +131,9 @@ export function useMultiplayerSync() {
         if (!kartId) return null;
         // @ts-ignore — getInterpolatedKart added to NetClient 2026-06-08
         if (ctx.net.getInterpolatedKart) {
-          return ctx.net.getInterpolatedKart(kartId, 100);
+          // 60ms floor (was 100): at 60Hz snapshots that's still 3+ snapshots
+          // of cushion, and remote karts run 40ms closer to real time.
+          return ctx.net.getInterpolatedKart(kartId, 60);
         }
         // Defensive fallback: if NetClient ever loses the interp method,
         // fall through to raw latest-snapshot lookup so MP still works

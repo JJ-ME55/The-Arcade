@@ -497,6 +497,8 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     // Correction telemetry — the REAL smoothness metric: how often and how far
     // the reconciler actually moved the kart (deadband makes steady-state = 0).
     let mpCorrCount = 0, mpCorrMax = 0;
+    // Frame-time telemetry: render hitches read as jitter regardless of netcode.
+    let mpFtCount = 0, mpFtOver25 = 0, mpFtOver50 = 0, mpFtMax = 0;
     let throttleDownSince: number | null = null; // when the player first held throttle during the countdown
     let rocketResolved = false; // rocket-start bonus applied at GO (once)
     let lastHud = '';
@@ -714,7 +716,22 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
     const loop = (now: number) => {
       // crash-reporting breadcrumbs: heartbeat + stage (read by the watchdog
       // + crash reports in CritterKartScreen — tells us WHERE a device died)
-      (window as any).__ckLastRaf = performance.now();
+      {
+        const nowP = performance.now();
+        const lastP = (window as any).__ckLastRaf;
+        // FRAME-TIME TELEMETRY: long frames feel like "jitter + slight
+        // delays" no matter how clean the netcode is (Fish's console showed
+        // Edge rAF-violation spam = 50ms+ handler frames). Counted here,
+        // reported in the 5s status banner.
+        if (lastP) {
+          const ft = nowP - lastP;
+          mpFtMax = Math.max(mpFtMax, ft);
+          if (ft > 25) mpFtOver25++;
+          if (ft > 50) mpFtOver50++;
+          mpFtCount++;
+        }
+        (window as any).__ckLastRaf = nowP;
+      }
       (window as any).__ckStage = phaseLocal === 'countdown' ? 'countdown' : phaseLocal === 'racing' ? 'racing' : 'finished';
       let frame = (now - last) / 1000;
       last = now;
@@ -808,12 +825,15 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
               w.__ckMpStatusAt = performance.now();
               const s0: any = mp.latestSnapshot;
               const found = !!s0?.karts?.find((kk: any) => kk.kartId === mp.selfKartId);
-              console.warn(`[critter-kart/mp] status: selfKartId=${mp.selfKartId} slot=${mp.selfSlot} snap=${s0 ? `tick ${s0.tick}` : 'NONE'} selfInSnap=${found} pending=${mpPending.length}`);
+              const heap = (performance as any).memory ? ` heap=${Math.round((performance as any).memory.usedJSHeapSize / 1048576)}MB` : '';
+              console.warn(`[critter-kart/mp] status: selfKartId=${mp.selfKartId} slot=${mp.selfSlot} snap=${s0 ? `tick ${s0.tick}` : 'NONE'} selfInSnap=${found} pending=${mpPending.length} | frames=${mpFtCount} slow>25ms=${mpFtOver25} hitch>50ms=${mpFtOver50} worst=${mpFtMax.toFixed(0)}ms${heap}`);
+              mpFtCount = 0; mpFtOver25 = 0; mpFtOver50 = 0; mpFtMax = 0;
             }
           }
-          // Single 33ms send gate (the net layer no longer throttles) so the
-          // pending buffer contains EXACTLY the frames that went on the wire.
-          if (performance.now() - mpLastSentAt >= 33) {
+          // Single 16ms send gate — 60Hz inputs (the net layer no longer
+          // throttles) so the pending buffer contains EXACTLY the frames that
+          // went on the wire, one per physics tick.
+          if (performance.now() - mpLastSentAt >= 16) {
             mpLastSentAt = performance.now();
             const seq = ++mpSeq;
             mp.sendInput({
@@ -844,7 +864,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                 drift: !!raw.drift,
                 ticks: 0,   // counted by the fixed substep — replay replays REALITY
               } as any);
-              if (mpPending.length > 40) mpPending.shift(); // 40 ≈ 1.3s; beyond that replay is fiction
+              if (mpPending.length > 80) mpPending.shift(); // 80 ≈ 1.3s at 60Hz; beyond that replay is fiction
             }
           }
           const snap = mp.latestSnapshot;
@@ -953,7 +973,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                 if (stunned) mpPending.length = 0;
                 // Beyond ~0.5s of unacked inputs the replay is wrong anyway and
                 // each entry costs a wall-scan per tick — hard-cap the work.
-                if (mpPending.length > 16) mpPending.splice(0, mpPending.length - 16);
+                if (mpPending.length > 32) mpPending.splice(0, mpPending.length - 32);
                 // Build the CANDIDATE: adopt the server's authoritative state,
                 // replay unacked inputs (seq > ackSeq) through the same
                 // deterministic physics + world pipeline (Gambetta).
@@ -973,7 +993,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                   shield: !!selfSnap.shield,
                 };
                 for (const p of mpPending) {
-                  const reps = (p as any).ticks ?? 2; // ?? not ||: a genuine 0 means "not yet simulated locally — do not replay"
+                  const reps = (p as any).ticks ?? 1; // ?? not ||: a genuine 0 means "not yet simulated locally — do not replay" (≈1 tick per input at 60Hz sends)
                   for (let k = 0; k < reps; k++) {   // replay the ACTUAL sim ticks this input drove
                     cand = stepKart(cand, {
                       throttle: p.throttle, steer: p.steer, brake: p.brake, drift: p.drift,
@@ -1376,6 +1396,23 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         else mpSmoothY = 0;
       }
       const renderPose = (i: number): KartState => {
+        // REMOTE karts in MP: pose DIRECTLY from the snapshot interpolator at
+        // render time. Their states[] copy is written once per frame and then
+        // dragged through the substep prev/cur lerp — but frames run 0/1/2
+        // substeps depending on timing, so every remote kart was sampled
+        // inconsistently frame-to-frame: permanent micro-judder on the entire
+        // field, independent of network quality (THE jitter Fish kept
+        // reporting — his own kart's corrections were already zero).
+        if (mp && i !== PLAYER) {
+          const k = mp.applyToSlot(i);
+          if (k) {
+            return {
+              ...states[i],
+              x: k.x, z: k.z, y: k.y ?? states[i].y ?? 0,
+              heading: k.heading, velHeading: k.velHeading, speed: k.speed,
+            } as KartState;
+          }
+        }
         const cur = states[i], prev = prevStates[i] ?? cur;
         if (Math.hypot(cur.x - prev.x, cur.z - prev.z) > 8) return cur; // teleport → snap
         const pose = {
@@ -1386,7 +1423,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
           heading: angleLerp(prev.heading, cur.heading, alpha),
         };
         // local player in MP: render through the decaying correction offset so
-        // 30Hz reconciliation never reads as micro-jumps
+        // reconciliation never reads as micro-jumps
         if (mp && i === PLAYER) { pose.x += mpSmoothX; pose.z += mpSmoothZ; pose.heading += mpSmoothH; pose.y = Math.max(0, (pose.y ?? 0) + mpSmoothY); }
         return pose;
       };
