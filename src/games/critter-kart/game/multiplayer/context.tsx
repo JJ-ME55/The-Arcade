@@ -113,6 +113,10 @@ export function useMultiplayerSync() {
   const ctx = useMultiplayer();
   return useMemo(() => {
     if (!ctx) return null;
+    // precomputed slot→kartId (the per-frame Object.keys().find() allocated
+    // 300x/sec in the render loop)
+    const slotToKartId: (string | undefined)[] = [];
+    for (const kid in ctx.kartIdToSlot) slotToKartId[ctx.kartIdToSlot[kid]] = kid;
     return {
       get latestSnapshot(): RaceSnapshot | null { return ctx.net.getLatestSnapshot(); },
       applyToSlot(slot: number) {
@@ -123,8 +127,7 @@ export function useMultiplayerSync() {
         // feedback 2026-06-08. With it, motion lerps smoothly between
         // snapshots at 60fps render rate, render-time 100ms behind
         // real-time so we always have a "future" snapshot to lerp toward.
-        const kartId = Object.keys(ctx.kartIdToSlot)
-          .find(kid => ctx.kartIdToSlot[kid] === slot);
+        const kartId = slotToKartId[slot];
         if (!kartId) return null;
         // @ts-ignore — getInterpolatedKart added to NetClient 2026-06-08
         if (ctx.net.getInterpolatedKart) {

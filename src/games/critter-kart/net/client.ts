@@ -122,6 +122,17 @@ function createRealClient(): NetClient {
     // 150-400ms and a fixed 100ms buffer starves between bursts -> remote karts
     // visibly step. Delay rides at ~3x the typical gap, capped at 350ms.
     let snapGapEma = 33, lastSnapArrival = 0;
+    // Decaying MAX of inter-arrival gaps (mean under-estimates on bursty links:
+    // a 6-snapshot burst is five ~0ms gaps + one 300ms gap), and a SLEWED
+    // applied delay so the render timeline never jumps when the estimate moves.
+    let snapGapMax = 33, appliedDelayMs = 100;
+    // Client↔server clock offset, min-tracked (least-delayed packet wins) with
+    // a slow upward creep for clock drift. Lets interpolation run on the
+    // SERVER-TIME axis — arrival times clump on polling links while tMs is
+    // perfectly even, so bracketing by arrival made karts sweep-freeze-snap.
+    let clockOffsetMs: number | null = null;
+    let _lastOffsetAt = 0;
+    const g0sec = (now: number) => { const s = _lastOffsetAt ? (now - _lastOffsetAt) / 1000 : 0; _lastOffsetAt = now; return s; };
     // Server's locked race-start wall-clock. Updated when
     // `race:countdownLocked` arrives — that's AFTER all humans have
     // emitted critterkart:ready (or after the 15s fallback fires on
@@ -253,19 +264,36 @@ function createRealClient(): NetClient {
                 if (ev === ('race:snapshot' as ServerEventKey)) {
                     latestSnapshot = payload as RaceSnapshot;
                     const now = Date.now();
-                    snapBuffer.push({ snap: payload as RaceSnapshot, at: now });
-                    if (lastSnapArrival > 0) { const g = Math.min(1000, now - lastSnapArrival); snapGapEma = snapGapEma * 0.85 + g * 0.15; }
+                    const tMs = (payload as any).tMs ?? 0;
+                    snapBuffer.push({ snap: payload as RaceSnapshot, at: now, tMs } as any);
+                    if (lastSnapArrival > 0) {
+                        const g = Math.min(1000, now - lastSnapArrival);
+                        snapGapEma = snapGapEma * 0.85 + g * 0.15;
+                        snapGapMax = Math.max(g, snapGapMax * 0.97); // decaying max
+                    }
                     lastSnapArrival = now;
-                    // Trim entries older than SNAP_BUFFER_MS so we don't
-                    // grow unbounded over a 5-minute race.
-                    const cutoff = now - SNAP_BUFFER_MS;
-                    while (snapBuffer.length > 0 && snapBuffer[0].at < cutoff) {
+                    // Min-tracked clock offset (smallest = least queueing delay),
+                    // creeping up ~0.5ms/s so clock drift can't strand it.
+                    const off = now - tMs;
+                    clockOffsetMs = clockOffsetMs === null ? off : Math.min(off, clockOffsetMs + 0.5 * Math.min(10, g0sec(now)));
+                    // Trim by SERVER time so bursts can't blow the window.
+                    const newestT = (snapBuffer[snapBuffer.length - 1] as any).tMs;
+                    while (snapBuffer.length > 0 && (snapBuffer[0] as any).tMs < newestT - SNAP_BUFFER_MS) {
                         snapBuffer.shift();
                     }
                 }
                 // Capture the all-clients-ready locked startAtMs so
                 // GameCanvas's elapsed anchors to the same wall-clock
                 // across all clients regardless of asset-load timing.
+                if (ev === ('race:start' as ServerEventKey)) {
+                    // Fresh race: clear every per-race artifact or race #2
+                    // anchors to race #1's clock and ghosts its final karts.
+                    raceStartAtMs = null;
+                    latestSnapshot = null;
+                    snapBuffer.length = 0;
+                    snapGapEma = 33; snapGapMax = 33; lastSnapArrival = 0;
+                    clockOffsetMs = null; appliedDelayMs = 100;
+                }
                 if (ev === ('race:countdownLocked' as any) && payload?.startAtMs) {
                     raceStartAtMs = payload.startAtMs;
                     console.log('[critter-kart/diag] race:countdownLocked → startAtMs', payload.startAtMs);
@@ -350,14 +378,19 @@ function createRealClient(): NetClient {
             const findKart = (s: RaceSnapshot | null) =>
                 s?.karts.find((k: any) => k.kartId === kartId) ?? null;
 
-            const adaptive = Math.min(350, Math.max(interpDelayMs, snapGapEma * 3));
-            const renderTime = Date.now() - adaptive;
+            // Target delay rides the decaying-MAX gap; the APPLIED delay slews
+            // toward it (fast widen, slow shrink) so the timeline never jumps.
+            const target = Math.min(350, Math.max(interpDelayMs, snapGapMax * 1.5));
+            appliedDelayMs += Math.max(-0.25, Math.min(2.0, target - appliedDelayMs));
+            if (clockOffsetMs === null) return findKart(snapBuffer[snapBuffer.length - 1].snap);
+            // SERVER-TIME axis: uniform 33ms spacing regardless of burst arrival.
+            const renderTime = Date.now() - clockOffsetMs - appliedDelayMs;
 
             // Find leftIdx = largest i with snapBuffer[i].at <= renderTime.
             // Walk from newest backward — typical case it's the second-to-last.
             let leftIdx = -1;
             for (let i = snapBuffer.length - 1; i >= 0; i--) {
-                if (snapBuffer[i].at <= renderTime) { leftIdx = i; break; }
+                if ((snapBuffer[i] as any).tMs <= renderTime) { leftIdx = i; break; }
             }
 
             if (leftIdx < 0) {
@@ -380,15 +413,15 @@ function createRealClient(): NetClient {
                 return findKart(snapBuffer[ai].snap);
             }
 
-            const aEntry = snapBuffer[ai];
-            const bEntry = snapBuffer[bi];
-            const dt = bEntry.at - aEntry.at;
+            const aEntry: any = snapBuffer[ai];
+            const bEntry: any = snapBuffer[bi];
+            const dt = bEntry.tMs - aEntry.tMs;   // uniform ~33ms on the server axis
             if (dt <= 0) return findKart(bEntry.snap);
 
             // Allow extrapolation up to 1.5x past `b` (one extra snap
             // interval) to bridge a single missing packet; cap so a
             // long drop doesn't propel the kart off the track.
-            const t = Math.max(0, Math.min(1.5, (renderTime - aEntry.at) / dt));
+            const t = Math.max(0, Math.min(1.5, (renderTime - aEntry.tMs) / dt));
 
             const ka: any = findKart(aEntry.snap);
             const kb: any = findKart(bEntry.snap);

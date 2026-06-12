@@ -641,7 +641,26 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
 
     const finishRace = () => {
       const prog = states.map((s, i) => laps[i].lap + track.nearest(s.x, s.z).progress);
-      const order = states.map((_, i) => i).sort((a, b) => prog[b] - prog[a]); // rank ALL karts (was hard-coded to 4)
+      // Finishers rank by FINISH TIME (sorting by current progress let karts
+      // that kept driving past the line steal positions); DNFs by progress.
+      let order = states.map((_, i) => i).sort((a, b) => {
+        const fa = isFinite(finishTimes[a]), fb = isFinite(finishTimes[b]);
+        if (fa && fb) return finishTimes[a] - finishTimes[b];
+        if (fa !== fb) return fa ? -1 : 1;
+        return prog[b] - prog[a] || a - b;
+      });
+      // MULTIPLAYER: the SERVER's standings are authoritative — pure-local
+      // ranking placed the local player 1st regardless of reality (Fish:
+      // "put me first even though I was 5th").
+      const mpf: any = multiRef.current;
+      const snapF: any = mpf ? mpf.latestSnapshot : null;
+      if (mpf && snapF?.karts?.length === NUM) {
+        const cont = (kk: any) => (kk.finished ? track.laps + 1 : 0) + (kk.lap ?? 0) + (kk.progress ?? 0);
+        order = snapF.karts
+          .map((kk: any) => ({ slot: Number(String(kk.kartId).split('-')[1] ?? 0), c: cont(kk) }))
+          .sort((a: any, b: any) => b.c - a.c)
+          .map((e: any) => e.slot);
+      }
       const times = order.map((idx) => (isFinite(finishTimes[idx]) ? finishTimes[idx] : elapsed * (track.laps / Math.max(0.5, prog[idx]))));
       const leader = times[0];
       const results: ResultRow[] = order.map((idx, k) => ({
@@ -794,8 +813,9 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                 steer,
                 brake: raw.brake,
                 drift: !!raw.drift,
-              });
-              if (mpPending.length > 120) mpPending.shift();
+                ticks: 0,   // counted by the fixed substep — replay replays REALITY
+              } as any);
+              if (mpPending.length > 40) mpPending.shift(); // 40 ≈ 1.3s; beyond that replay is fiction
             }
           }
           const snap = mp.latestSnapshot;
@@ -861,6 +881,9 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
             if (selfSnap) {
               heldItems[PLAYER] = selfSnap.heldItem ?? NO_ITEM;
               heldCount[PLAYER] = selfSnap.heldCount ?? 0;
+              // Server-authoritative train squash for the LOCAL kart too
+              const sft = (selfSnap as any).flattenTimer ?? 0;
+              if (sft > 0 && flattenUntil[PLAYER] <= elapsed) flattenUntil[PLAYER] = elapsed + sft;
               // Drift meter sampling (time-matched vs the local trail) — with
               // reconciliation live this reads the replay RESIDUAL (~6u median
               // in harness run 4, down from 300-540u without it).
@@ -902,8 +925,16 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                   shield: !!selfSnap.shield,
                 };
                 mpPending = mpPending.filter((p) => p.seq > (selfSnap.ackSeq ?? 0));
+                // STUNNED: the server ignores our inputs — replaying them is
+                // fiction, and if acks stall during the stun the buffer explodes
+                // into 60+ physics steps per snapshot (the bee-hit "lag wall").
+                if ((selfSnap.stunTimer ?? 0) > 0) mpPending.length = 0;
+                // Beyond ~0.5s of unacked inputs the replay is wrong anyway and
+                // each entry costs a wall-scan per tick — hard-cap the work.
+                if (mpPending.length > 16) mpPending.splice(0, mpPending.length - 16);
                 for (const p of mpPending) {
-                  for (let k = 0; k < 2; k++) {   // each 30Hz input ≈ two 60Hz sim ticks
+                  const reps = (p as any).ticks || 2;
+                  for (let k = 0; k < reps; k++) {   // replay the ACTUAL sim ticks this input drove
                     states[PLAYER] = stepKart(states[PLAYER], {
                       throttle: p.throttle, steer: p.steer, brake: p.brake, drift: p.drift,
                       onTrack: track.isOnTrack(states[PLAYER].x, states[PLAYER].z),
@@ -929,12 +960,20 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
                     }
                   }
                 }
-                // Absorb the correction into the render-only smoothing offset
-                // (decays each frame) so it never shows as a position jump.
-                mpSmoothX += preX - states[PLAYER].x;
-                mpSmoothZ += preZ - states[PLAYER].z;
+                // Absorb the FULL correction (x, z, heading) into the render-only
+                // offset AND shift prevStates by the same delta — otherwise the
+                // prev→cur render lerp painted (1−alpha)·correction REVERSED for
+                // one frame, 30x/sec: the micro-judder.
+                const cdx = states[PLAYER].x - preX, cdz = states[PLAYER].z - preZ;
+                let cdh = states[PLAYER].heading - preH;
+                while (cdh > Math.PI) cdh -= 2 * Math.PI;
+                while (cdh < -Math.PI) cdh += 2 * Math.PI;
+                mpSmoothX -= cdx; mpSmoothZ -= cdz; mpSmoothH -= cdh;
+                const pv = prevStates[PLAYER];
+                if (pv) prevStates[PLAYER] = { ...pv, x: pv.x + cdx, z: pv.z + cdz, heading: pv.heading + cdh };
                 const sm = Math.hypot(mpSmoothX, mpSmoothZ);
                 if (sm > 30) { mpSmoothX *= 30 / sm; mpSmoothZ *= 30 / sm; } // beyond 30u = genuine teleport, allowed to show
+                if (Math.abs(mpSmoothH) > 1.2) mpSmoothH *= 1.2 / Math.abs(mpSmoothH);
               }
             }
           }
@@ -973,15 +1012,20 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         steer = rampSteer(steer, racing ? raw.steer : 0, TUNING.steerRampRate, TUNING.steerReturnRate, FIXED);
         if (flattenUntil[PLAYER] <= elapsed) // a train-flattened kart is frozen until it respawns
           states[PLAYER] = stepKart(states[PLAYER], { throttle: racing ? raw.throttle : 0, brake: racing ? raw.brake : 0, steer, drift: racing && raw.drift, onTrack: track.isOnTrack(states[PLAYER].x, states[PLAYER].z), offRoad: offRoadAt(states[PLAYER].x, states[PLAYER].z) }, TUNING, FIXED);
+        if (mp && mpPending.length) (mpPending[mpPending.length - 1] as any).ticks++;
         // Bots are RAIL-DRIVEN now — advanced kinematically at the END of this substep (see the
         // "RAIL BOTS" block below). Nothing physics-steers them, so they can't run wide or get stuck.
-        for (let i = 0; i < NUM; i++) {
+        // MP: the server resolves kart contacts; locally shoving the kart off
+        // 100ms-old interpolated remote poses created phantom collisions the
+        // server never saw (reconciliation then corrected them = jank).
+        if (!mp) for (let i = 0; i < NUM; i++) {
           for (let j = i + 1; j < NUM; j++) {
             const r = resolveKartCollision(states[i], states[j], WEIGHTS[i], WEIGHTS[j]);
             if (r) { states[i] = { ...states[i], ...r.a }; states[j] = { ...states[j], ...r.b }; }
           }
         }
         for (let i = 0; i < NUM; i++) {
+          if (mp && i !== PLAYER) continue; // remote slots: server-driven, skip the wall scans
           const preDist = i === PLAYER ? track.nearest(states[i].x, states[i].z).distance : 0;
           const b = resolveBarriers(states[i], barriers, KART_RADIUS, TUNING);
           if (b) {
@@ -997,6 +1041,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         // moment the kart leaves the pad so a second lap re-fires the boost.
         for (const pad of boostPads) {
           for (let i = 0; i < NUM; i++) {
+            if (mp && i !== PLAYER) continue; // server owns remote boosts
             const inside = padContains(pad, states[i].x, states[i].z);
             if (inside && !pad.triggered[i]) {
               states[i] = { ...states[i], boostTimer: Math.max(states[i].boostTimer, TUNING.turboBoost * 1.6) }; // pads give a strong, longer boost
@@ -1012,6 +1057,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
         if (track.archBridgeZone) {
           const az = track.archBridgeZone;
           for (let i = 0; i < NUM; i++) {
+            if (mp && i !== PLAYER) continue; // remote Y comes from snapshots
             const p = track.nearest(states[i].x, states[i].z).progress;
             if (p >= az.startProgress && p <= az.endProgress) {
               const t = (p - az.startProgress) / (az.endProgress - az.startProgress || 1);
@@ -1031,6 +1077,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
             return ud.height;
           };
           for (let i = 0; i < NUM; i++) {
+            if (mp && i !== PLAYER) continue; // remote Y comes from snapshots
             const near = track.nearest(states[i].x, states[i].z);
             const p = near.progress;
             if (p < ud.startProgress || p > ud.endProgress) { onUpperDeck[i] = false; continue; }
@@ -1237,7 +1284,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
       // the current state instead of sliding the kart across the map. Used by the kart meshes AND
       // everything attached to them (shield rings, storm clouds, lightning) so they never separate.
       // decay the reconciliation smoothing offset (render-only, ~15%/frame)
-      mpSmoothX *= 0.92; mpSmoothZ *= 0.92; mpSmoothH *= 0.92;
+      { const dk = Math.pow(0.92, frame * 60); mpSmoothX *= dk; mpSmoothZ *= dk; mpSmoothH *= dk; }
       const renderPose = (i: number): KartState => {
         const cur = states[i], prev = prevStates[i] ?? cur;
         if (Math.hypot(cur.x - prev.x, cur.z - prev.z) > 8) return cur; // teleport → snap
@@ -1476,7 +1523,7 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
           m.rotation.y = Math.atan2(b.x - a.x, b.z - a.z);
         });
       }
-      if (racing) {
+      if (racing && !mp) { // MP: the SERVER owns the flatten (selfSnap.flattenTimer below)
         for (let i = 0; i < NUM; i++) {
           if (i !== PLAYER) continue; // only the player gets flattened; rail bots WAIT for the train instead
           if (flattenUntil[i] > elapsed || (states[i].invulnTimer ?? 0) > 0) continue;
