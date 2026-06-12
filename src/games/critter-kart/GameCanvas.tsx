@@ -1445,6 +1445,12 @@ export default function GameCanvas({ racerId, hud, onFinish }: { racerId: string
           z: prev.z + (cur.z - prev.z) * alpha,
           y: (prev.y ?? 0) + ((cur.y ?? 0) - (prev.y ?? 0)) * alpha,
           heading: angleLerp(prev.heading, cur.heading, alpha),
+          // velHeading feeds the chase camera's lookAt DIRECTLY — unlerped it
+          // snapped the camera's yaw every physics step (probe: up to 84px/frame
+          // at 1920px while drifting, 0 going straight). THE self-kart "jitter":
+          // worst when drifting/cornering, invisible on straights, untouched by
+          // every netcode fix because it was never netcode.
+          velHeading: angleLerp(prev.velHeading ?? prev.heading, cur.velHeading, alpha),
         };
         // local player in MP: render through the decaying correction offset so
         // reconciliation never reads as micro-jumps
