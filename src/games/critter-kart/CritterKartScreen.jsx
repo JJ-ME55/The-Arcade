@@ -33,6 +33,29 @@ const SCORE_ENDPOINT = 'https://solshot.onrender.com/api/games/critter-kart/scor
 // Provisional — JJ owns the canonical scoring model server-side.
 const POSITION_POINTS = [0, 15, 12, 10, 8, 6, 4];
 
+// CRASH TRAP: persist any uncaught error/rejection so a dead tab still tells
+// us what killed it — re-printed as a console.warn on the next load (JJ's
+// finish-line crash 2026-06-12 took the console down with it).
+if (typeof window !== 'undefined' && !window.__ckCrashTrap) {
+  window.__ckCrashTrap = true;
+  try {
+    const prev = sessionStorage.getItem('ck_lastCrash');
+    if (prev) {
+      console.warn('[critter-kart/CRASH-LAST-RUN] ⚠⚠⚠', prev);
+      sessionStorage.removeItem('ck_lastCrash');
+    }
+  } catch (_) { /* no storage */ }
+  const record = (msg) => { try { sessionStorage.setItem('ck_lastCrash', String(msg).slice(0, 2000)); } catch (_) {} };
+  window.addEventListener('error', (e) => {
+    record(`${e.message} @ ${e.filename}:${e.lineno}\n${e.error?.stack || ''}`);
+    console.warn('[critter-kart/CRASH] ⚠', e.message, e.error?.stack || '');
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    record(`unhandledrejection: ${e.reason?.message || e.reason}\n${e.reason?.stack || ''}`);
+    console.warn('[critter-kart/CRASH] ⚠ unhandledrejection:', e.reason);
+  });
+}
+
 export function CritterKartScreen() {
   // Web-user score submission via Privy → server-minted JWT. No-op if a session
   // JWT already exists (bot user). Slug 'critter-kart' must match the server.
