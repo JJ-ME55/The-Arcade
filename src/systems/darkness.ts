@@ -1,9 +1,9 @@
 /**
- * Underground darkness + pod light. A screen-space dark overlay whose opacity grows with
- * depth; each frame we "erase" a soft circle around the pod, a headlight pool in the facing
- * direction, and small pulsing glints at every visible ore / special / lava cell — treasure
- * literally shines through the dark, pulling the player deeper. Cheap: one RenderTexture,
- * a fill + a few dozen erase stamps per frame.
+ * Underground darkness + pod light. A screen-space dark overlay whose opacity grows with depth;
+ * each frame we "erase" a soft symmetric lamp pool around the pod. Treasure glints (ore / special
+ * / lava shining through the dark) are drawn as cheap ADDITIVE sprites on top — NOT as
+ * RenderTexture erases. (Erase is an unbatched draw call; doing one per glint tanked the frame
+ * rate the instant the overlay switched on ~50 m. Additive sprites batch into ~one draw.)
  */
 import Phaser from 'phaser';
 import type { GlowCell } from '../world/tileRenderer';
@@ -16,23 +16,33 @@ export interface GlintPoint {
   phase: number;
 }
 
+const GLINT_POOL = 56;
+
 export class Darkness {
   private scene: Phaser.Scene;
   private rt: Phaser.GameObjects.RenderTexture;
   private brush: Phaser.GameObjects.Image;
+  private glints: Phaser.GameObjects.Image[] = [];
   private flicker = 0;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
     const w = scene.scale.width;
     const h = scene.scale.height;
-    this.rt = scene.add
-      .renderTexture(0, 0, w, h)
-      .setOrigin(0)
-      .setScrollFactor(0)
-      .setDepth(900);
+    this.rt = scene.add.renderTexture(0, 0, w, h).setOrigin(0).setScrollFactor(0).setDepth(900);
     // brush is only used as an erase stamp; never rendered itself
     this.brush = scene.add.image(0, 0, 'lightmask').setVisible(false);
+    // pre-built additive glint pool (avoids a creation spike when the overlay first switches on)
+    for (let i = 0; i < GLINT_POOL; i++) {
+      this.glints.push(
+        scene.add
+          .image(0, 0, 'lightmask')
+          .setScrollFactor(0)
+          .setDepth(901)
+          .setBlendMode(Phaser.BlendModes.ADD)
+          .setVisible(false),
+      );
+    }
   }
 
   resize(): void {
@@ -50,7 +60,7 @@ export class Darkness {
    * @param sx,sy    pod position in screen space.
    * @param radiusPx soft light radius around the pod.
    * @param dt       delta seconds (for lamp flicker).
-   * @param facing   -1 | 1 — pod facing, throws a headlight pool ahead.
+   * @param facing   -1 | 1 — kept for API compatibility (lamp is symmetric now).
    * @param glints   visible treasure cells (screen space) to shine through the dark.
    */
   update(
@@ -64,29 +74,38 @@ export class Darkness {
   ): void {
     if (amount <= 0.01) {
       this.rt.setVisible(false);
+      for (const g of this.glints) if (g.visible) g.setVisible(false);
       return;
     }
     this.rt.setVisible(true);
     this.flicker += dt * 9;
     const flick = 1 + Math.sin(this.flicker) * 0.04 + Math.sin(this.flicker * 2.3) * 0.02;
     const r = radiusPx * flick;
-
-    this.rt.clear();
-    // warm near-black fill (was cool 0x04050a) for the earthy descent
-    this.rt.fill(0x070402, Math.min(0.94, amount));
-    // a SOFT SYMMETRIC lamp glow around the pod (not a directional beam) — wide pool + bright core
-    this.stamp(sx, sy, r * 1.08);
-    this.stamp(sx, sy, r * 0.58);
     void facing;
 
-    if (glints) {
-      const t = this.flicker;
-      for (const gl of glints) {
-        const pulse = 1 + 0.22 * Math.sin(t * 1.8 + gl.phase);
-        const base = gl.kind === 'lava' ? 34 : gl.kind === 'special' ? 24 : 15;
-        this.stamp(gl.sx, gl.sy, base * pulse);
-      }
+    // warm near-black fill + a soft symmetric lamp pool (only ~2 erases — cheap)
+    this.rt.clear();
+    this.rt.fill(0x070402, Math.min(0.94, amount));
+    this.stamp(sx, sy, r * 1.08);
+    this.stamp(sx, sy, r * 0.58);
+
+    // treasure glints — additive sprites (batched, cheap), layered over the dark
+    const t = this.flicker;
+    const n = glints ? Math.min(glints.length, GLINT_POOL) : 0;
+    for (let i = 0; i < n; i++) {
+      const gl = glints![i];
+      const pulse = 1 + 0.25 * Math.sin(t * 1.8 + gl.phase);
+      const tint = gl.kind === 'lava' ? 0xff7a2a : gl.kind === 'special' ? 0xffd24d : 0xffe9a8;
+      const base = gl.kind === 'lava' ? 30 : gl.kind === 'special' ? 22 : 14;
+      this.glints[i]
+        .setVisible(true)
+        .setPosition(gl.sx, gl.sy)
+        .setTint(tint)
+        .setScale((base * pulse) / 256)
+        // tie brightness to how dark it actually is, so glints emerge with depth (not in daylight)
+        .setAlpha(Math.min(0.85, amount * 1.5));
     }
+    for (let i = n; i < GLINT_POOL; i++) if (this.glints[i].visible) this.glints[i].setVisible(false);
   }
 
   /** Reveal a transient glow at a screen point (e.g. an explosion). */
@@ -98,5 +117,7 @@ export class Darkness {
   destroy(): void {
     this.rt.destroy();
     this.brush.destroy();
+    for (const g of this.glints) g.destroy();
+    this.glints.length = 0;
   }
 }
