@@ -43,9 +43,6 @@ interface BaseSpec {
   /** sample the texture by world position (continuous authored soil/rock), else a fixed tile. */
   byPos: boolean;
   tint: number;
-  /** override grid dimensions when texture is non-square (e.g. grass strip). */
-  gridW?: number;
-  gridH?: number;
 }
 
 /** Per-channel linear blend a→b. */
@@ -65,10 +62,10 @@ function darkenCol(c: number, f: number): number {
 // gentle biome wash multiplied onto the (neutral, dark) authored textures — keeps them earthy
 // while still shifting hue per band, without crushing them to black.
 function soilTint(dirt: number): number {
-  return lerpCol(0xffffff, dirt, 0.24);
+  return lerpCol(0xffffff, dirt, 0.16);
 }
 function rockTint(stone: number): number {
-  return lerpCol(0xffffff, stone, 0.42);
+  return lerpCol(0xffffff, stone, 0.26);
 }
 
 export class TileRenderer {
@@ -82,9 +79,6 @@ export class TileRenderer {
   private last = { c0: 1, c1: 0, r0: 1, r1: 0 };
   private useAuthored = false;
   private gridN = 26; // soil/rock texture is gridN × gridN tiles (world-position frames)
-  private useGrass = false;
-  private grassGridW = 16;
-  private grassGridH = 8;
 
   constructor(scene: Phaser.Scene, world: World) {
     this.scene = scene;
@@ -98,21 +92,12 @@ export class TileRenderer {
       this.addGrid('soil_tex');
       this.addGrid('rock_tex');
     }
-    this.useGrass = scene.textures.exists('grass_tex');
-    if (this.useGrass) {
-      const gs = scene.textures.get('grass_tex').getSourceImage() as { width: number; height: number };
-      this.grassGridW = Math.max(1, Math.floor(gs.width / TILE));
-      this.grassGridH = Math.max(1, Math.floor(gs.height / TILE));
-      this.addGrid('grass_tex', this.grassGridW, this.grassGridH);
-    }
   }
 
-  private addGrid(key: string, cols?: number, rows?: number): void {
+  private addGrid(key: string): void {
     const tex = this.scene.textures.get(key);
-    const C = cols ?? this.gridN;
-    const R = rows ?? this.gridN;
-    for (let r = 0; r < R; r++) {
-      for (let c = 0; c < C; c++) {
+    for (let r = 0; r < this.gridN; r++) {
+      for (let c = 0; c < this.gridN; c++) {
         const fn = c + '_' + r;
         if (!tex.has(fn)) tex.add(fn, 0, c * TILE, r * TILE, TILE, TILE);
       }
@@ -180,10 +165,9 @@ export class TileRenderer {
     const biome = biomeAt(this.world.depthMeters(y));
     // boulder rides a soil base (the round rock is drawn on the overlay layer above)
     if (t === Terrain.Boulder) return this.soilSpec(x, y, biome.palette.dirt);
-    if (t === Terrain.Dirt) {
-      if (y === SURFACE_ROW) return this.soilSpec(x, y, biome.palette.dirt); // grass fringe via overlay
-      return this.soilSpec(x, y, biome.palette.dirt);
-    }
+    // surface row is plain soil; the photoreal grass blades are a decorative overlay above the
+    // tiles (Game.drawSurface) so they poke up into the sky without being clipped to a 48px cell.
+    if (t === Terrain.Dirt) return this.soilSpec(x, y, biome.palette.dirt);
     if (t === Terrain.Stone || t === Terrain.HardStone) {
       if (this.useAuthored) {
         const tint = t === Terrain.HardStone ? darkenCol(rockTint(biome.palette.stone), 0.82) : rockTint(biome.palette.stone);
@@ -239,9 +223,8 @@ export class TileRenderer {
     const cy = y * TILE + TILE / 2;
     const b = cell.base;
     if (spec.byPos) {
-      const W = spec.gridW ?? this.gridN;
-      const H = spec.gridH ?? this.gridN;
-      b.setTexture(spec.key, (((x % W) + W) % W) + '_' + (((y % H) + H) % H));
+      const N = this.gridN;
+      b.setTexture(spec.key, (((x % N) + N) % N) + '_' + (((y % N) + N) % N));
     } else {
       b.setTexture(spec.key);
     }

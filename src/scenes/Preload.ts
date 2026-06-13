@@ -72,7 +72,9 @@ export class Preload extends Phaser.Scene {
     this.load.image('soil_tex', 'tiles/soil.png');
     this.load.image('rock_tex', 'tiles/rock.png');
     this.load.image('sky_authored', 'tiles/sky.png');
-    this.load.image('grass_tex', 'tiles/grass.png');
+    // V2 photoreal grass cross-section (blades over soil on black) — keyed to a transparent
+    // fringe in create() and drawn as a surface overlay (see Game.drawSurface)
+    this.load.image('grass_src', 'tiles/grass.png');
 
     this.load.on('loaderror', (file: Phaser.Loader.File) => {
       // non-fatal: procedural overlays / plain backgrounds stay as the fallback
@@ -82,11 +84,26 @@ export class Preload extends Phaser.Scene {
 
   create(): void {
     generateAllTextures(this);
-    // overlay the authored mineral art on top of the procedural `ore_<id>` overlays
+    // Lift the authored terrain out of near-black and soften its internal speckle. A Phaser tint
+    // can only DARKEN, so the brightness has to be baked into the source bitmap here, before the
+    // TileRenderer slices it. Soil reads as mid-brown earth; rock gets a stronger lift (it was the
+    // darkest) so ore and rock are both legible at any screen brightness.
+    adjustTexture(this, 'soil_tex', 'brightness(1.36) contrast(0.86) saturate(1.05)');
+    adjustTexture(this, 'rock_tex', 'brightness(1.58) contrast(0.92) saturate(1.02)');
+    // photoreal grass: key the black sky out of the top of the V2 cross-section, leaving a
+    // transparent-topped fringe of blades over a thin soil lip (drawn as a surface overlay)
+    if (this.textures.exists('grass_src')) keyOutBlack(this, 'grass_src', 'grass_tex', 0.36, 0.1, 0.2);
+    // the V2 building exteriors sit on a black backdrop — key it to transparency so they stand on
+    // the grass/surface, not in a black box. Tight thresholds keep their own dark metalwork intact.
+    for (const k of ['bld_fuel', 'bld_auto', 'bld_proc']) {
+      if (this.textures.exists(k)) keyOutBlack(this, k, k, 1, 0.05, 0.12);
+    }
+
+    // overlay the authored mineral art on top of the procedural `ore_<id>` overlays — bigger and
+    // more saturated (no outline) so nuggets POP against the lifted dirt instead of camouflaging
     for (const o of ORES) {
       const srcKey = 'src_ore_' + o.id;
-      // smaller embedded nugget (not a tile-filling blob) so dense ore fields don't read as a rash
-      if (this.textures.exists(srcKey)) bakeFitted(this, srcKey, 'ore_' + o.id, TILE, 0.56);
+      if (this.textures.exists(srcKey)) bakeFitted(this, srcKey, 'ore_' + o.id, TILE, 0.7, 'brightness(1.18) saturate(1.5)');
     }
 
     const el = document.getElementById('boot-loader');
@@ -105,6 +122,7 @@ function bakeFitted(
   dstKey: string,
   size: number,
   fit: number,
+  filter = 'none',
 ): void {
   const img = scene.textures.get(srcKey).getSourceImage() as CanvasImageSource & {
     width: number;
@@ -122,6 +140,61 @@ function bakeFitted(
   const ctx = ct.getContext();
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
+  ctx.filter = filter;
   ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+  ctx.filter = 'none';
+  ct.refresh();
+}
+
+/** Re-bake a loaded image through a canvas brightness/contrast filter, replacing it in place. */
+function adjustTexture(scene: Phaser.Scene, key: string, filter: string): void {
+  if (!scene.textures.exists(key)) return;
+  const src = scene.textures.get(key).getSourceImage() as HTMLImageElement;
+  const w = src.width;
+  const h = src.height;
+  if (!w || !h) return;
+  scene.textures.remove(key);
+  const ct = scene.textures.createCanvas(key, w, h);
+  if (!ct) return;
+  const ctx = ct.getContext();
+  ctx.filter = filter;
+  ctx.drawImage(src, 0, 0);
+  ctx.filter = 'none';
+  ct.refresh();
+}
+
+/**
+ * Key the near-black background out of an image to transparency. Optionally crops to the top
+ * `keep` fraction first (for cross-sections like grass, dropping the deep soil). Any pixel below
+ * `t0` luminance becomes transparent; `t0`..`t1` feathers so edges don't hard-alias. Tight
+ * thresholds (low t0/t1) only kill true black backgrounds and preserve dark detail in the art.
+ */
+function keyOutBlack(
+  scene: Phaser.Scene,
+  srcKey: string,
+  dstKey: string,
+  keep = 1,
+  t0 = 0.06,
+  t1 = 0.13,
+): void {
+  const src = scene.textures.get(srcKey).getSourceImage() as HTMLImageElement;
+  const w = src.width;
+  const h = src.height;
+  if (!w || !h) return;
+  const ch = Math.round(h * keep);
+  if (scene.textures.exists(dstKey)) scene.textures.remove(dstKey);
+  const ct = scene.textures.createCanvas(dstKey, w, ch);
+  if (!ct) return;
+  const ctx = ct.getContext();
+  ctx.drawImage(src, 0, 0);
+  const data = ctx.getImageData(0, 0, w, ch);
+  const px = data.data;
+  const span = Math.max(0.001, t1 - t0);
+  for (let i = 0; i < px.length; i += 4) {
+    const lum = (px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114) / 255;
+    if (lum < t0) px[i + 3] = 0;
+    else if (lum < t1) px[i + 3] = Math.round(((lum - t0) / span) * 255);
+  }
+  ctx.putImageData(data, 0, 0);
   ct.refresh();
 }

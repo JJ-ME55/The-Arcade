@@ -105,19 +105,29 @@ function tileFace(g: G, fill: number, edge: number, variant: number): void {
  * from the edge-relief on the surrounding solid walls + the pod lamp. (Target: `carve()`.)
  */
 function genRecess(scene: Phaser.Scene): void {
-  const g = scene.make.graphics({ x: 0, y: 0 }, false);
-  g.fillStyle(0x1b1108, 1);
-  g.fillRect(0, 0, TILE, TILE);
-  g.fillStyle(0x000000, 0.28);
-  g.fillRect(0, 0, TILE, TILE);
+  // A scooped hollow, NOT a flat black square. A vertical gradient (deepest shadow at the top
+  // where the overhang occludes, the floor a touch warmer/lighter where light reaches) reads as
+  // an excavated pocket; dark BROWN rather than black so adjacent empties merge into a continuous
+  // hollow instead of a glitchy void, and so the lifted soil around it clearly reads as "wall".
+  const key = 'recess';
+  if (scene.textures.exists(key)) scene.textures.remove(key);
+  const ct = scene.textures.createCanvas(key, TILE, TILE);
+  if (!ct) return;
+  const ctx = ct.getContext();
+  const grad = ctx.createLinearGradient(0, 0, 0, TILE);
+  grad.addColorStop(0, '#140d07');
+  grad.addColorStop(0.55, '#23180e');
+  grad.addColorStop(1, '#2f2114');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, TILE, TILE);
   let s = 9173;
   const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
-  for (let i = 0; i < 22; i++) {
-    g.fillStyle(rnd() > 0.5 ? 0x000000 : 0x3a2613, rnd() > 0.5 ? 0.3 : 0.12);
-    g.fillRect(Math.floor(rnd() * TILE), Math.floor(rnd() * TILE), 1, 1 + Math.floor(rnd() * 2));
+  for (let i = 0; i < 26; i++) {
+    const dark = rnd() > 0.5;
+    ctx.fillStyle = dark ? `rgba(8,5,3,${0.18 + rnd() * 0.22})` : `rgba(64,44,24,${0.08 + rnd() * 0.16})`;
+    ctx.fillRect(Math.floor(rnd() * TILE), Math.floor(rnd() * TILE), 1, 1 + Math.floor(rnd() * 2));
   }
-  g.generateTexture('recess', TILE, TILE);
-  g.destroy();
+  ct.refresh();
 }
 
 /**

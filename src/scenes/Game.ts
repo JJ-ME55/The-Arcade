@@ -293,9 +293,20 @@ export class GameScene extends Phaser.Scene {
     building(startCol + 0.5, 'auto', 'bld_auto', 'OUTPOST', 190);
     building(startCol + 5.5, 'proc', 'bld_proc', 'PROCESSOR', 164);
 
-    // horizon line
-    g.fillStyle(0x000000, 0.25);
-    g.fillRect(0, groundY - 2, WORLD_WIDTH * TILE, 4);
+    // photoreal grass fringe (transparent-topped V2 cross-section): a band of blades sitting on the
+    // surface line and poking up into the sky, tiled across the world, drawn behind the buildings.
+    if (this.textures.exists('grass_tex')) {
+      const gt = this.textures.get('grass_tex').getSourceImage() as { width: number; height: number };
+      const H = 76; // displayed band height
+      const scale = H / gt.height;
+      const baseFrac = 0.9; // fraction down the (trimmed) texture where blades meet soil → at groundY
+      const strip = this.add
+        .tileSprite(0, groundY - baseFrac * H, WORLD_WIDTH * TILE, H, 'grass_tex')
+        .setOrigin(0, 0)
+        .setDepth(11.5);
+      strip.tileScaleX = scale;
+      strip.tileScaleY = scale;
+    }
   }
 
   // ---- consumables hotbar (bottom-centre — on-screen at any width, DesignHandoff target) ----
@@ -954,11 +965,10 @@ export class GameScene extends Phaser.Scene {
 
   private openStation(mode: ShopMode): void {
     Sound.setThrust(false);
-    // surfaced at the OUTPOST carrying a haul? open the Mineral Processor first — selling is the
-    // whole reason you climbed back up. (FUEL and PROCESSOR buildings still open their own machine.)
-    const m: ShopMode = mode === 'auto' && cargoValue(this.run, this.stats.sellMul) > 0 ? 'proc' : mode;
+    // each building opens exactly its own machine — the Outpost (upgrades) and the Processor (sell)
+    // are distinct stops you walk to, no auto-redirect between them.
     this.hud.setVisible(false);
-    this.menu.open(m);
+    this.menu.open(mode);
     this.persistRun();
     App.saveNow();
   }

@@ -105,9 +105,10 @@ export class World {
     // around open space instead of bulldozing straight down (lower freq = larger caverns).
     const caveField = fbm2(this.seed, x * 0.078, y * 0.062, 4, 2, 0.5, S_CAVE);
     // baseline + per-biome density (the field tops out ~0.85, so a baseline is needed to make
-    // caverns appear at all shallow); ramps from ~12% near the surface to ~28% in the deep.
-    const caveThresh = 1 - Math.min(0.42, 0.28 + b.caveDensity * 0.9) * Math.min(1, (depth - 12) / 44);
-    if (depth > 14 && caveField > caveThresh) return Terrain.Empty;
+    // caverns appear at all shallow); ramps from ~16% near the surface to ~33% in the deep, so the
+    // ore is gated behind open space you must navigate around (tactical), not a solid dig-straight-down.
+    const caveThresh = 1 - Math.min(0.48, 0.34 + b.caveDensity * 0.95) * Math.min(1, (depth - 10) / 40);
+    if (depth > 12 && caveField > caveThresh) return Terrain.Empty;
 
     // Hazard pockets (non-solid, embedded in the strata).
     if (b.lavaDensity > 0 && hash2(this.seed, x, y, S_LAVA) < b.lavaDensity) return Terrain.Lava;

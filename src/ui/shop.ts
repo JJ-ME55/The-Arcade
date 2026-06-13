@@ -26,7 +26,7 @@ export type ShopMode = 'auto' | 'fuel' | 'proc';
 
 const SHELL: Record<ShopMode, { tex: string; ar: number }> = {
   auto: { tex: 'shell_shop_upgrades', ar: 1536 / 1024 },
-  fuel: { tex: 'shell_shop_fuel', ar: 1455 / 1081 },
+  fuel: { tex: 'shell_shop_fuel', ar: 1536 / 1024 },
   proc: { tex: 'shell_shop_processor', ar: 1536 / 1024 },
 };
 
@@ -92,31 +92,13 @@ export class SurfaceMenu {
     this.root.setScale(s).setPosition((W - BASE_W * s) / 2, (H - BASE_H * s) / 2);
   }
 
-  // ---- persistent tabs + close ----
+  // ---- close affordances ----
+  // No tab strip and no DESCEND button: each building is its own stop (you walk to it), and you
+  // leave by clicking anywhere outside the machine or pressing ESC. Clicking the dim backdrop
+  // (everything behind the shell + controls) closes; the controls sit above it and intercept
+  // their own clicks.
   private buildTabs(): void {
-    const tabs: [ShopMode, string][] = [
-      ['proc', 'PROCESSOR'],
-      ['fuel', 'PROPELLANT'],
-      ['auto', 'AUTOBUY'],
-    ];
-    tabs.forEach(([m, label], i) => {
-      const x = BASE_W / 2 + (i - 1) * 168;
-      const btn = new Button(this.scene, x, 44, 158, 44, label, () => this.setMode(m), {
-        fontSize: 15,
-        fixed: true,
-      });
-      this.tabsRoot.add(btn);
-    });
-    const descend = new Button(this.scene, BASE_W / 2, BASE_H - 50, BASE_W - 120, 48, '▼  DESCEND', () => this.close(), {
-      fill: COL.brand,
-      textColor: 0x1a1400,
-      fontSize: 20,
-      fixed: true,
-    });
-    this.tabsRoot.add(descend);
-    this.tabsRoot.add(
-      this.scene.add.text(BASE_W / 2, BASE_H - 22, 'ESC also closes', monoStyle(11, COL.faint)).setOrigin(0.5),
-    );
+    this.dim.on('pointerup', () => this.close());
   }
 
   open(mode: ShopMode = 'auto'): void {
@@ -140,13 +122,6 @@ export class SurfaceMenu {
     this.dim.setVisible(false);
     Sound.click();
     this.onClose();
-  }
-
-  private setMode(m: ShopMode): void {
-    if (this.mode === m && this.isOpen) return;
-    this.mode = m;
-    Sound.click();
-    this.render();
   }
 
   /** Public hook used by the scene to refresh after external state changes. */
