@@ -538,6 +538,36 @@ function genBackgrounds(scene: Phaser.Scene): void {
   }
 }
 
+/**
+ * Grass-blade fringe for the surface row.  Overlaid on the soil base so blades appear to
+ * grow out of the earth into the sky.  All blades anchor at their root (~y=22) and tip toward
+ * y=0 (top of tile = sky side).  Transparent below the root so the soil shows through.
+ */
+function genGrassFringe(scene: Phaser.Scene): void {
+  const key = 't_grass_fringe';
+  if (scene.textures.exists(key)) return;
+  const g = scene.make.graphics({ x: 0, y: 0 }, false);
+  const ROOT = 22; // y at which blades root (≈ middle of tile)
+  // medium-dark greens — noticeably brighter than the dark soil so blades read clearly
+  const darkG = [0x4a7224, 0x557a2a, 0x3e6020, 0x506c28, 0x4d7220];
+  const tipG  = [0x74aa38, 0x7cb840, 0x669630, 0x72a435, 0x78b03c];
+  let x = 1;
+  let i = 0;
+  while (x < TILE - 2) {
+    const w  = 2 + (i % 2);               // 2–3 px wide
+    const h  = 10 + ((i * 7 + x) % 12);  // 10–21 px tall
+    g.fillStyle(darkG[i % darkG.length], 1);
+    g.fillRect(x, ROOT - h, w, h);
+    // lighter 3-px tip
+    g.fillStyle(tipG[i % tipG.length], 0.85);
+    g.fillRect(x, ROOT - h, w, 3);
+    x += w + 1 + (i % 3);                // gap 1–3 px
+    i++;
+  }
+  g.generateTexture(key, TILE, TILE);
+  g.destroy();
+}
+
 /** Sky background for the surface. */
 function genSky(scene: Phaser.Scene): void {
   const key = 'bg_sky';
@@ -708,4 +738,5 @@ export function generateAllTextures(scene: Phaser.Scene): void {
   genFX(scene);
   genBackgrounds(scene);
   genSky(scene);
+  genGrassFringe(scene);
 }

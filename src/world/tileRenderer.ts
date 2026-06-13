@@ -181,10 +181,7 @@ export class TileRenderer {
     // boulder rides a soil base (the round rock is drawn on the overlay layer above)
     if (t === Terrain.Boulder) return this.soilSpec(x, y, biome.palette.dirt);
     if (t === Terrain.Dirt) {
-      if (y === SURFACE_ROW) {
-        if (this.useGrass) return { key: 'grass_tex', byPos: true, tint: 0xffffff, gridW: this.grassGridW, gridH: 1 };
-        return { key: 't_grass', byPos: false, tint: 0xffffff };
-      }
+      if (y === SURFACE_ROW) return this.soilSpec(x, y, biome.palette.dirt); // grass fringe via overlay
       return this.soilSpec(x, y, biome.palette.dirt);
     }
     if (t === Terrain.Stone || t === Terrain.HardStone) {
@@ -264,11 +261,13 @@ export class TileRenderer {
     const overlayKey =
       tile.t === Terrain.Boulder
         ? 't_boulder'
-        : tile.special
-          ? 'sp_' + tile.special.split(':')[0]
-          : tile.ore
-            ? 'ore_' + tile.ore
-            : null;
+        : (tile.t === Terrain.Dirt && y === SURFACE_ROW)
+          ? 't_grass_fringe'
+          : tile.special
+            ? 'sp_' + tile.special.split(':')[0]
+            : tile.ore
+              ? 'ore_' + tile.ore
+              : null;
     if (overlayKey && this.scene.textures.exists(overlayKey)) {
       if (!cell.overlay) cell.overlay = this.acquire(this.overlayPool, 11);
       cell.overlay.setTexture(overlayKey).setPosition(cx, cy);
