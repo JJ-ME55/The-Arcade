@@ -39,7 +39,7 @@ export const LOADOUTS: LoadoutDef[] = [
     blurb: 'Born to dig. Faster drill, eats hard stone.',
     unlockedByDefault: true,
     startUpgrades: { drill: 1 },
-    startItems: { dynamite: 2 },
+    startItems: { c4: 1 },
     mods: { digSpeed: 1.2 },
   },
   {

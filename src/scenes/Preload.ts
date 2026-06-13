@@ -91,8 +91,9 @@ export class Preload extends Phaser.Scene {
     adjustTexture(this, 'soil_tex', 'brightness(1.36) contrast(0.86) saturate(1.05)');
     adjustTexture(this, 'rock_tex', 'brightness(1.58) contrast(0.92) saturate(1.02)');
     // photoreal grass: key the black sky out of the top of the V2 cross-section, leaving a
-    // transparent-topped fringe of blades over a thin soil lip (drawn as a surface overlay)
-    if (this.textures.exists('grass_src')) keyOutBlack(this, 'grass_src', 'grass_tex', 0.36, 0.1, 0.2);
+    // transparent-topped fringe of blades over a thin soil lip; the soil lip is also faded out at
+    // the bottom so the overlay melts into the real soil instead of leaving a hard dark seam.
+    if (this.textures.exists('grass_src')) keyOutBlack(this, 'grass_src', 'grass_tex', 0.36, 0.1, 0.2, 0.32);
     // the V2 building exteriors sit on a black backdrop — key it to transparency so they stand on
     // the grass/surface, not in a black box. Tight thresholds keep their own dark metalwork intact.
     for (const k of ['bld_fuel', 'bld_auto', 'bld_proc']) {
@@ -104,6 +105,11 @@ export class Preload extends Phaser.Scene {
     for (const o of ORES) {
       const srcKey = 'src_ore_' + o.id;
       if (this.textures.exists(srcKey)) bakeFitted(this, srcKey, 'ore_' + o.id, TILE, 0.7, 'brightness(1.18) saturate(1.5)');
+    }
+
+    // brighten the upgrade sprites so they read on the shop's dark CRT screens (they were near-black)
+    for (const c of ['drill', 'fuel', 'cargo', 'hull', 'engine', 'radiator', 'scanner']) {
+      for (let n = 0; n < 6; n++) adjustTexture(this, `up_${c}_${n}`, 'brightness(1.32) saturate(1.12) contrast(1.04)');
     }
 
     const el = document.getElementById('boot-loader');
@@ -176,6 +182,7 @@ function keyOutBlack(
   keep = 1,
   t0 = 0.06,
   t1 = 0.13,
+  bottomFade = 0,
 ): void {
   const src = scene.textures.get(srcKey).getSourceImage() as HTMLImageElement;
   const w = src.width;
@@ -190,10 +197,19 @@ function keyOutBlack(
   const data = ctx.getImageData(0, 0, w, ch);
   const px = data.data;
   const span = Math.max(0.001, t1 - t0);
+  const fadeStart = bottomFade > 0 ? Math.floor(ch * (1 - bottomFade)) : ch;
   for (let i = 0; i < px.length; i += 4) {
     const lum = (px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114) / 255;
     if (lum < t0) px[i + 3] = 0;
     else if (lum < t1) px[i + 3] = Math.round(((lum - t0) / span) * 255);
+    // fade the bottom rows out so a cross-section overlay melts into what's below it (no hard seam)
+    if (bottomFade > 0) {
+      const row = (i >> 2) / w;
+      if (row > fadeStart) {
+        const f = 1 - (row - fadeStart) / (ch - fadeStart);
+        px[i + 3] = Math.round(px[i + 3] * Math.max(0, f));
+      }
+    }
   }
   ctx.putImageData(data, 0, 0);
   ct.refresh();

@@ -43,6 +43,13 @@ export class Darkness {
           .setVisible(false),
       );
     }
+    // Warm up the fill/erase GL paths NOW (during the load screen) so the first frame the overlay
+    // switches on (~50 m) doesn't pay a one-time shader-compile / framebuffer-alloc spike (the old
+    // "freeze at 50 m"). Exercise the same calls update() uses, then reset to the off state.
+    this.rt.fill(0x070402, 0.5);
+    this.stamp(w / 2, h / 2, 200);
+    this.rt.clear();
+    this.rt.setVisible(false);
   }
 
   resize(): void {

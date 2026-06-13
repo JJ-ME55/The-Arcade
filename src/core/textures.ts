@@ -403,53 +403,74 @@ function genPod(scene: Phaser.Scene): void {
   const W = TILE;
   const H = TILE;
   g.clear();
-  // thruster pods (dark steel with inner vent)
-  g.fillStyle(0x2e333e, 1);
-  g.fillRoundedRect(W * 0.13, H * 0.58, W * 0.15, H * 0.26, 4);
-  g.fillRoundedRect(W * 0.72, H * 0.58, W * 0.15, H * 0.26, 4);
-  g.fillStyle(0x171a22, 1);
-  g.fillRect(W * 0.155, H * 0.76, W * 0.1, H * 0.06);
-  g.fillRect(W * 0.745, H * 0.76, W * 0.1, H * 0.06);
-  // antenna
-  g.lineStyle(2, 0x8a93a0, 1);
+  // thruster pods (dark steel with inner vent + scorched lip)
+  g.fillStyle(0x23272f, 1);
+  g.fillRoundedRect(W * 0.12, H * 0.57, W * 0.16, H * 0.27, 4);
+  g.fillRoundedRect(W * 0.72, H * 0.57, W * 0.16, H * 0.27, 4);
+  g.fillStyle(0x0e1014, 1);
+  g.fillRect(W * 0.145, H * 0.76, W * 0.11, H * 0.07);
+  g.fillRect(W * 0.745, H * 0.76, W * 0.11, H * 0.07);
+  // antenna + beacon
+  g.lineStyle(2, 0x767e8a, 1);
   g.lineBetween(W * 0.7, H * 0.2, W * 0.78, H * 0.06);
   g.fillStyle(0xff5a5a, 1);
-  g.fillCircle(W * 0.78, H * 0.055, 2.4);
-  // main hull — dark riveted gunmetal-bronze (matches the DesignHandoff drill pod), soft top sheen
-  g.fillStyle(0x5e564a, 1);
-  g.fillRoundedRect(W * 0.15, H * 0.17, W * 0.7, H * 0.54, 9);
-  g.fillStyle(0x7c7260, 1);
-  g.fillRoundedRect(W * 0.18, H * 0.19, W * 0.64, H * 0.16, 7);
-  g.fillStyle(0x3c362c, 1);
-  g.fillRoundedRect(W * 0.15, H * 0.5, W * 0.7, H * 0.21, { tl: 0, tr: 0, bl: 9, br: 9 });
-  // hazard chevrons on the skid plate
-  g.fillStyle(0x23262e, 1);
+  g.fillCircle(W * 0.78, H * 0.055, 2.2);
+  // main hull — worn gunmetal-bronze, darker than before so it reads as heavy machinery not plastic
+  g.fillStyle(0x474136, 1);
+  g.fillRoundedRect(W * 0.15, H * 0.17, W * 0.7, H * 0.54, 8);
+  // top sheen band (cool light from above)
+  g.fillStyle(0x6b6250, 1);
+  g.fillRoundedRect(W * 0.18, H * 0.19, W * 0.64, H * 0.13, 6);
+  g.fillStyle(0x837962, 0.7);
+  g.fillRoundedRect(W * 0.2, H * 0.2, W * 0.3, H * 0.05, 4);
+  // shadowed belly
+  g.fillStyle(0x2c2820, 1);
+  g.fillRoundedRect(W * 0.15, H * 0.5, W * 0.7, H * 0.21, { tl: 0, tr: 0, bl: 8, br: 8 });
+  // panel seams / weld lines for industrial detail
+  g.lineStyle(1, 0x2a251d, 0.9);
+  g.lineBetween(W * 0.15, H * 0.34, W * 0.85, H * 0.34);
+  g.lineBetween(W * 0.5, H * 0.17, W * 0.5, H * 0.32);
+  g.lineBetween(W * 0.32, H * 0.5, W * 0.32, H * 0.66);
+  g.lineBetween(W * 0.68, H * 0.5, W * 0.68, H * 0.66);
+  // rust / scuff streaks
+  g.fillStyle(0x5e3a25, 0.5);
+  g.fillRect(W * 0.24, H * 0.4, W * 0.02, H * 0.12);
+  g.fillRect(W * 0.73, H * 0.36, W * 0.02, H * 0.1);
+  g.fillStyle(0x6b4a2e, 0.35);
+  g.fillRect(W * 0.6, H * 0.44, W * 0.015, H * 0.08);
+  // hazard chevrons on the skid plate (dirtied amber)
+  g.fillStyle(0x1b1e25, 1);
   g.fillRect(W * 0.18, H * 0.585, W * 0.64, H * 0.075);
-  g.fillStyle(0xffb347, 1);
+  g.fillStyle(0xcf9234, 1);
   for (let i = 0; i < 4; i++) {
     const x0 = W * (0.2 + i * 0.16);
     g.fillTriangle(x0, H * 0.66, x0 + W * 0.07, H * 0.585, x0 + W * 0.14, H * 0.66);
   }
   // rivets
-  g.fillStyle(0x9a8c66, 1);
-  g.fillCircle(W * 0.2, H * 0.23, 1.6);
-  g.fillCircle(W * 0.8, H * 0.23, 1.6);
-  g.fillCircle(W * 0.2, H * 0.46, 1.6);
-  g.fillCircle(W * 0.8, H * 0.46, 1.6);
-  // cockpit visor — dark ring, glowing core, twin glints
-  g.fillStyle(0x10171f, 1);
-  g.fillCircle(W * 0.5, H * 0.37, W * 0.185);
-  g.fillStyle(0x2ec4ff, 1);
-  g.fillCircle(W * 0.5, H * 0.37, W * 0.135);
-  g.fillStyle(0x9fe8ff, 0.85);
-  g.fillCircle(W * 0.475, H * 0.345, W * 0.05);
-  g.fillStyle(0xffffff, 0.9);
-  g.fillCircle(W * 0.455, H * 0.325, W * 0.022);
-  // hull outline
-  g.lineStyle(2, 0x26211a, 1);
-  g.strokeRoundedRect(W * 0.15, H * 0.17, W * 0.7, H * 0.54, 9);
+  g.fillStyle(0x8a7c56, 1);
+  g.fillCircle(W * 0.2, H * 0.23, 1.5);
+  g.fillCircle(W * 0.8, H * 0.23, 1.5);
+  g.fillCircle(W * 0.2, H * 0.46, 1.5);
+  g.fillCircle(W * 0.8, H * 0.46, 1.5);
+  // cockpit visor — beveled dark rim, deep teal glass (muted, not neon), diagonal reflection streak
+  g.fillStyle(0x0a0f14, 1);
+  g.fillCircle(W * 0.5, H * 0.37, W * 0.19);
+  g.fillStyle(0x14313c, 1);
+  g.fillCircle(W * 0.5, H * 0.37, W * 0.15);
+  g.fillStyle(0x2a86a0, 1);
+  g.fillCircle(W * 0.5, H * 0.38, W * 0.12);
+  g.fillStyle(0x57b4cc, 0.7);
+  g.fillCircle(W * 0.475, H * 0.35, W * 0.045);
+  // reflection streak (glass, not a glowing orb)
+  g.fillStyle(0xbfeaf4, 0.55);
+  g.fillRect(W * 0.43, H * 0.31, W * 0.03, W * 0.1);
+  g.fillStyle(0xffffff, 0.7);
+  g.fillCircle(W * 0.45, H * 0.32, W * 0.018);
+  // hull outline (heavier, for definition against the dirt)
+  g.lineStyle(2, 0x1f1b14, 1);
+  g.strokeRoundedRect(W * 0.15, H * 0.17, W * 0.7, H * 0.54, 8);
   // drill mount nub (the drill itself is a separate, orientable sprite)
-  g.fillStyle(0x6b7280, 1);
+  g.fillStyle(0x5b626e, 1);
   g.fillRect(W * 0.42, H * 0.66, W * 0.16, H * 0.09);
   g.generateTexture('pod', W, H);
   g.destroy();

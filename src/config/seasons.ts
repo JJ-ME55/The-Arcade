@@ -72,7 +72,7 @@ export const SEASONS: SeasonDef[] = [
     find: { id: 'suncrystal', name: 'Sun Crystal', color: 0xffd24d, glow: 0xfff2a0, cash: 5000, points: 9, rarity: 0.022, minDepth: 50 },
     perk: { sellMul: 1.05 },
     track: [
-      { points: 30, kind: 'item', id: 'dynamite', name: 'Cache: x3 Dynamite', count: 3 },
+      { points: 30, kind: 'item', id: 'c4', name: 'Cache: x2 Plastic Explosive', count: 2 },
       { points: 80, kind: 'cores', id: 'cores', name: '5 Cores', count: 5 },
       { points: 160, kind: 'pod', id: 'pod_solar', name: 'Solar Pod', tint: 0xffd24d },
       { points: 300, kind: 'title', id: 'title_sun', name: 'Title: Sun-Diver' },

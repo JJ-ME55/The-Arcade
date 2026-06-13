@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { BASE_W, BASE_H } from '../config/gameplay';
 import { COL, textStyle, title, monoStyle, css } from '../ui/theme';
-import { Button, makePanel } from '../ui/widgets';
 import { App, randomSeedString, dailySeedString } from '../core/state';
 import { LOADOUTS, type LoadoutDef } from '../config/loadouts';
 import { getActiveSeason } from '../config/seasons';
@@ -62,8 +61,7 @@ export class MainMenu extends Phaser.Scene {
       })
       .setDepth(1);
 
-    // settings gear
-    new Button(this, BASE_W - 38, 40, 52, 48, '⚙', () => this.scene.start('Settings'), { fontSize: 24 });
+    // (settings is a phosphor glyph on the monitor glass — see below — not a floating widget)
 
     // ---- Wordmark ----
     const tGlow = this.add.text(cx, 104, 'DEEPER', title(72)).setOrigin(0.5).setLetterSpacing(7).setDepth(4);
@@ -85,16 +83,30 @@ export class MainMenu extends Phaser.Scene {
         .setDepth(4);
     }
 
-    // ---- Pilot selector ----
-    makePanel(this, cx - 188, 198, 376, 104, { alpha: 0.82 });
-    this.add.text(cx, 212, 'PILOT', textStyle(12, COL.faint)).setOrigin(0.5).setLetterSpacing(2);
-    this.loadoutSwatch = this.add.graphics();
-    this.loadoutName = this.add.text(cx, 242, '', textStyle(23, COL.text)).setOrigin(0.5);
+    // ---- Pilot selector (a riveted metal plate + amber chevrons — no glassy UI-kit panel) ----
+    const pg = this.add.graphics().setDepth(3);
+    pg.fillStyle(0x130d07, 0.92);
+    pg.fillRoundedRect(cx - 188, 198, 376, 104, 10);
+    pg.fillStyle(0x2a2114, 0.6); // top sheen
+    pg.fillRoundedRect(cx - 184, 202, 368, 20, 8);
+    pg.lineStyle(2, COL.borderHi, 0.9);
+    pg.strokeRoundedRect(cx - 188, 198, 376, 104, 10);
+    this.add.text(cx, 212, 'PILOT', monoStyle(12, COL.crtDim)).setOrigin(0.5).setLetterSpacing(3).setDepth(4);
+    this.loadoutSwatch = this.add.graphics().setDepth(4);
+    this.loadoutName = this.add.text(cx, 242, '', title(23)).setOrigin(0.5).setDepth(4);
     this.loadoutBlurb = this.add
-      .text(cx, 278, '', textStyle(13, COL.dim, { align: 'center', wordWrap: { width: 330 } }))
-      .setOrigin(0.5);
-    new Button(this, cx - 150, 242, 40, 40, '‹', () => this.cycleLoadout(-1), { fontSize: 26 });
-    new Button(this, cx + 150, 242, 40, 40, '›', () => this.cycleLoadout(1), { fontSize: 26 });
+      .text(cx, 278, '', monoStyle(12, COL.dim, { align: 'center', wordWrap: { width: 330 } }))
+      .setOrigin(0.5)
+      .setDepth(4);
+    const chevron = (x: number, glyph: string, dir: number): void => {
+      const t = this.add.text(x, 242, glyph, title(30, COL.brand)).setOrigin(0.5).setDepth(4);
+      t.setInteractive({ useHandCursor: true });
+      t.on('pointerover', () => t.setColor('#ffffff'));
+      t.on('pointerout', () => t.setColor(css(COL.brand)));
+      t.on('pointerup', () => this.cycleLoadout(dir));
+    };
+    chevron(cx - 150, '‹', -1);
+    chevron(cx + 150, '›', 1);
     this.refreshLoadout();
 
     // ---- CRT monitor: the nav lives on the green screen ----
@@ -111,6 +123,18 @@ export class MainMenu extends Phaser.Scene {
       this.glass = { x: cx - 170, y: 430, w: 340, h: 300 };
     }
 
+    // settings — a discreet phosphor gear in the top-right of the CRT glass (diegetic, on-screen,
+    // ︎ forces the monochrome glyph so it reads as a terminal icon, not a colour emoji)
+    const gear = this.add
+      .text(this.glass.x + this.glass.w - 2, this.glass.y - 4, '⚙︎', monoStyle(19, COL.crtDim))
+      .setOrigin(1, 0)
+      .setDepth(6);
+    gear.setShadow(0, 0, 'rgba(120,255,150,0.6)', 6, true, true);
+    gear.setInteractive({ useHandCursor: true });
+    gear.on('pointerover', () => gear.setColor('#d8ffe2'));
+    gear.on('pointerout', () => gear.setColor(css(COL.crtDim)));
+    gear.on('pointerup', () => this.scene.start('Settings'));
+
     this.navItems = [
       { label: 'NEW GAME', action: () => this.startRun('free'), cta: true },
       { label: 'DAILY DIG', action: () => this.startRun('daily') },
@@ -123,16 +147,16 @@ export class MainMenu extends Phaser.Scene {
     this.renderNav();
     void this.checkResume();
 
-    // ---- comeback strip + footer ----
+    // ---- comeback strip + footer (clean mono readouts — no emoji) ----
     const goal = nextGoal();
     const streakTxt =
       App.meta.streak.count > 0
-        ? `🔥 ${App.meta.streak.count}-day streak${playedToday() ? '' : ' — play today!'}`
-        : '🔥 play today to start a streak';
-    const goalTxt = goal ? `NEXT: ${goal.desc} → ◈${goal.cores} 🎟${goal.tickets}` : 'all goals complete — legend';
-    this.add.text(cx, BASE_H - 56, `${streakTxt}   ·   ${goalTxt}`, textStyle(12, COL.dim)).setOrigin(0.5).setDepth(4);
+        ? `STREAK ${App.meta.streak.count}d${playedToday() ? '' : ' · play today'}`
+        : 'play today to start a streak';
+    const goalTxt = goal ? `NEXT: ${goal.desc}  →  ◈ ${goal.cores} · ${goal.tickets} TKT` : 'all goals complete';
+    this.add.text(cx, BASE_H - 56, `${streakTxt}    ·    ${goalTxt}`, monoStyle(12, COL.crtDim)).setOrigin(0.5).setDepth(4);
     this.add
-      .text(cx, BASE_H - 32, `v0.1  ·  ${App.meta.playerName}  ·  ◈ ${App.meta.cores}  ·  🎟 ${App.meta.tickets}`, textStyle(13, COL.faint))
+      .text(cx, BASE_H - 32, `v0.1   ·   ${App.meta.playerName}   ·   ◈ ${App.meta.cores}   ·   ${App.meta.tickets} TKT`, monoStyle(12, COL.faint))
       .setOrigin(0.5)
       .setDepth(4);
 

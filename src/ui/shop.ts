@@ -11,7 +11,6 @@
 import Phaser from 'phaser';
 import { BASE_W, BASE_H, FUEL, HULL } from '../config/gameplay';
 import { COL, textStyle, monoStyle, css } from './theme';
-import { Button } from './widgets';
 import { UPGRADES, nextTierCost, UPGRADE_BY_ID, type UpgradeCategory } from '../config/upgrades';
 import { ITEMS } from '../config/items';
 import { ORE_BY_ID } from '../config/ores';
@@ -306,21 +305,30 @@ export class SurfaceMenu {
     const items = ITEMS;
     const cols = 3;
     const cw = 168;
-    const ch = 30;
+    const ch = 34;
     const x0 = (BASE_W - cols * cw) / 2 + 6;
     items.forEach((it, i) => {
       const x = x0 + (i % cols) * cw;
       const yy = y + 24 + Math.floor(i / cols) * (ch + 6);
       const own = this.run.items[it.id] ?? 0;
       const afford = this.run.cash >= it.cost;
+      // warm metal chip (brass trim) to match the CGI/CRT theme, not a neon panel
       const gr = this.scene.add.graphics();
-      gr.fillStyle(0x141426, 0.9);
-      gr.fillRoundedRect(x, yy, cw - 8, ch, 7);
-      gr.lineStyle(1.2, afford ? it.color : COL.border, afford ? 0.8 : 0.4);
-      gr.strokeRoundedRect(x, yy, cw - 8, ch, 7);
+      gr.fillStyle(0x161109, 0.92);
+      gr.fillRoundedRect(x, yy, cw - 8, ch, 6);
+      gr.lineStyle(1.2, afford ? 0xb8923f : COL.border, afford ? 0.85 : 0.4);
+      gr.strokeRoundedRect(x, yy, cw - 8, ch, 6);
+      // a small dot in the item's signature colour, so the kit stays glanceable
+      gr.fillStyle(it.color, afford ? 1 : 0.4);
+      gr.fillCircle(x + 12, yy + ch / 2, 3.5);
       this.add(gr);
-      this.add(this.scene.add.text(x + 8, yy + 6, `${it.name}`, textStyle(11, afford ? COL.text : COL.faint)));
-      this.add(this.scene.add.text(x + cw - 16, yy + 6, `$${(it.cost / 1000).toFixed(it.cost >= 1000 ? 1 : 0)}k·${own}`, monoStyle(10, afford ? COL.brand : COL.faint)).setOrigin(1, 0));
+      // name on top, price + owned count beneath — two lines so the long names never collide
+      this.add(this.scene.add.text(x + 22, yy + 4, it.name, monoStyle(10.5, afford ? COL.text : COL.faint)));
+      this.add(
+        this.scene.add
+          .text(x + 22, yy + 17, `$${(it.cost / 1000).toFixed(it.cost >= 1000 ? 1 : 0)}k`, monoStyle(10, afford ? COL.brand : COL.faint)),
+      );
+      this.add(this.scene.add.text(x + cw - 16, yy + 17, `×${own}`, monoStyle(10, afford ? COL.dim : COL.faint)).setOrigin(1, 0));
       this.hotzone(x, yy, cw - 8, ch, () => this.buyItem(it.id));
     });
   }
@@ -415,53 +423,92 @@ export class SurfaceMenu {
     ty += g.CW(3.4);
 
     const entries = Object.entries(this.run.cargo).filter(([, q]) => q > 0);
-    let grand = 0;
+    // grand total from the WHOLE bay (not just the rows shown), since SELL ALL sells everything
+    const grand = entries.reduce((sum, [id, qty]) => {
+      const ore = ORE_BY_ID[id];
+      return ore ? sum + Math.round(ore.value * s.sellMul) * qty : sum;
+    }, 0);
+    const MAXROWS = 4; // leave room below the table for the REPAIR + SELL ALL bars
     if (entries.length === 0) {
-      this.add(this.scene.add.text(tx + tw / 2, ty + g.CW(6), 'CARGO BAY EMPTY', monoStyle(g.CW(2), COL.crtDim)).setOrigin(0.5));
+      this.add(this.scene.add.text(tx + tw / 2, ty + g.CW(5), 'CARGO BAY EMPTY', monoStyle(g.CW(2), COL.crtDim)).setOrigin(0.5));
     }
-    entries.slice(0, 8).forEach(([id, qty]) => {
+    entries.slice(0, MAXROWS).forEach(([id, qty]) => {
       const ore = ORE_BY_ID[id];
       if (!ore) return;
       const val = Math.round(ore.value * s.sellMul);
       const tot = val * qty;
-      grand += tot;
       const iconKey = this.scene.textures.exists('src_ore_' + id) ? 'src_ore_' + id : 'ore_' + id;
       if (this.scene.textures.exists(iconKey)) {
-        const im = this.scene.add.image(colName + g.CW(1.8), ty + g.CW(1.6), iconKey);
+        const im = this.scene.add.image(colName + g.CW(1.8), ty + g.CW(1.5), iconKey);
         const src = this.scene.textures.get(iconKey).getSourceImage() as { width: number; height: number };
-        im.setScale(g.CW(3.6) / Math.max(src.width, src.height));
+        im.setScale(g.CW(3.4) / Math.max(src.width, src.height));
         this.add(im);
       }
       this.add(this.scene.add.text(colName + g.CW(4.2), ty, ore.name, monoStyle(g.CW(1.85), COL.crt)));
       this.add(this.scene.add.text(colQty, ty, `${qty}×`, monoStyle(g.CW(1.85), COL.crtDim)).setOrigin(1, 0));
       this.add(this.scene.add.text(colVal, ty, `$${val}`, monoStyle(g.CW(1.85), COL.crtDim)).setOrigin(1, 0));
       this.add(this.scene.add.text(colTot, ty, `$${tot.toLocaleString()}`, monoStyle(g.CW(1.85), COL.crt)).setOrigin(1, 0));
-      ty += g.CW(4.4);
+      ty += g.CW(4.0);
     });
-
-    // SELL ALL + grand total
-    const footY = g.PY(82);
-    this.add(this.scene.add.text(tx + tw / 2, footY, '[ SELL ALL ]', monoStyle(g.CW(2.7), grand > 0 ? COL.crt : COL.crtDim)).setOrigin(0.5));
-    if (grand > 0) this.hotzone(tx + tw / 2 - g.CW(12), footY - g.CW(2), g.CW(24), g.CW(5), () => this.doSell());
-    this.add(this.scene.add.text(colTot, footY, '$' + grand.toLocaleString(), monoStyle(g.CW(3), COL.crt)).setOrigin(1, 0.5));
-
-    // repair button (maintenance bay) below the table
-    const repCost = Math.ceil((this.run.hullMax - this.run.hull) * HULL.repairCostPerHp);
-    const y2 = g.top + g.h + 18;
-    if (y2 < BASE_H - 90) {
-      const repair = new Button(
-        this.scene,
-        BASE_W / 2,
-        y2 + 20,
-        300,
-        44,
-        repCost > 0 ? `REPAIR HULL  $${repCost.toLocaleString()}` : 'HULL FULL',
-        () => this.doRepair(),
-        { accent: COL.hull, fontSize: 16, fixed: true },
+    if (entries.length > MAXROWS) {
+      this.add(
+        this.scene.add
+          .text(tx + tw / 2, ty + g.CW(0.2), `+ ${entries.length - MAXROWS} more ore types  ·  all sold`, monoStyle(g.CW(1.5), COL.crtDim))
+          .setOrigin(0.5, 0),
       );
-      repair.setEnabled(repCost > 0 && this.run.cash > 0);
-      this.machineRoot.add(repair);
     }
+
+    // REPAIR (secondary) — lives ON the screen, and only appears when the hull actually needs it
+    // (no pointless floating "HULL FULL" button when it's already full).
+    const repCost = Math.ceil((this.run.hullMax - this.run.hull) * HULL.repairCostPerHp);
+    if (repCost > 0) {
+      this.screenButton(g, 20, 57.5, 60, 6, `REPAIR HULL    $${repCost.toLocaleString()}`, -1, 0x9fd0e0, () => this.doRepair(), this.run.cash > 0);
+    }
+    // SELL ALL — the whole point of this screen: a big bright bar you can't miss.
+    this.screenButton(
+      g,
+      20,
+      66,
+      60,
+      9,
+      grand > 0 ? `SELL ALL          $${grand.toLocaleString()}` : 'NOTHING TO SELL',
+      grand > 0 ? COL.crt : -1,
+      grand > 0 ? 0x06120a : COL.crtDim,
+      () => this.doSell(),
+      grand > 0,
+      true,
+    );
+  }
+
+  /** A composited button drawn on a machine's screen (filled when `fillCol>=0`, else outline-only). */
+  private screenButton(
+    g: ReturnType<SurfaceMenu['geo']>,
+    lxPct: number,
+    lyPct: number,
+    wPct: number,
+    hPct: number,
+    label: string,
+    fillCol: number,
+    textCol: number,
+    onClick: () => void,
+    enabled = true,
+    primary = false,
+  ): void {
+    const x = g.PX(lxPct);
+    const y = g.PY(lyPct);
+    const w = (wPct / 100) * g.w;
+    const h = (hPct / 100) * g.h;
+    const r = g.CW(1);
+    const gr = this.scene.add.graphics();
+    if (fillCol >= 0 && enabled) {
+      gr.fillStyle(fillCol, 1);
+      gr.fillRoundedRect(x, y, w, h, r);
+    }
+    gr.lineStyle(g.CW(0.22), enabled ? (fillCol >= 0 ? 0xffffff : textCol) : COL.crtDim, enabled ? (fillCol >= 0 ? 0.5 : 0.7) : 0.4);
+    gr.strokeRoundedRect(x, y, w, h, r);
+    this.add(gr);
+    this.add(this.scene.add.text(x + w / 2, y + h / 2, label, monoStyle(g.CW(primary ? 2.7 : 2.0), textCol)).setOrigin(0.5).setLetterSpacing(1));
+    if (enabled) this.hotzone(x, y, w, h, onClick);
   }
 
   // ---- actions (shared) ----
